@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Criterion.h"
+#include "Peers.h"
 #include "../Metadata/Metadata.h"
 
 /** Factories of the built-in criteria (each implemented in its own .cpp file). */
@@ -24,6 +24,9 @@ namespace Criteria
     /** @param source   where metadata comes from (default: MetadataReader::read); tests inject fakes. */
     std::unique_ptr<Criterion> createSameContent (MetadataSource source = {});
 
+    /** @param peers    the other criteria, with their settings and results (supplied by the UI). */
+    std::unique_ptr<Criterion> createMultipleCriteria (PeerSource peers);
+
     /** All criteria, in the order shown in the sidebar. */
-    std::vector<std::unique_ptr<Criterion>> createAll();
+    std::vector<std::unique_ptr<Criterion>> createAll (PeerSource peers);
 }

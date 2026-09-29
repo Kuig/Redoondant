@@ -6,6 +6,11 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
 {
     result = std::move (newResult);
     root = scannedRoot;
+
+    for (auto& group : result.groups)
+        for (auto& item : group.items)
+            item.selectedByDefault = item.selected;
+
     grouped = isGrouped;
     analysed = true;
     applySort();
@@ -113,6 +118,24 @@ std::vector<FileEntry> ResultsModel::getCheckedEntries() const
     return checked;
 }
 
+std::vector<FileEntry> ResultsModel::getAllEntries() const
+{
+    std::vector<FileEntry> all;
+
+    for (const auto& group : result.groups)
+        all.insert (all.end(), group.items.begin(), group.items.end());
+
+    return all;
+}
+
+void ResultsModel::applyChecks (Checks checks)
+{
+    for (auto& group : result.groups)
+        for (auto& item : group.items)
+            if (isVisible (item))
+                item.selected = checks == Checks::all || (checks == Checks::defaults && item.selectedByDefault);
+}
+
 void ResultsModel::remove (const juce::Array<juce::File>& files)
 {
     std::set<juce::String> removed;
@@ -130,13 +153,20 @@ void ResultsModel::remove (const juce::Array<juce::File>& files)
         return false;
     };
 
+    std::vector<ResultGroup> kept;
+
     for (auto& group : result.groups)
+    {
+        const auto before = group.items.size();
         group.items.erase (std::remove_if (group.items.begin(), group.items.end(), isRemoved), group.items.end());
 
-    const size_t minGroupSize = grouped ? 2 : 0;
-    result.groups.erase (std::remove_if (result.groups.begin(), result.groups.end(),
-                                         [&] (const ResultGroup& g) { return g.items.size() < minGroupSize; }),
-                         result.groups.end());
+        const bool broken = grouped && group.items.size() < 2 && group.items.size() != before;
+
+        if (! group.items.empty() && ! broken)
+            kept.push_back (std::move (group));
+    }
+
+    result.groups = std::move (kept);
     rebuildRows();
 }
 

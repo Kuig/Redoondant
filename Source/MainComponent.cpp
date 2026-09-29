@@ -45,7 +45,7 @@ private:
 //==============================================================================
 MainComponent::MainComponent (Settings& appSettings)
     : settings (appSettings.root()),
-      criteria (Criteria::createAll()),
+      criteria (Criteria::createAll ([this] { return describePeers(); })),
       preview (settings.child ("preview"))
 {
     for (const auto& criterion : criteria)
@@ -96,6 +96,16 @@ MainComponent::MainComponent (Settings& appSettings)
 MainComponent::~MainComponent()
 {
     criteriaList.setModel (nullptr);
+}
+
+std::vector<PeerCriterion> MainComponent::describePeers() const
+{
+    std::vector<PeerCriterion> peers;
+
+    for (const auto& page : pages)
+        peers.push_back (page->describeAsPeer());
+
+    return peers;
 }
 
 juce::File MainComponent::getRootFolder() const

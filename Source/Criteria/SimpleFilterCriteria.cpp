@@ -144,7 +144,7 @@ namespace
             : Criterion ({ "manual", "Manual inspection",
                            "Every file and folder, sortable by any column (files and folders are mixed) "
                            "and filterable by type, date and size.",
-                           false, true }) {}
+                           false, true, true }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {

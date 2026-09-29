@@ -12,7 +12,7 @@ namespace
             : Criterion ({ "dateClusters", "Date clusters",
                            "Files and folders grouped by modification or creation date: a new group starts whenever "
                            "the gap from the previous item exceeds the given time. Newest groups first.",
-                           true }) {}
+                           true, false, true }) {}
 
         ParameterSet createParameters() const override
         {

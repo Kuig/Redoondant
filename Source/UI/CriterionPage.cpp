@@ -74,6 +74,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     analyseButton.onClick = [this] { analyse(); };
     resetButton.onClick = [this] { resetToDefaults(); };
     trashButton.onClick = [this] { moveCheckedToTrash(); };
+    checksButton.onClick = [this] { cycleChecks(); };
 
     if (info.filterable)
     {
@@ -98,7 +99,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     };
 
     for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &parametersPanel, &recursiveToggle,
-                                                                       &analyseButton, &resetButton, &status, &table, &summary, &trashButton })
+                                                                       &analyseButton, &resetButton, &status, &table, &summary, &checksButton, &trashButton })
         addAndMakeVisible (component);
 
     updateSummary();
@@ -137,6 +138,8 @@ void CriterionPage::resized()
 
     auto footer = area.removeFromBottom (rowHeight + 4);
     trashButton.setBounds (footer.removeFromRight (140));
+    checksButton.setBounds (footer.removeFromLeft (130));
+    footer.removeFromLeft (gap);
     summary.setBounds (footer);
     area.removeFromBottom (gap);
 
@@ -160,6 +163,7 @@ void CriterionPage::analyse()
 void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
 {
     model.setResult (std::move (result), root, criterion.getInfo().grouped);
+    checks = ResultsModel::Checks::defaults;
     table.refresh();
     status.setText ("Analyzed \"" + root.getFileName() + "\"" + (recursiveToggle.getToggleState() ? " recursively" : "")
                       + " at " + juce::Time::getCurrentTime().formatted ("%H:%M"),
@@ -198,6 +202,29 @@ void CriterionPage::resetToDefaults()
     resized();
 }
 
+void CriterionPage::cycleChecks()
+{
+    using Checks = ResultsModel::Checks;
+    checks = checks == Checks::defaults ? Checks::all : (checks == Checks::all ? Checks::none : Checks::defaults);
+
+    model.applyChecks (checks);
+    table.refresh();
+    updateSummary();
+}
+
+PeerCriterion CriterionPage::describeAsPeer() const
+{
+    PeerCriterion peer { &criterion, parameters, std::nullopt, {} };
+
+    if (model.hasResult())
+    {
+        peer.results = model.getAllEntries();
+        peer.resultsRoot = model.getRoot();
+    }
+
+    return peer;
+}
+
 void CriterionPage::updateSummary()
 {
     const auto checked = Trash::withoutNested (model.getCheckedEntries());
@@ -213,4 +240,9 @@ void CriterionPage::updateSummary()
                      juce::dontSendNotification);
 
     trashButton.setEnabled (! checked.empty());
+
+    // The button shows what the next click does.
+    using Checks = ResultsModel::Checks;
+    checksButton.setButtonText (checks == Checks::defaults ? "Check all" : (checks == Checks::all ? "Uncheck all" : "Default checks"));
+    checksButton.setEnabled (model.getVisibleCount() > 0);
 }

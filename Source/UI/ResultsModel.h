@@ -56,7 +56,17 @@ public:
     size_t getVisibleCount() const;
     std::vector<FileEntry> getCheckedEntries() const;
 
-    /** Removes entries (e.g. after trashing them). In grouped mode, groups left with fewer than 2 items are dropped. */
+    /** Every entry of the result, visible or not. */
+    std::vector<FileEntry> getAllEntries() const;
+    const juce::File& getRoot() const noexcept      { return root; }
+
+    /** Bulk check states for the visible entries. */
+    enum class Checks { defaults, all, none };
+    void applyChecks (Checks checks);
+
+    /** Removes entries (e.g. after trashing them). In grouped mode, groups that lose items and are left
+        with fewer than 2 are dropped (a single remaining file is no longer a duplicate, a version...).
+    */
     void remove (const juce::Array<juce::File>& files);
 
 private:

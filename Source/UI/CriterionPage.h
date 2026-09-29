@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../Criteria/Criterion.h"
+#include "../Criteria/Peers.h"
 #include "FilterBar.h"
 #include "ParametersPanel.h"
 #include "ResultsTable.h"
@@ -21,6 +21,9 @@ public:
     /** Called with the highlighted entry (or nullptr) for the preview. */
     std::function<void (const FileEntry*)> onItemSelected;
 
+    /** The criterion with its current settings and results, for criteria that combine others. */
+    PeerCriterion describeAsPeer() const;
+
     void resized() override;
 
 private:
@@ -39,12 +42,14 @@ private:
     ResultsModel model;
     ResultsTable table { model };
     juce::Label summary;
-    juce::TextButton trashButton { "Move to Trash" };
+    juce::TextButton checksButton, trashButton { "Move to Trash" };
+    ResultsModel::Checks checks = ResultsModel::Checks::defaults;
 
     void analyse();
     void showResult (AnalysisResult result, const juce::File& root);
     void moveCheckedToTrash();
     void resetToDefaults();
+    void cycleChecks();
     void updateSummary();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CriterionPage)

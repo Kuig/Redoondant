@@ -53,6 +53,7 @@ private:
     ResizerBar leftBar { &layout, 1, true }, rightBar { &layout, 3, true };
 
     juce::File getRootFolder() const;
+    std::vector<PeerCriterion> describePeers() const;
     void setRootFolder (const juce::File& folder);
     void browseForFolder();
     void showPage (int index);

@@ -10,7 +10,8 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
 2. Pick a criterion on the left, adjust its settings, optionally enable **Recursive**.
 3. Press **Analyze**. Candidates are listed with size and dates; grouped criteria show
    a separator row per group (its checkbox toggles the whole group).
-4. Check/uncheck items (click the checkbox column, or select rows and press Space),
+4. Check/uncheck items (click the checkbox column, or select rows and press Space; the
+   button below the list cycles through *check all*, *uncheck all* and the *default checks*),
    inspect them in the preview on the right (images, PDF first page, OS thumbnails for
    videos/Office files, text, folder and archive content, audio player, and metadata:
    media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer.
@@ -36,6 +37,7 @@ filters, panel sizes, window position, volume) are saved in
 | Incomplete downloads | `.crdownload`, `.part`, ... | All |
 | Installers & temp files | `.exe`, `.msi`, `.iso`, `.tmp`, `~$*`, ... | None |
 | Old files | Not modified for N days | None |
+| Multiple criteria | Items marked by at least N criteria, grouped by combination (e.g. "Duplicate files + Old files"); a folder's mark covers its content. Data: existing results of the other pages (with your checks) or re-run all criteria; marked = checked or listed. "Folders only": top folders by number of marked files, or outermost folders with at least X% of their bytes marked | Items: all (checked mode); folders: none |
 | Manual inspection | Everything, sortable by any column (files and folders mixed), filterable by name, type, date and size | None |
 
 Encrypted archives are reported as unreadable. Metadata comes from the Windows Property

@@ -12,6 +12,7 @@ struct FileEntry
     juce::Time modified;
     juce::Time created;
     bool selected = false;      ///< Checked for deletion.
+    bool selectedByDefault = false;     ///< Check state proposed by the criterion.
 
     juce::String name() const   { return file.getFileName(); }
 
