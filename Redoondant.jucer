@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="hbGXmM" name="Redoondant" projectType="guiapp" useAppConfig="0"
+              addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" cppLanguageStandard="17"
+              version="1.0.0">
+  <MAINGROUP id="j1TReh" name="Redoondant">
+    <GROUP id="{AEBCF083-7E50-BCF9-E575-2CC2CC5C8BDB}" name="Source">
+      <GROUP id="{OhbVrp}" name="Archives">
+        <FILE id="oiVgRV" name="ArchiveReader.cpp" compile="1" resource="0" file="Source/Archives/ArchiveReader.cpp"/>
+        <FILE id="5IfLBc" name="ArchiveReader.h" compile="0" resource="0" file="Source/Archives/ArchiveReader.h"/>
+        <FILE id="bfnoGM" name="ArchiveReaders.h" compile="0" resource="0" file="Source/Archives/ArchiveReaders.h"/>
+        <FILE id="bJmTPS" name="TarArchiveReader.cpp" compile="1" resource="0" file="Source/Archives/TarArchiveReader.cpp"/>
+        <FILE id="IAoCLr" name="ZipArchiveReader.cpp" compile="1" resource="0" file="Source/Archives/ZipArchiveReader.cpp"/>
+      </GROUP>
+      <GROUP id="{Z3aWZk}" name="Core">
+        <FILE id="SBvrjn" name="AnalysisResult.h" compile="0" resource="0" file="Source/Core/AnalysisResult.h"/>
+        <FILE id="9Wvgfy" name="ContentHasher.cpp" compile="1" resource="0" file="Source/Core/ContentHasher.cpp"/>
+        <FILE id="gw2wMq" name="ContentHasher.h" compile="0" resource="0" file="Source/Core/ContentHasher.h"/>
+        <FILE id="ZcUDIh" name="FileCategory.cpp" compile="1" resource="0" file="Source/Core/FileCategory.cpp"/>
+        <FILE id="7yfJs1" name="FileCategory.h" compile="0" resource="0" file="Source/Core/FileCategory.h"/>
+        <FILE id="ON43xK" name="FileEntry.h" compile="0" resource="0" file="Source/Core/FileEntry.h"/>
+        <FILE id="mTecQo" name="FileScanner.cpp" compile="1" resource="0" file="Source/Core/FileScanner.cpp"/>
+        <FILE id="Xsf2o3" name="FileScanner.h" compile="0" resource="0" file="Source/Core/FileScanner.h"/>
+        <FILE id="gyrDO1" name="Format.h" compile="0" resource="0" file="Source/Core/Format.h"/>
+        <FILE id="xkxwnQ" name="Grouping.cpp" compile="1" resource="0" file="Source/Core/Grouping.cpp"/>
+        <FILE id="rS7RPe" name="Grouping.h" compile="0" resource="0" file="Source/Core/Grouping.h"/>
+        <FILE id="MOkIUp" name="ScanContext.h" compile="0" resource="0" file="Source/Core/ScanContext.h"/>
+        <FILE id="kDyr7O" name="Settings.h" compile="0" resource="0" file="Source/Core/Settings.h"/>
+        <FILE id="SJoRu1" name="Trash.cpp" compile="1" resource="0" file="Source/Core/Trash.cpp"/>
+        <FILE id="XXdo0c" name="Trash.h" compile="0" resource="0" file="Source/Core/Trash.h"/>
+      </GROUP>
+      <GROUP id="{Zuzren}" name="Criteria">
+        <FILE id="68K4Tu" name="AllCriteria.h" compile="0" resource="0" file="Source/Criteria/AllCriteria.h"/>
+        <FILE id="nPFz46" name="ArchiveMirrorsCriterion.cpp" compile="1" resource="0" file="Source/Criteria/ArchiveMirrorsCriterion.cpp"/>
+        <FILE id="PDjqip" name="Criterion.h" compile="0" resource="0" file="Source/Criteria/Criterion.h"/>
+        <FILE id="VJIqVL" name="CriterionRegistry.cpp" compile="1" resource="0" file="Source/Criteria/CriterionRegistry.cpp"/>
+        <FILE id="B5Lzxo" name="DateClustersCriterion.cpp" compile="1" resource="0" file="Source/Criteria/DateClustersCriterion.cpp"/>
+        <FILE id="iGFfWd" name="DuplicateFilesCriterion.cpp" compile="1" resource="0" file="Source/Criteria/DuplicateFilesCriterion.cpp"/>
+        <FILE id="3hjOkY" name="JunkFoldersCriterion.cpp" compile="1" resource="0" file="Source/Criteria/JunkFoldersCriterion.cpp"/>
+        <FILE id="RBMeyy" name="Parameter.h" compile="0" resource="0" file="Source/Criteria/Parameter.h"/>
+        <FILE id="MDHqJ3" name="SimpleFilterCriteria.cpp" compile="1" resource="0" file="Source/Criteria/SimpleFilterCriteria.cpp"/>
+        <FILE id="8aRUhR" name="VersionedFilesCriterion.cpp" compile="1" resource="0" file="Source/Criteria/VersionedFilesCriterion.cpp"/>
+      </GROUP>
+      <GROUP id="{4IWrXP}" name="Tests">
+        <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
+      </GROUP>
+      <GROUP id="{a9U4Uq}" name="UI">
+        <FILE id="GWlG6g" name="AudioPlayer.cpp" compile="1" resource="0" file="Source/UI/AudioPlayer.cpp"/>
+        <FILE id="3Ot1OG" name="AudioPlayer.h" compile="0" resource="0" file="Source/UI/AudioPlayer.h"/>
+        <FILE id="MmjxWk" name="CriterionPage.cpp" compile="1" resource="0" file="Source/UI/CriterionPage.cpp"/>
+        <FILE id="I9X7H6" name="CriterionPage.h" compile="0" resource="0" file="Source/UI/CriterionPage.h"/>
+        <FILE id="aMuFbh" name="FilterBar.cpp" compile="1" resource="0" file="Source/UI/FilterBar.cpp"/>
+        <FILE id="7x41Zt" name="FilterBar.h" compile="0" resource="0" file="Source/UI/FilterBar.h"/>
+        <FILE id="pdp4K8" name="ParametersPanel.cpp" compile="1" resource="0" file="Source/UI/ParametersPanel.cpp"/>
+        <FILE id="ffUF0e" name="ParametersPanel.h" compile="0" resource="0" file="Source/UI/ParametersPanel.h"/>
+        <FILE id="WIXiiQ" name="PreviewPanel.cpp" compile="1" resource="0" file="Source/UI/PreviewPanel.cpp"/>
+        <FILE id="E8JkqH" name="PreviewPanel.h" compile="0" resource="0" file="Source/UI/PreviewPanel.h"/>
+        <FILE id="3MB9n7" name="ResultsModel.cpp" compile="1" resource="0" file="Source/UI/ResultsModel.cpp"/>
+        <FILE id="IWUSmT" name="ResultsModel.h" compile="0" resource="0" file="Source/UI/ResultsModel.h"/>
+        <FILE id="tzQPxC" name="ResultsTable.cpp" compile="1" resource="0" file="Source/UI/ResultsTable.cpp"/>
+        <FILE id="5HChpo" name="ResultsTable.h" compile="0" resource="0" file="Source/UI/ResultsTable.h"/>
+      </GROUP>
+      <FILE id="evbLJo" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      <FILE id="LoaeTO" name="MainComponent.cpp" compile="1" resource="0" file="Source/MainComponent.cpp"/>
+      <FILE id="doe5c3" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
+    </GROUP>
+  </MAINGROUP>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_USE_MP3AUDIOFORMAT="1"/>
+  <EXPORTFORMATS>
+    <VS2026 targetFolder="Builds/VisualStudio2026">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Redoondant"/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Redoondant"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../../JUCE/modules"/>
+      </MODULEPATHS>
+    </VS2026>
+  </EXPORTFORMATS>
+</JUCERPROJECT>

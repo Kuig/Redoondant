@@ -1,0 +1,249 @@
+#include "ResultsTable.h"
+#include "../Core/Format.h"
+
+namespace
+{
+    constexpr int checkColumnWidth = 30;
+    constexpr int groupGap = 6;         // Space above each group header, separating groups.
+
+    struct ColumnSpec
+    {
+        Column column;
+        const char* title;
+        int width;
+    };
+
+    const ColumnSpec columnSpecs[] =
+    {
+        { Column::name,     "Name",     260 },
+        { Column::folder,   "Folder",   140 },
+        { Column::size,     "Size",     80 },
+        { Column::modified, "Modified", 125 },
+        { Column::created,  "Created",  125 },
+        { Column::type,     "Type",     60 },
+    };
+}
+
+/** Forwards column resizes/moves to onLayoutChanged, so they can be saved. */
+struct ResultsTable::HeaderListener final : public juce::TableHeaderComponent::Listener
+{
+    explicit HeaderListener (ResultsTable& t) : owner (t) {}
+
+    void tableColumnsChanged (juce::TableHeaderComponent*) override     { notify(); }
+    void tableColumnsResized (juce::TableHeaderComponent*) override     { notify(); }
+    void tableSortOrderChanged (juce::TableHeaderComponent*) override   { notify(); }
+
+    void notify()
+    {
+        if (owner.onLayoutChanged != nullptr)
+            owner.onLayoutChanged();
+    }
+
+    ResultsTable& owner;
+};
+
+ResultsTable::ResultsTable (ResultsModel& m) : model (m)
+{
+    auto& header = table.getHeader();
+    header.addColumn ({}, (int) Column::check, checkColumnWidth, checkColumnWidth, checkColumnWidth,
+                      juce::TableHeaderComponent::visible);
+
+    for (const auto& spec : columnSpecs)
+        header.addColumn (spec.title, (int) spec.column, spec.width, 40);
+
+    header.setStretchToFitActive (true);
+    headerListener = std::make_unique<HeaderListener> (*this);
+    header.addListener (headerListener.get());
+
+    table.setRowHeight (22);
+    table.setMultipleSelectionEnabled (true);
+    table.setWantsKeyboardFocus (true);
+    addAndMakeVisible (table);
+}
+
+juce::String ResultsTable::Table::getNameForRow (int row)
+{
+    if (const auto* entry = owner.model.getEntry (row))
+        return entry->name();
+
+    const auto* group = owner.model.getGroup (row);
+    return group != nullptr ? group->title : juce::String();
+}
+
+ResultsTable::~ResultsTable()
+{
+    table.getHeader().removeListener (headerListener.get());
+}
+
+void ResultsTable::refresh()
+{
+    table.updateContent();
+    table.repaint();
+}
+
+juce::String ResultsTable::getLayoutState() const
+{
+    return table.getHeader().toString();
+}
+
+void ResultsTable::restoreLayoutState (const juce::String& state)
+{
+    if (state.isNotEmpty())
+        table.getHeader().restoreFromString (state);
+}
+
+void ResultsTable::resized()
+{
+    table.setBounds (getLocalBounds());
+}
+
+bool ResultsTable::keyPressed (const juce::KeyPress& key)
+{
+    if (key != juce::KeyPress::spaceKey)
+        return false;
+
+    const auto selected = table.getSelectedRows();
+
+    for (int i = 0; i < selected.size(); ++i)
+        model.toggle (selected[i]);
+
+    refresh();
+
+    if (onCheckedChanged != nullptr)
+        onCheckedChanged();
+
+    return true;
+}
+
+int ResultsTable::getNumRows()
+{
+    return model.getNumRows();
+}
+
+void ResultsTable::paintRowBackground (juce::Graphics& g, int row, int width, int height, bool isSelected)
+{
+    const auto* r = model.getRow (row);
+
+    if (r == nullptr)
+        return;
+
+    const auto background = findColour (juce::ListBox::backgroundColourId);
+    const auto text = findColour (juce::ListBox::textColourId);
+
+    if (! r->isHeader())
+    {
+        if (isSelected)
+            g.fillAll (findColour (juce::TextEditor::highlightColourId));
+        else if (row % 2 == 1)
+            g.fillAll (background.contrasting (0.03f));
+
+        return;
+    }
+
+    // Group separator: a band with the group's checkbox and title.
+    const auto band = juce::Rectangle<int> (0, groupGap, width, height - groupGap);
+    g.setColour (background.contrasting (0.15f));
+    g.fillRect (band);
+
+    const auto state = model.getGroupState (r->group);
+    drawCheckBox (g, band.withWidth (checkColumnWidth).toFloat().withSizeKeepingCentre (14.0f, 14.0f), state, text);
+
+    g.setColour (text);
+    g.setFont (juce::FontOptions (13.0f, juce::Font::bold));
+    g.drawText (model.getGroup (row)->title, band.withTrimmedLeft (checkColumnWidth + 4), juce::Justification::centredLeft, true);
+}
+
+void ResultsTable::paintCell (juce::Graphics& g, int row, int columnId, int width, int height, bool)
+{
+    const auto* entry = model.getEntry (row);
+
+    if (entry == nullptr)
+        return;
+
+    const auto text = findColour (juce::ListBox::textColourId);
+    const auto column = (Column) columnId;
+
+    if (column == Column::check)
+    {
+        drawCheckBox (g, juce::Rectangle<float> ((float) width, (float) height).withSizeKeepingCentre (14.0f, 14.0f),
+                      entry->selected ? CheckState::all : CheckState::none, text);
+        return;
+    }
+
+    auto cell = model.getCellText (*entry, column);
+
+    if (column == Column::name && entry->isDirectory)
+        cell += "/";
+
+    g.setColour (text);
+    g.setFont (juce::FontOptions (14.0f, entry->isDirectory && column == Column::name ? juce::Font::bold : juce::Font::plain));
+    g.drawText (cell, 4, 0, width - 8, height,
+                column == Column::size ? juce::Justification::centredRight : juce::Justification::centredLeft, true);
+}
+
+void ResultsTable::cellClicked (int row, int columnId, const juce::MouseEvent&)
+{
+    const auto* r = model.getRow (row);
+
+    if (r != nullptr && (columnId == (int) Column::check || r->isHeader()))
+        toggle (row);
+}
+
+void ResultsTable::cellDoubleClicked (int row, int, const juce::MouseEvent&)
+{
+    if (const auto* entry = model.getEntry (row))
+        entry->file.revealToUser();
+}
+
+void ResultsTable::sortOrderChanged (int columnId, bool isForwards)
+{
+    model.sort ((Column) columnId, isForwards);
+    refresh();
+}
+
+void ResultsTable::selectedRowsChanged (int lastRowSelected)
+{
+    if (onItemSelected != nullptr)
+        onItemSelected (model.getEntry (lastRowSelected));
+}
+
+juce::String ResultsTable::getCellTooltip (int row, int)
+{
+    if (const auto* entry = model.getEntry (row))
+        return entry->file.getFullPathName();
+
+    return {};
+}
+
+void ResultsTable::toggle (int row)
+{
+    model.toggle (row);
+    refresh();
+
+    if (onCheckedChanged != nullptr)
+        onCheckedChanged();
+}
+
+void ResultsTable::drawCheckBox (juce::Graphics& g, juce::Rectangle<float> area, CheckState state, juce::Colour colour)
+{
+    g.setColour (colour.withAlpha (0.7f));
+    g.drawRoundedRectangle (area, 2.0f, 1.2f);
+
+    if (state == CheckState::none)
+        return;
+
+    g.setColour (colour);
+
+    if (state == CheckState::some)
+    {
+        g.fillRect (area.reduced (3.5f, 6.0f));
+        return;
+    }
+
+    juce::Path tick;
+    const auto r = area.reduced (3.0f);
+    tick.startNewSubPath (r.getX(), r.getCentreY());
+    tick.lineTo (r.getX() + r.getWidth() * 0.4f, r.getBottom());
+    tick.lineTo (r.getRight(), r.getY());
+    g.strokePath (tick, juce::PathStrokeType (2.0f));
+}
