@@ -25,56 +25,51 @@ namespace
     */
     bool haveSameContent (const juce::File& archiveFile, const juce::File& folder, const ScanContext& context)
     {
-        auto archive = ArchiveReader::open (archiveFile);
+        const auto entries = ArchiveReader::list (archiveFile, context);
 
-        if (archive == nullptr || archive->getEntries().empty())
+        if (! entries.has_value() || entries->empty())
             return false;
 
         const auto folderFiles = listFolder (folder, context);
-        const auto& entries = archive->getEntries();
 
-        if (folderFiles.size() != entries.size())
+        if (folderFiles.size() != entries->size())
             return false;
 
         const auto rootPrefix = folder.getFileName().toLowerCase() + "/";
 
         for (const bool stripRoot : { false, true })
         {
-            std::vector<const FileEntry*> matches;
-
-            for (const auto& entry : entries)
+            /** The folder file matching an archive entry (same relative path and size), or nullptr. */
+            const auto match = [&] (const ArchiveReader::Entry& entry) -> const FileEntry*
             {
                 auto key = entry.path.toLowerCase();
 
                 if (stripRoot)
                 {
                     if (! key.startsWith (rootPrefix))
-                        break;
+                        return nullptr;
 
                     key = key.substring (rootPrefix.length());
                 }
 
                 const auto found = folderFiles.find (key);
+                return found != folderFiles.end() && found->second.size == entry.size ? &found->second : nullptr;
+            };
 
-                if (found == folderFiles.end() || found->second.size != entry.size)
-                    break;
-
-                matches.push_back (&found->second);
-            }
-
-            if (matches.size() != entries.size())
+            if (! std::all_of (entries->begin(), entries->end(), [&] (const ArchiveReader::Entry& e) { return match (e) != nullptr; }))
                 continue;
 
-            for (size_t i = 0; i < entries.size(); ++i)
+            // Same listing: compare the bytes, in a single pass over the archive.
+            bool identical = true;
+            const bool readAll = ArchiveReader::forEachFile (archiveFile, context, [&] (const ArchiveReader::Entry& entry, juce::InputStream& data)
             {
-                auto archived = archive->openEntry (i);
-                juce::FileInputStream extracted (matches[i]->file);
+                const auto* file = match (entry);
+                juce::FileInputStream extracted (file != nullptr ? file->file : juce::File());
+                identical = file != nullptr && extracted.openedOk() && ContentHasher::streamsEqual (data, extracted, context);
+                return identical;
+            });
 
-                if (archived == nullptr || ! extracted.openedOk() || ! ContentHasher::streamsEqual (*archived, extracted, context))
-                    return false;
-            }
-
-            return true;
+            return readAll && identical;
         }
 
         return false;
@@ -85,8 +80,8 @@ namespace
     public:
         ArchiveMirrors()
             : Criterion ({ "archives", "Archives & extracted folders",
-                           "Archives (.zip, .tar, .tar.gz, .tgz) next to a folder with the same name and exactly the same "
-                           "content. The folder is checked by default.",
+                           "Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name "
+                           "and exactly the same content. The folder is checked by default.",
                            true }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override

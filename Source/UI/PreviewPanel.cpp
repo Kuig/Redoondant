@@ -1,12 +1,18 @@
 #include "PreviewPanel.h"
+#include "../Archives/ArchiveReader.h"
 #include "../Core/FileCategory.h"
 #include "../Core/Format.h"
+#include "../Metadata/MetadataReader.h"
+#include "../Pdf/PdfDocument.h"
+#include "../Platform/ComInit.h"
+#include "../Platform/ShellThumbnail.h"
 
 namespace
 {
     constexpr juce::int64 maxImageBytes = 64 * 1024 * 1024;
     constexpr int maxTextBytes = 64 * 1024;
-    constexpr int maxFolderItems = 500;
+    constexpr int maxListedItems = 500;
+    constexpr int renderPixels = 800;
 
     void setUpReadOnly (juce::TextEditor& editor, bool monospaced)
     {
@@ -46,23 +52,108 @@ namespace
         return content;
     }
 
+    /** Sorted, truncated listing. */
+    juce::String listing (juce::StringArray names)
+    {
+        names.sortNatural();
+
+        if (names.size() > maxListedItems)
+        {
+            names.removeRange (maxListedItems, names.size());
+            names.add ("...");
+        }
+
+        return names.joinIntoString ("\n");
+    }
+
     juce::String listFolder (const juce::File& folder)
     {
         juce::StringArray names;
 
         for (const auto& item : juce::RangedDirectoryIterator (folder, false, "*", juce::File::findFilesAndDirectories))
-        {
-            if (names.size() >= maxFolderItems)
-            {
-                names.add ("...");
-                break;
-            }
-
             names.add (item.getFile().getFileName() + (item.isDirectory() ? "/" : ""));
+
+        return listing (names);
+    }
+
+    void addBaseDetails (Metadata& details, const FileEntry& entry)
+    {
+        details.add ({}, "Path", entry.file.getFullPathName());
+        details.add ({}, "Type", entry.isDirectory ? juce::String ("Folder") : FileCategories::nameOf (FileCategories::of (entry)));
+        details.add ({}, "Size", Format::size (entry.size) + " (" + juce::String (entry.size) + " bytes)");
+
+        if (entry.isDirectory)
+            details.add ({}, "Files", juce::String (entry.fileCount));
+
+        details.add ({}, "Created", Format::date (entry.created));
+        details.add ({}, "Modified", Format::date (entry.modified));
+        details.add ({}, "Accessed", Format::date (entry.file.getLastAccessTime()));
+        details.add ({}, "Read-only", entry.file.hasWriteAccess() ? "No" : "Yes");
+        details.add ({}, "Hidden", entry.file.isHidden() ? "Yes" : "No");
+    }
+
+    /** Builds the preview of an entry. Runs on the loader thread (COM initialised). */
+    PreviewPanel::Data load (const FileEntry& entry)
+    {
+        using Content = PreviewPanel::Content;
+
+        PreviewPanel::Data data;
+        addBaseDetails (data.details, entry);
+
+        const auto& file = entry.file;
+        const auto category = FileCategories::of (entry);
+
+        if (entry.isDirectory)
+        {
+            data.content = Content::text;
+            data.text = listFolder (file);
+            return data;
         }
 
-        names.sortNatural();
-        return names.joinIntoString ("\n");
+        data.details.append (MetadataReader::read (file));
+
+        if (ArchiveReader::isArchive (file))
+        {
+            if (const auto entries = ArchiveReader::list (file, {}))
+            {
+                juce::StringArray names;
+                juce::int64 total = 0;
+
+                for (const auto& e : *entries)
+                {
+                    names.add (e.path + "  (" + Format::size (e.size) + ")");
+                    total += e.size;
+                }
+
+                data.details.add ({}, "Archived files", juce::String ((int) entries->size()));
+                data.details.add ({}, "Uncompressed size", Format::size (total));
+                data.content = Content::text;
+                data.text = listing (names);
+            }
+            else
+            {
+                data.details.add ({}, "Archive", "Unreadable or encrypted");
+            }
+
+            return data;
+        }
+
+        if (category == FileCategory::image && entry.size <= maxImageBytes)
+            data.image = juce::ImageFileFormat::loadFrom (file);
+        else if (PdfDocument::isPdf (file))
+            data.image = PdfDocument::renderPage (file, 0, renderPixels);
+
+        if (data.image.isNull() && category == FileCategory::audio)
+            data.content = Content::audio;
+        else if (data.image.isNull() && (category == FileCategory::text || category == FileCategory::other) && looksLikeText (file))
+            data.text = readTextStart (file);
+        else if (data.image.isNull())
+            data.image = ShellThumbnail::get (file, renderPixels);
+
+        if (data.content == Content::none)
+            data.content = data.image.isValid() ? Content::image : (data.text.isNotEmpty() ? Content::text : Content::none);
+
+        return data;
     }
 }
 
@@ -86,93 +177,71 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     show (nullptr);
 }
 
-PreviewPanel::~PreviewPanel() = default;
+PreviewPanel::~PreviewPanel()
+{
+    loader.removeAllJobs (true, 5000);
+}
 
 void PreviewPanel::show (const FileEntry* entry)
 {
-    audio.unload();
-    image.setImage ({});
-    text.clear();
+    const int request = ++generation;
+    loader.removeAllJobs (false, 0);    // Drop queued requests; a running one finishes and is ignored.
 
-    juce::StringPairArray details;
+    audio.unload();
 
     if (entry == nullptr || ! entry->file.exists())
     {
         title.setText ("No selection", juce::dontSendNotification);
-        content = Content::none;
+        display ({}, {});
+        return;
     }
-    else
+
+    title.setText (entry->name() + "  (loading...)", juce::dontSendNotification);
+
+    loader.addJob ([safeThis = juce::Component::SafePointer<PreviewPanel> (this), request, item = *entry]
     {
-        title.setText (entry->name(), juce::dontSendNotification);
-        details.set ("Path", entry->file.getFullPathName());
-        details.set ("Type", entry->isDirectory ? juce::String ("Folder") : FileCategories::nameOf (FileCategories::of (*entry)));
-        details.set ("Size", Format::size (entry->size) + " (" + juce::String (entry->size) + " bytes)");
+        const ScopedComInit com;
+        auto data = load (item);
 
-        if (entry->isDirectory)
-            details.set ("Files", juce::String (entry->fileCount));
+        juce::MessageManager::callAsync ([safeThis, request, file = item.file, data = std::move (data)]() mutable
+        {
+            if (safeThis != nullptr && safeThis->generation == request)
+            {
+                safeThis->title.setText (file.getFileName(), juce::dontSendNotification);
+                safeThis->display (file, std::move (data));
+            }
+        });
+    });
+}
 
-        details.set ("Created", Format::date (entry->created));
-        details.set ("Modified", Format::date (entry->modified));
-        details.set ("Accessed", Format::date (entry->file.getLastAccessTime()));
-        details.set ("Read-only", entry->file.hasWriteAccess() ? "No" : "Yes");
-        details.set ("Hidden", entry->file.isHidden() ? "Yes" : "No");
-
-        content = loadContent (*entry, details);
+void PreviewPanel::display (const juce::File& file, Data data)
+{
+    if (data.content == Content::audio)
+    {
+        if (audio.load (file))
+            for (const auto& key : audio.getDetails().getAllKeys())
+                data.details.add ("Audio." + key, key, audio.getDetails()[key]);
+        else
+            data.content = Content::none;
     }
+
+    content = data.content;
+    image.setImage (data.image);
+    text.setText (data.text, false);
 
     image.setVisible (content == Content::image);
     text.setVisible (content == Content::text);
     audio.setVisible (content == Content::audio);
-    showDetails (details);
+    showDetails (data.details);
     resized();
 }
 
-PreviewPanel::Content PreviewPanel::loadContent (const FileEntry& entry, juce::StringPairArray& details)
-{
-    const auto category = FileCategories::of (entry);
-
-    if (entry.isDirectory)
-    {
-        text.setText (listFolder (entry.file), false);
-        return Content::text;
-    }
-
-    if (category == FileCategory::image && entry.size <= maxImageBytes)
-    {
-        const auto loaded = juce::ImageFileFormat::loadFrom (entry.file);
-
-        if (loaded.isValid())
-        {
-            image.setImage (loaded);
-            details.set ("Dimensions", juce::String (loaded.getWidth()) + " x " + juce::String (loaded.getHeight()) + " px");
-            return Content::image;
-        }
-    }
-
-    if (category == FileCategory::audio || category == FileCategory::video)
-    {
-        if (audio.load (entry.file))
-        {
-            details.addArray (audio.getDetails());
-            return Content::audio;
-        }
-    }
-
-    if (looksLikeText (entry.file))
-    {
-        text.setText (readTextStart (entry.file), false);
-        return Content::text;
-    }
-
-    return Content::none;
-}
-
-void PreviewPanel::showDetails (const juce::StringPairArray& details)
+void PreviewPanel::showDetails (const Metadata& details)
 {
     juce::String lines;
 
-    for (int i = 0; i < details.size(); ++i)
-        lines << details.getAllKeys()[i] << ":  " << details.getAllValues()[i] << "\n";
+    for (const auto& item : details.items())
+        lines << item.label << ":  " << item.value << "\n";
 
     metadata.setText (lines.trimEnd(), false);
 }

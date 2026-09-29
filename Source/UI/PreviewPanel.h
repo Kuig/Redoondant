@@ -1,10 +1,12 @@
 #pragma once
 
 #include "../Core/FileEntry.h"
+#include "../Metadata/Metadata.h"
 #include "AudioPlayer.h"
 
-/** Shows a preview of the highlighted item (image, text, audio player, or folder listing)
-    and its metadata.
+/** Shows a preview of the highlighted item (image, PDF page, OS thumbnail, text, folder or
+    archive listing, audio player) and its metadata. Content is loaded on a background thread;
+    only the latest request is displayed.
 */
 class PreviewPanel final : public juce::Component
 {
@@ -18,18 +20,29 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 
-private:
     enum class Content { none, image, text, audio };
 
+    /** Everything needed to display an entry, prepared off the message thread. */
+    struct Data
+    {
+        Content content = Content::none;
+        juce::Image image;
+        juce::String text;
+        Metadata details;
+    };
+
+private:
     juce::AudioFormatManager formats;
     juce::Label title;
     juce::ImageComponent image;
     juce::TextEditor text, metadata;
     AudioPlayer audio;
     Content content = Content::none;
+    int generation = 0;                     ///< Identifies the latest request; older results are dropped.
+    juce::ThreadPool loader { 1 };
 
-    Content loadContent (const FileEntry& entry, juce::StringPairArray& details);
-    void showDetails (const juce::StringPairArray& details);
+    void display (const juce::File& file, Data data);
+    void showDetails (const Metadata& details);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreviewPanel)
 };

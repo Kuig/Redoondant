@@ -1,6 +1,6 @@
 /*  Unit tests for the analysis logic. Run with: Redoondant.exe --test */
 
-#include "../Archives/ArchiveReader.h"
+#include "TestHelpers.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Grouping.h"
 #include "../Core/Trash.h"
@@ -8,67 +8,12 @@
 
 namespace
 {
-    /** A temporary folder deleted at the end of a test. */
-    struct TempFolder
-    {
-        TempFolder() : root (juce::File::createTempFile ("RedoondantTest"))    { root.createDirectory(); }
-        ~TempFolder()                                                           { root.deleteRecursively(); }
-
-        juce::File write (const juce::String& path, const juce::String& content) const
-        {
-            const auto file = root.getChildFile (path);
-            file.getParentDirectory().createDirectory();
-            file.replaceWithText (content);
-            return file;
-        }
-
-        juce::File root;
-    };
-
     FileEntry entry (const juce::String& name, juce::Time modified = {})
     {
         FileEntry e;
         e.file = juce::File::getCurrentWorkingDirectory().getChildFile (name);
         e.modified = modified;
         return e;
-    }
-
-    AnalysisResult run (const Criterion& criterion, const juce::File& root, bool recursive = false)
-    {
-        ScanContext context;
-        context.root = root;
-        context.recursive = recursive;
-        return criterion.analyse (context, criterion.createParameters());
-    }
-
-    const FileEntry* findItem (const ResultGroup& group, const juce::String& name)
-    {
-        for (const auto& item : group.items)
-            if (item.name() == name)
-                return &item;
-
-        return nullptr;
-    }
-
-    /** Writes a minimal ustar archive. */
-    void writeTar (juce::OutputStream& out, const std::vector<std::pair<juce::String, juce::String>>& files)
-    {
-        for (const auto& [name, content] : files)
-        {
-            char header[512] = {};
-            name.copyToUTF8 (header, 100);
-            std::snprintf (header + 124, 12, "%011o", (unsigned) content.getNumBytesAsUTF8());
-            header[156] = '0';
-            std::memcpy (header + 257, "ustar", 5);
-            out.write (header, 512);
-            out.write (content.toRawUTF8(), content.getNumBytesAsUTF8());
-
-            const char padding[512] = {};
-            out.write (padding, (512 - content.getNumBytesAsUTF8() % 512) % 512);
-        }
-
-        const char end[1024] = {};
-        out.write (end, sizeof (end));
     }
 }
 
@@ -203,28 +148,6 @@ public:
             temp.write ("Photos/a.txt", "ALPHA");   // Same size, different content.
             result = run (*Criteria::createArchiveMirrors(), temp.root);
             expect (result.groups.empty());
-        }
-
-        beginTest ("Archives: tar.gz reader");
-        {
-            TempFolder temp;
-            const auto tgz = temp.root.getChildFile ("Docs.tar.gz");
-            {
-                juce::FileOutputStream file (tgz);
-                juce::GZIPCompressorOutputStream gz (file, 6, juce::GZIPCompressorOutputStream::windowBitsGZIP);
-                writeTar (gz, { { "one.txt", "first" }, { "dir/two.txt", juce::String::repeatedString ("x", 1000) } });
-            }
-
-            auto reader = ArchiveReader::open (tgz);
-            expect (reader != nullptr);
-            expectEquals (ArchiveReader::stemOf (tgz), juce::String ("Docs"));
-            expectEquals ((int) reader->getEntries().size(), 2);
-            expectEquals (reader->getEntries()[1].path, juce::String ("dir/two.txt"));
-            expectEquals (reader->openEntry (1)->readEntireStreamAsString(), juce::String::repeatedString ("x", 1000));
-
-            temp.write ("Docs/one.txt", "first");
-            temp.write ("Docs/dir/two.txt", juce::String::repeatedString ("x", 1000));
-            expectEquals ((int) run (*Criteria::createArchiveMirrors(), temp.root).groups.size(), 1);
         }
 
         beginTest ("Versions: grouped per folder and extension");

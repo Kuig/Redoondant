@@ -17,7 +17,7 @@ namespace
         { FileCategory::audio,      "Audio",       "wav aif aiff flac ogg mp3 m4a aac wma opus mid midi" },
         { FileCategory::video,      "Video",       "mp4 m4v mov avi mkv wmv webm flv mpg mpeg 3gp" },
         { FileCategory::document,   "Documents",   "pdf doc docx xls xlsx ppt pptx odt ods odp rtf epub" },
-        { FileCategory::archive,    "Archives",    "zip rar 7z tar gz tgz bz2 xz cab" },
+        { FileCategory::archive,    "Archives",    "zip rar 7z tar gz tgz bz2 tbz2 xz txz zst cab" },
         { FileCategory::executable, "Executables", "exe msi msix appx dmg pkg iso bat cmd ps1 jar apk" },
         { FileCategory::text,       "Text & code", "txt md log csv tsv json xml html htm css js ts ini cfg yaml yml "
                                                    "c cpp h hpp cs java py rb go rs sh jucer sln vcxproj cmake" },

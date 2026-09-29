@@ -1,0 +1,18 @@
+{
+  "name": "redoondant-thirdparty",
+  "version": "1.0.0",
+  "description": "Third-party libraries for Redoondant. Install with the vcpkg bundled with Visual Studio (see README).",
+  "dependencies": [
+    {
+      "name": "libarchive",
+      "default-features": false,
+      "features": [
+        "bzip2",
+        "lzma",
+        "zstd",
+        "lz4"
+      ]
+    }
+  ],
+  "builtin-baseline": "6241a70937c8901b297646d0ea365aa409082e79"
+}

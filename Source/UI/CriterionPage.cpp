@@ -1,6 +1,7 @@
 ﻿#include "CriterionPage.h"
 #include "../Core/Format.h"
 #include "../Core/Trash.h"
+#include "../Platform/ComInit.h"
 
 namespace
 {
@@ -32,6 +33,7 @@ public:
 
     void run() override
     {
+        const ScopedComInit com;    // Some criteria read Windows metadata.
         result = criterion.analyse (context, parameters);
     }
 

@@ -6,6 +6,8 @@ std::vector<std::unique_ptr<Criterion>> Criteria::createAll()
 
     all.push_back (createDuplicateFiles());
     all.push_back (createVersionedFiles());
+    all.push_back (createSameName());
+    all.push_back (createSameContent());
     all.push_back (createArchiveMirrors());
     all.push_back (createJunkFolders());
     all.push_back (createLargeFiles());

@@ -72,12 +72,12 @@ std::vector<Grouping::RootCluster> Grouping::clusterBySharedRoot (std::vector<Fi
     return clusters;
 }
 
-Grouping::Groups Grouping::clusterByTimeGap (std::vector<FileEntry> items,
-                                             std::function<juce::Time (const FileEntry&)> timeOf,
-                                             juce::RelativeTime maxGap,
-                                             size_t minSize)
+Grouping::Groups Grouping::clusterByGap (std::vector<FileEntry> items,
+                                         std::function<double (const FileEntry&)> valueOf,
+                                         double maxGap,
+                                         size_t minSize)
 {
-    std::sort (items.begin(), items.end(), [&] (const FileEntry& a, const FileEntry& b) { return timeOf (a) < timeOf (b); });
+    std::sort (items.begin(), items.end(), [&] (const FileEntry& a, const FileEntry& b) { return valueOf (a) < valueOf (b); });
 
     Groups groups;
     std::vector<FileEntry> current;
@@ -92,7 +92,7 @@ Grouping::Groups Grouping::clusterByTimeGap (std::vector<FileEntry> items,
 
     for (auto& item : items)
     {
-        if (! current.empty() && timeOf (item) - timeOf (current.back()) > maxGap)
+        if (! current.empty() && valueOf (item) - valueOf (current.back()) > maxGap)
             flush();
 
         current.push_back (std::move (item));
@@ -100,4 +100,14 @@ Grouping::Groups Grouping::clusterByTimeGap (std::vector<FileEntry> items,
 
     flush();
     return groups;
+}
+
+Grouping::Groups Grouping::clusterByTimeGap (std::vector<FileEntry> items,
+                                             std::function<juce::Time (const FileEntry&)> timeOf,
+                                             juce::RelativeTime maxGap,
+                                             size_t minSize)
+{
+    return clusterByGap (std::move (items),
+                         [timeOf] (const FileEntry& e) { return (double) timeOf (e).toMilliseconds(); },
+                         (double) maxGap.inMilliseconds(), minSize);
 }

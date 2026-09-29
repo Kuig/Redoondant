@@ -1,38 +1,32 @@
 #pragma once
 
-#include <JuceHeader.h>
+#include "../Core/ScanContext.h"
+#include <optional>
 
-/** Read-only access to the files stored in an archive.
-    Supported formats: .zip, .tar, .tar.gz / .tgz (see ArchiveReader::isArchive).
+/** Read-only access to the files stored in an archive, through libarchive.
+    Supported: zip, 7z, rar (v4 and v5), tar (plain, gz, bz2, xz, zst), cab, iso (see isArchive()).
+    Encrypted archives are reported as unreadable.
 */
-class ArchiveReader
+namespace ArchiveReader
 {
-public:
     struct Entry
     {
         juce::String path;          ///< Relative path, '/' separated.
         juce::int64 size = 0;       ///< Uncompressed size.
     };
 
-    virtual ~ArchiveReader() = default;
-
-    /** The files in the archive (folders and links are not listed). */
-    const std::vector<Entry>& getEntries() const noexcept      { return entries; }
-
-    /** Opens the data of an entry. For streamed formats (tar.gz) entries are fastest
-        when opened in increasing order, and each stream must be released before opening the next.
-    */
-    virtual std::unique_ptr<juce::InputStream> openEntry (size_t index) = 0;
-
     /** True if the file has a supported archive extension. */
-    static bool isArchive (const juce::File& file);
+    bool isArchive (const juce::File& file);
 
     /** The file name without its archive extension(s), e.g. "Photos.tar.gz" -> "Photos". */
-    static juce::String stemOf (const juce::File& file);
+    juce::String stemOf (const juce::File& file);
 
-    /** Opens an archive, or returns nullptr if the format is unsupported or the file is unreadable. */
-    static std::unique_ptr<ArchiveReader> open (const juce::File& file);
+    /** Lists the files in the archive (folders and links are omitted), or nullopt if it can't be read. */
+    std::optional<std::vector<Entry>> list (const juce::File& archive, const ScanContext& context);
 
-protected:
-    std::vector<Entry> entries;
-};
+    /** Streams every file of the archive, in archive order. The visitor returns false to stop early.
+        Returns false if the archive couldn't be read completely.
+    */
+    bool forEachFile (const juce::File& archive, const ScanContext& context,
+                      const std::function<bool (const Entry&, juce::InputStream&)>& visitor);
+}

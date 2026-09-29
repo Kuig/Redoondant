@@ -44,6 +44,17 @@ namespace Grouping
             item.selected = shouldBeSelected;
     }
 
+    /** The different file extensions (lowercase, e.g. ".mp3") among the items. */
+    inline juce::StringArray extensionsOf (const std::vector<FileEntry>& items)
+    {
+        juce::StringArray extensions;
+
+        for (const auto& item : items)
+            extensions.addIfNotAlreadyThere (item.file.getFileExtension().toLowerCase());
+
+        return extensions;
+    }
+
     /** Number of leading characters shared by two strings, ignoring case. */
     int sharedPrefixLength (const juce::String& a, const juce::String& b);
 
@@ -59,6 +70,12 @@ namespace Grouping
         Makes no assumption on what the differing ends look like.
     */
     std::vector<RootCluster> clusterBySharedRoot (std::vector<FileEntry> items, int minRootLength, double minRootRatio);
+
+    /** Sorts entries by a numeric value and splits them wherever two consecutive values differ by more than maxGap. */
+    Groups clusterByGap (std::vector<FileEntry> items,
+                         std::function<double (const FileEntry&)> valueOf,
+                         double maxGap,
+                         size_t minSize = 2);
 
     /** Sorts entries by time and splits them wherever two consecutive times are further apart than maxGap. */
     Groups clusterByTimeGap (std::vector<FileEntry> items,
