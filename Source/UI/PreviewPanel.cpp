@@ -84,7 +84,6 @@ namespace
 
         details.add ({}, "Created", Format::date (entry.created));
         details.add ({}, "Modified", Format::date (entry.modified));
-        details.add ({}, "Accessed", Format::date (entry.file.getLastAccessTime()));
         details.add ({}, "Read-only", entry.file.hasWriteAccess() ? "No" : "Yes");
         details.add ({}, "Hidden", entry.file.isHidden() ? "Yes" : "No");
     }
