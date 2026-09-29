@@ -64,7 +64,10 @@ public:
             setResizeLimits (900, 500, 10000, 10000);
 
             if (! restoreWindowStateFromString (settings.get ("window")))
+            {
                 centreWithSize (getWidth(), getHeight());
+                setFullScreen (true);   // First run: maximized.
+            }
 
             setVisible (true);
         }

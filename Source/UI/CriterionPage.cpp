@@ -2,6 +2,7 @@
 #include "../Core/Format.h"
 #include "../Core/Trash.h"
 #include "../Platform/ComInit.h"
+#include "../Platform/ShellContextMenu.h"
 
 namespace
 {
@@ -68,7 +69,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     description.setJustificationType (juce::Justification::topLeft);
     description.setMinimumHorizontalScale (1.0f);
 
-    recursiveToggle.setToggleState (settings.getBool ("recursive", false), juce::dontSendNotification);
+    recursiveToggle.setToggleState (settings.getBool ("recursive", info.recursiveByDefault), juce::dontSendNotification);
     recursiveToggle.onClick = [this] { settings.set ("recursive", recursiveToggle.getToggleState()); };
 
     analyseButton.onClick = [this] { analyse(); };
@@ -92,6 +93,11 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     table.restoreLayoutState (settings.get ("table"));
     table.onLayoutChanged = [this] { settings.set ("table", table.getLayoutState()); };
     table.onCheckedChanged = [this] { updateSummary(); };
+    table.onContextMenu = [this] (const juce::Array<juce::File>& files, juce::Point<int> position)
+    {
+        if (ShellContextMenu::show (files, position, *this))
+            forgetMissing (files);
+    };
     table.onItemSelected = [this] (const FileEntry* entry)
     {
         if (onItemSelected != nullptr)
@@ -198,8 +204,27 @@ void CriterionPage::moveCheckedToTrash()
 void CriterionPage::resetToDefaults()
 {
     parametersPanel.resetToDefaults();
-    recursiveToggle.setToggleState (false, juce::sendNotification);
+    recursiveToggle.setToggleState (criterion.getInfo().recursiveByDefault, juce::sendNotification);
     resized();
+}
+
+void CriterionPage::forgetMissing (const juce::Array<juce::File>& files)
+{
+    juce::Array<juce::File> missing;
+
+    for (const auto& file : files)
+        if (! file.exists())
+            missing.add (file);
+
+    if (missing.isEmpty())
+        return;
+
+    model.remove (missing);
+    table.refresh();
+    updateSummary();
+
+    if (onItemSelected != nullptr)
+        onItemSelected (nullptr);
 }
 
 void CriterionPage::cycleChecks()

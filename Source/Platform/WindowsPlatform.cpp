@@ -1,4 +1,5 @@
-/*  Windows-specific services: COM initialisation, shell thumbnails and Property System metadata.
+/*  Windows-specific services: COM initialisation, shell thumbnails, Explorer context menus
+    and Property System metadata.
     Other platforms get no-op fallbacks.
 */
 
@@ -10,6 +11,7 @@
  #endif
  #include <windows.h>
  #include <shobjidl.h>
+ #include <shlobj.h>
  #include <propsys.h>
  #include <propkey.h>
  #include <propvarutil.h>
@@ -21,6 +23,7 @@
 #endif
 
 #include "ComInit.h"
+#include "ShellContextMenu.h"
 #include "ShellThumbnail.h"
 #include "../Metadata/MetadataReader.h"
 
@@ -151,6 +154,132 @@ juce::Image ShellThumbnail::get (const juce::File& file, int maxPixels)
 }
 
 //==============================================================================
+namespace
+{
+    /** Hidden window owning the context menu: forwards the messages that Explorer's
+        owner-drawn submenus ("Send to", "Open with"...) need to IContextMenu3.
+    */
+    class MenuHost
+    {
+    public:
+        MenuHost (HWND owner, IContextMenu3* menu)
+        {
+            static const wchar_t* className = [] 
+            {
+                WNDCLASSW wc {};
+                wc.lpfnWndProc = windowProc;
+                wc.hInstance = GetModuleHandleW (nullptr);
+                wc.lpszClassName = L"RedoondantContextMenuHost";
+                RegisterClassW (&wc);
+                return wc.lpszClassName;
+            }();
+
+            handle = CreateWindowExW (0, className, L"", WS_POPUP, 0, 0, 0, 0, owner, nullptr, GetModuleHandleW (nullptr), nullptr);
+            SetWindowLongPtrW (handle, GWLP_USERDATA, reinterpret_cast<LONG_PTR> (menu));
+        }
+
+        ~MenuHost()     { DestroyWindow (handle); }
+
+        HWND get() const noexcept   { return handle; }
+
+    private:
+        HWND handle = nullptr;
+
+        static LRESULT CALLBACK windowProc (HWND window, UINT message, WPARAM wParam, LPARAM lParam)
+        {
+            if (auto* menu = reinterpret_cast<IContextMenu3*> (GetWindowLongPtrW (window, GWLP_USERDATA)))
+            {
+                switch (message)
+                {
+                    case WM_INITMENUPOPUP: case WM_DRAWITEM: case WM_MEASUREITEM: case WM_MENUCHAR:
+                    {
+                        LRESULT result = 0;
+
+                        if (SUCCEEDED (menu->HandleMenuMsg2 (message, wParam, lParam, &result)))
+                            return result;
+
+                        break;
+                    }
+
+                    default: break;
+                }
+            }
+
+            return DefWindowProcW (window, message, wParam, lParam);
+        }
+
+        JUCE_DECLARE_NON_COPYABLE (MenuHost)
+    };
+}
+
+bool ShellContextMenu::show (const juce::Array<juce::File>& files, juce::Point<int> screenPosition, juce::Component& owner)
+{
+    auto* peer = owner.getPeer();
+
+    if (files.isEmpty() || peer == nullptr)
+        return false;
+
+    const auto ownerWindow = static_cast<HWND> (peer->getNativeHandle());
+
+    // Absolute item ids; all files share the same folder, so their last ids are children of one IShellFolder.
+    std::vector<PIDLIST_ABSOLUTE> items;
+
+    for (const auto& file : files)
+    {
+        PIDLIST_ABSOLUTE item = nullptr;
+
+        if (SUCCEEDED (SHParseDisplayName (file.getFullPathName().toWideCharPointer(), nullptr, &item, 0, nullptr)))
+            items.push_back (item);
+    }
+
+    const auto freeItems = [&] { for (auto item : items) CoTaskMemFree (item); };
+
+    ComPtr<IShellFolder> folder;
+    ComPtr<IContextMenu> menu;
+    std::vector<PCUITEMID_CHILD> children;
+
+    for (auto item : items)
+        children.push_back (ILFindLastID (item));
+
+    if (items.empty()
+        || FAILED (SHBindToParent (items.front(), IID_PPV_ARGS (&folder), nullptr))
+        || FAILED (folder->GetUIObjectOf (ownerWindow, (UINT) children.size(), children.data(), IID_IContextMenu, nullptr,
+                                          reinterpret_cast<void**> (menu.GetAddressOf()))))
+    {
+        freeItems();
+        return false;
+    }
+
+    constexpr UINT firstCommand = 1;
+    auto* popup = CreatePopupMenu();
+    menu->QueryContextMenu (popup, 0, firstCommand, 0x7fff, CMF_NORMAL);
+
+    ComPtr<IContextMenu3> menu3;
+    menu.As (&menu3);
+    const MenuHost host (ownerWindow, menu3.Get());
+
+    const auto physical = juce::Desktop::getInstance().getDisplays().logicalToPhysical (screenPosition);
+    const auto command = (UINT) TrackPopupMenuEx (popup, TPM_RETURNCMD | TPM_RIGHTBUTTON, physical.x, physical.y, host.get(), nullptr);
+
+    if (command >= firstCommand)
+    {
+        CMINVOKECOMMANDINFOEX info {};
+        info.cbSize = sizeof (info);
+        info.fMask = CMIC_MASK_UNICODE | CMIC_MASK_PTINVOKE;
+        info.hwnd = ownerWindow;
+        info.lpVerb = MAKEINTRESOURCEA (command - firstCommand);
+        info.lpVerbW = MAKEINTRESOURCEW (command - firstCommand);
+        info.nShow = SW_SHOWNORMAL;
+        info.ptInvoke = { physical.x, physical.y };
+        menu->InvokeCommand (reinterpret_cast<CMINVOKECOMMANDINFO*> (&info));
+    }
+
+    DestroyMenu (popup);
+    freeItems();
+    return command >= firstCommand;
+}
+
+//==============================================================================
 Metadata MetadataReader::readSystemProperties (const juce::File& file)
 {
     Metadata metadata;
@@ -209,6 +338,7 @@ ScopedComInit::ScopedComInit()  {}
 ScopedComInit::~ScopedComInit() {}
 
 juce::Image ShellThumbnail::get (const juce::File&, int)                  { return {}; }
+bool ShellContextMenu::show (const juce::Array<juce::File>&, juce::Point<int>, juce::Component&)   { return false; }
 Metadata MetadataReader::readSystemProperties (const juce::File&)         { return {}; }
 
 #endif

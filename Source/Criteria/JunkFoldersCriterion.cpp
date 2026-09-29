@@ -11,7 +11,7 @@ namespace
             : Criterion ({ "junkFolders", "Junk folders",
                            "Folders that can usually be regenerated, such as build outputs and caches. "
                            "Names are matched ignoring case; enable Recursive to find them inside projects.",
-                           false }) {}
+                           false, false, false, true }) {}
 
         ParameterSet createParameters() const override
         {

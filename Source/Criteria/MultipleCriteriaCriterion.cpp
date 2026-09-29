@@ -56,7 +56,7 @@ namespace
             : Criterion ({ "overlaps", "Multiple criteria",
                            "Items marked by several criteria (a folder's mark covers its content), from the lists already "
                            "analyzed or by running all criteria again. \"Folders only\" lists the folders with most candidates.",
-                           true }),
+                           true, false, false, true }),
               peers (std::move (source)) {}
 
         ParameterSet createParameters() const override
@@ -67,16 +67,16 @@ namespace
             auto source = Parameter::choice ("source", "Data", { "Existing results", "Run all criteria" });
             source.editorWidth = 150;
 
-            auto view = Parameter::choice ("view", "Show", { "Files & folders", "Folders only" });
+            auto view = Parameter::choice ("view", "Show", { "Files & folders", "Folders only" }, foldersOnly);
             view.editorWidth = 130;
 
             return { source,
-                     Parameter::choice ("marked", "Counts as marked", { "Checked", "Listed" }),
-                     Parameter::number ("minCriteria", "Marked by at least", 2, "criteria"),
+                     Parameter::choice ("marked", "Counts as marked", { "Checked", "Listed" }, listedItems),
+                     Parameter::number ("minCriteria", "Marked by at least", 1, "criteria"),
                      view,
                      folderMode,
                      Parameter::number ("minFiles", "Min. marked files", 2),
-                     Parameter::number ("minShare", "Min. marked share", 80, "%") };
+                     Parameter::number ("minShare", "Min. marked share", 50, "%") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override

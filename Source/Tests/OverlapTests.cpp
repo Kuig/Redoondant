@@ -87,7 +87,20 @@ public:
         };
 
         const auto criterion = Criteria::createMultipleCriteria (peers);
-        const auto analyse = [&] (std::function<void (ParameterSet&)> tweak) { return run (*criterion, temp.root, false, tweak); };
+        // Tests start from: checked items, files & folders, at least 2 criteria.
+        const auto analyse = [&] (std::function<void (ParameterSet&)> tweak)
+        {
+            return run (*criterion, temp.root, false, [&] (ParameterSet& p)
+            {
+                setParameter (p, "marked", 0);
+                setParameter (p, "view", 0);
+                setParameter (p, "minCriteria", 2);
+                setParameter (p, "minShare", 80);
+
+                if (tweak != nullptr)
+                    tweak (p);
+            });
+        };
 
         beginTest ("Checked items, folder marks cover their content");
         {

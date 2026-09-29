@@ -14,7 +14,8 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    button below the list cycles through *check all*, *uncheck all* and the *default checks*),
    inspect them in the preview on the right (images, PDF first page, OS thumbnails for
    videos/Office files, text, folder and archive content, audio player, and metadata:
-   media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer.
+   media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer;
+   right-click opens the Windows Explorer context menu (items deleted or moved from there leave the list).
 5. Press **Move to Trash**. Items inside an already-checked folder are not counted twice.
 
 All settings (folder, per-criterion parameters, Recursive flags, column layout and sort,

@@ -16,8 +16,8 @@ namespace
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::choice ("date", "Date", { "Modified", "Created" }),
-                     Parameter::number ("gap", "Max. gap", 2, "hours"),
+            return { Parameter::choice ("date", "Date", { "Modified", "Created" }, 1),
+                     Parameter::number ("gap", "Max. gap", 0.5, "hours"),
                      Parameter::number ("minItems", "Min. group size", 2, "items") };
         }
 

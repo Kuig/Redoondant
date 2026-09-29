@@ -67,11 +67,11 @@ MainComponent::MainComponent (Settings& appSettings)
     criteriaList.setModel (criteriaModel.get());
     criteriaList.setRowHeight (30);
 
-    layout.setItemLayout (0, 150, 400, settings.getDouble ("layout.left", 250));
+    layout.setItemLayout (0, 150, 400, settings.getDouble ("layout.left", 240));
     layout.setItemLayout (1, 5, 5, 5);
     layout.setItemLayout (2, 400, -1.0, -0.62);
     layout.setItemLayout (3, 5, 5, 5);
-    layout.setItemLayout (4, 200, 900, settings.getDouble ("layout.right", 360));
+    layout.setItemLayout (4, 200, 900, settings.getDouble ("layout.right", -0.4));
 
     leftBar.onMoved = rightBar.onMoved = [this]
     {

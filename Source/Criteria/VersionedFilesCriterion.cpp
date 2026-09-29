@@ -17,7 +17,7 @@ namespace
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::number ("minRoot", "Shared start at least", 4, "chars"),
+            return { Parameter::number ("minRoot", "Shared start at least", 6, "chars"),
                      Parameter::number ("minRatio", "and at least", 60, "% of the name") };
         }
 

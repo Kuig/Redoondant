@@ -21,6 +21,7 @@ public:
         bool grouped = false;       ///< Results are shown as separated groups.
         bool filterable = false;    ///< Shows the type/date/size filter bar.
         bool exhaustive = false;    ///< Lists (almost) everything, so being listed means nothing by itself.
+        bool recursiveByDefault = false;
     };
 
     explicit Criterion (Info i) : info (std::move (i)) {}

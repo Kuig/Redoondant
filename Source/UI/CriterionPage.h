@@ -50,6 +50,9 @@ private:
     void moveCheckedToTrash();
     void resetToDefaults();
     void cycleChecks();
+
+    /** Drops the files that no longer exist (e.g. deleted from the context menu) from the list. */
+    void forgetMissing (const juce::Array<juce::File>& files);
     void updateSummary();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CriterionPage)

@@ -58,7 +58,7 @@ namespace
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::number ("days", "Not modified for", 365, "days") };
+            return { Parameter::number ("days", "Not modified for", 800, "days") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override

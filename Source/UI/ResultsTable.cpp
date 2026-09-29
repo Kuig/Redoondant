@@ -181,8 +181,14 @@ void ResultsTable::paintCell (juce::Graphics& g, int row, int columnId, int widt
                 column == Column::size ? juce::Justification::centredRight : juce::Justification::centredLeft, true);
 }
 
-void ResultsTable::cellClicked (int row, int columnId, const juce::MouseEvent&)
+void ResultsTable::cellClicked (int row, int columnId, const juce::MouseEvent& e)
 {
+    if (e.mods.isPopupMenu())
+    {
+        showContextMenu (row, e.getScreenPosition());
+        return;
+    }
+
     const auto* r = model.getRow (row);
 
     if (r != nullptr && (columnId == (int) Column::check || r->isHeader()))
@@ -213,6 +219,29 @@ juce::String ResultsTable::getCellTooltip (int row, int)
         return entry->file.getFullPathName();
 
     return {};
+}
+
+void ResultsTable::showContextMenu (int row, juce::Point<int> screenPosition)
+{
+    const auto* clicked = model.getEntry (row);
+
+    if (clicked == nullptr || onContextMenu == nullptr)
+        return;
+
+    // The selected items of the clicked item's folder (a shell menu covers one folder), or just the clicked one.
+    juce::Array<juce::File> files;
+    const auto selected = table.getSelectedRows();
+
+    if (table.isRowSelected (row))
+        for (int i = 0; i < selected.size(); ++i)
+            if (const auto* entry = model.getEntry (selected[i]))
+                if (entry->file.getParentDirectory() == clicked->file.getParentDirectory())
+                    files.add (entry->file);
+
+    if (files.isEmpty())
+        files.add (clicked->file);
+
+    onContextMenu (files, screenPosition);
 }
 
 void ResultsTable::toggle (int row)

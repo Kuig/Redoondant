@@ -24,6 +24,9 @@ public:
     std::function<void (const FileEntry*)> onItemSelected;
     std::function<void()> onLayoutChanged;
 
+    /** Right-click on items: the files to show a context menu for (same folder), and where. */
+    std::function<void (const juce::Array<juce::File>&, juce::Point<int>)> onContextMenu;
+
     void resized() override;
     bool keyPressed (const juce::KeyPress& key) override;
 
@@ -52,6 +55,7 @@ private:
     juce::String getCellTooltip (int row, int columnId) override;
 
     void toggle (int row);
+    void showContextMenu (int row, juce::Point<int> screenPosition);
     static void drawCheckBox (juce::Graphics&, juce::Rectangle<float> area, CheckState state, juce::Colour colour);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResultsTable)
