@@ -3,6 +3,7 @@
 #include "../Core/FileEntry.h"
 #include "../Metadata/Metadata.h"
 #include "AudioPlayer.h"
+#include "TextPreview.h"
 
 /** Shows a preview of the highlighted item (image, PDF page, OS thumbnail, text, folder or
     archive listing, audio player) and its metadata. Content is loaded on a background thread;
@@ -36,7 +37,8 @@ private:
     juce::AudioFormatManager formats;
     juce::Label title;
     juce::ImageComponent image;
-    juce::TextEditor text, metadata;
+    TextPreview text;
+    juce::TextEditor metadata;
     AudioPlayer audio;
     Content content = Content::none;
     int generation = 0;                     ///< Identifies the latest request; older results are dropped.

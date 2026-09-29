@@ -114,6 +114,8 @@
         <FILE id="tzQPxC" name="ResultsTable.cpp" compile="1" resource="0"
               file="Source/UI/ResultsTable.cpp"/>
         <FILE id="5HChpo" name="ResultsTable.h" compile="0" resource="0" file="Source/UI/ResultsTable.h"/>
+        <FILE id="vwCYd5" name="TextPreview.cpp" compile="1" resource="0" file="Source/UI/TextPreview.cpp"/>
+        <FILE id="X5cRbP" name="TextPreview.h" compile="0" resource="0" file="Source/UI/TextPreview.h"/>
       </GROUP>
       <FILE id="VfHDRL" name="Icon.png" compile="0" resource="1" file="Source/Icon.png"/>
       <FILE id="evbLJo" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>

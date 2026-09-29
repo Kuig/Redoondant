@@ -14,15 +14,12 @@ namespace
     constexpr int maxListedItems = 500;
     constexpr int renderPixels = 800;
 
-    void setUpReadOnly (juce::TextEditor& editor, bool monospaced)
+    void setUpReadOnly (juce::TextEditor& editor)
     {
         editor.setMultiLine (true);
         editor.setReadOnly (true);
         editor.setScrollbarsShown (true);
         editor.setCaretVisible (false);
-
-        if (monospaced)
-            editor.setFont (juce::FontOptions (juce::Font::getDefaultMonospacedFontName(), 13.0f, juce::Font::plain));
     }
 
     /** True if the start of the file looks like text (no NUL bytes). */
@@ -177,8 +174,7 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     title.setFont (juce::FontOptions (16.0f, juce::Font::bold));
     title.setMinimumHorizontalScale (0.6f);
     image.setImagePlacement (juce::RectanglePlacement::centred | juce::RectanglePlacement::onlyReduceInSize);
-    setUpReadOnly (text, true);
-    setUpReadOnly (metadata, false);
+    setUpReadOnly (metadata);
 
     addAndMakeVisible (title);
     addChildComponent (image);
@@ -236,7 +232,7 @@ void PreviewPanel::display (Data data)
 
     content = data.content;
     image.setImage (data.image);
-    text.setText (data.text, false);
+    text.setText (data.text);
 
     image.setVisible (content == Content::image);
     text.setVisible (content == Content::text);
