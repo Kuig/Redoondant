@@ -93,7 +93,7 @@ namespace
     }
 
     /** Builds the preview of an entry. Runs on the loader thread (COM initialised). */
-    PreviewPanel::Data load (const FileEntry& entry)
+    PreviewPanel::Data load (const FileEntry& entry, juce::AudioFormatManager& formats)
     {
         using Content = PreviewPanel::Content;
 
@@ -144,7 +144,19 @@ namespace
             data.image = PdfDocument::renderPage (file, 0, renderPixels);
 
         if (data.image.isNull() && category == FileCategory::audio)
-            data.content = Content::audio;
+        {
+            data.audio.reset (formats.createReaderFor (file));
+
+            if (data.audio != nullptr)
+            {
+                data.content = Content::audio;
+                const auto format = AudioPlayer::describe (*data.audio);
+
+                for (const auto& key : format.getAllKeys())
+                    if (key != "Duration" || data.details.find (MetadataKeys::duration) == nullptr)    // Shown once.
+                        data.details.add ("Audio." + key, key, format[key]);
+            }
+        }
         else if (data.image.isNull() && (category == FileCategory::text || category == FileCategory::other) && looksLikeText (file))
             data.text = readTextStart (file);
         else if (data.image.isNull())
@@ -158,7 +170,7 @@ namespace
 }
 
 PreviewPanel::PreviewPanel (SettingsScope settings)
-    : audio (formats, settings.child ("audio"))
+    : audio (settings.child ("audio"))
 {
     formats.registerBasicFormats();
 
@@ -175,6 +187,9 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     addAndMakeVisible (metadata);
 
     show (nullptr);
+
+    // Opening the audio output can take seconds: start in the background right away.
+    audio.prepareDevice();
 }
 
 PreviewPanel::~PreviewPanel()
@@ -192,38 +207,32 @@ void PreviewPanel::show (const FileEntry* entry)
     if (entry == nullptr || ! entry->file.exists())
     {
         title.setText ("No selection", juce::dontSendNotification);
-        display ({}, {});
+        display ({});
         return;
     }
 
     title.setText (entry->name() + "  (loading...)", juce::dontSendNotification);
 
-    loader.addJob ([safeThis = juce::Component::SafePointer<PreviewPanel> (this), request, item = *entry]
+    loader.addJob ([safeThis = juce::Component::SafePointer<PreviewPanel> (this), &formats = formats, request, item = *entry]
     {
         const ScopedComInit com;
-        auto data = load (item);
+        auto data = load (item, formats);
 
-        juce::MessageManager::callAsync ([safeThis, request, file = item.file, data = std::move (data)]() mutable
+        juce::MessageManager::callAsync ([safeThis, request, name = item.name(), data = std::move (data)]() mutable
         {
             if (safeThis != nullptr && safeThis->generation == request)
             {
-                safeThis->title.setText (file.getFileName(), juce::dontSendNotification);
-                safeThis->display (file, std::move (data));
+                safeThis->title.setText (name, juce::dontSendNotification);
+                safeThis->display (std::move (data));
             }
         });
     });
 }
 
-void PreviewPanel::display (const juce::File& file, Data data)
+void PreviewPanel::display (Data data)
 {
     if (data.content == Content::audio)
-    {
-        if (audio.load (file))
-            for (const auto& key : audio.getDetails().getAllKeys())
-                data.details.add ("Audio." + key, key, audio.getDetails()[key]);
-        else
-            data.content = Content::none;
-    }
+        audio.load (data.audio);
 
     content = data.content;
     image.setImage (data.image);

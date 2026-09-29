@@ -1,7 +1,24 @@
 #include "AudioPlayer.h"
+#include "../Platform/ComInit.h"
 
 namespace
 {
+    /** Only the device types a preview needs: on Windows the shared WASAPI output, which avoids
+        scanning DirectSound and exclusive-mode devices (slow on some systems).
+    */
+    class PreviewDeviceManager final : public juce::AudioDeviceManager
+    {
+    public:
+        void createAudioDeviceTypes (juce::OwnedArray<juce::AudioIODeviceType>& types) override
+        {
+           #if JUCE_WINDOWS
+            types.add (juce::AudioIODeviceType::createAudioIODeviceType_WASAPI (juce::WASAPIDeviceMode::shared));
+           #else
+            AudioDeviceManager::createAudioDeviceTypes (types);
+           #endif
+        }
+    };
+
     juce::String formatTime (double seconds)
     {
         const auto total = (int) seconds;
@@ -9,8 +26,8 @@ namespace
     }
 }
 
-AudioPlayer::AudioPlayer (juce::AudioFormatManager& f, SettingsScope s)
-    : formats (f), settings (s)
+AudioPlayer::AudioPlayer (SettingsScope s)
+    : settings (s)
 {
     readAheadThread.startThread();
 
@@ -38,58 +55,91 @@ AudioPlayer::AudioPlayer (juce::AudioFormatManager& f, SettingsScope s)
 
 AudioPlayer::~AudioPlayer()
 {
+    if (deviceThread.joinable())
+        deviceThread.join();
+
     unload();
 
-    if (deviceOpen)
+    if (deviceManager != nullptr)
     {
-        deviceManager.removeAudioCallback (&sourcePlayer);
+        deviceManager->removeAudioCallback (&sourcePlayer);
         sourcePlayer.setSource (nullptr);
     }
 
     readAheadThread.stopThread (1000);
 }
 
-void AudioPlayer::openDevice()
+void AudioPlayer::prepareDevice()
 {
-    if (deviceOpen)
+    if (deviceRequested)
         return;
 
-    deviceManager.initialiseWithDefaultDevices (0, 2);
-    sourcePlayer.setSource (&transport);
-    deviceManager.addAudioCallback (&sourcePlayer);
-    deviceOpen = true;
+    deviceRequested = true;
+    deviceThread = std::thread ([this, safeThis = juce::Component::SafePointer<AudioPlayer> (this)]
+    {
+        const ScopedComInit com;
+        auto manager = std::make_unique<PreviewDeviceManager>();
+        manager->initialiseWithDefaultDevices (0, 2);
+
+        {
+            const juce::ScopedLock lock (openedLock);
+            openedManager = std::move (manager);
+        }
+
+        juce::MessageManager::callAsync ([safeThis]
+        {
+            if (safeThis != nullptr)
+                safeThis->attachDevice();
+        });
+    });
 }
 
-bool AudioPlayer::load (const juce::File& file)
+void AudioPlayer::attachDevice()
+{
+    {
+        const juce::ScopedLock lock (openedLock);
+        deviceManager = std::move (openedManager);
+    }
+
+    if (deviceManager == nullptr)
+        return;
+
+    sourcePlayer.setSource (&transport);
+    deviceManager->addAudioCallback (&sourcePlayer);
+    updateControls();
+}
+
+juce::StringPairArray AudioPlayer::describe (const juce::AudioFormatReader& reader)
+{
+    juce::StringPairArray details;
+    details.set ("Format", reader.getFormatName());
+    details.set ("Sample rate", juce::String (reader.sampleRate, 0) + " Hz");
+    details.set ("Channels", juce::String ((int) reader.numChannels));
+    details.set ("Bit depth", juce::String ((int) reader.bitsPerSample) + (reader.usesFloatingPointData ? " (float)" : ""));
+
+    if (reader.sampleRate > 0)
+        details.set ("Duration", formatTime ((double) reader.lengthInSamples / reader.sampleRate));
+
+    details.addArray (reader.metadataValues);
+    return details;
+}
+
+void AudioPlayer::load (std::shared_ptr<juce::AudioFormatReader> newReader)
 {
     unload();
 
-    std::unique_ptr<juce::AudioFormatReader> reader (formats.createReaderFor (file));
+    if (newReader == nullptr)
+        return;
 
-    if (reader == nullptr)
-        return false;
+    prepareDevice();    // Normally already requested when the preview was shown.
 
-    details.set ("Format", reader->getFormatName());
-    details.set ("Sample rate", juce::String (reader->sampleRate, 0) + " Hz");
-    details.set ("Channels", juce::String ((int) reader->numChannels));
-    details.set ("Bit depth", juce::String ((int) reader->bitsPerSample) + (reader->usesFloatingPointData ? " (float)" : ""));
-
-    if (reader->sampleRate > 0)
-        details.set ("Duration", formatTime ((double) reader->lengthInSamples / reader->sampleRate));
-
-    details.addArray (reader->metadataValues);
-
-    openDevice();
-
-    const auto sampleRate = reader->sampleRate;
-    const auto channels = (int) reader->numChannels;
-    readerSource = std::make_unique<juce::AudioFormatReaderSource> (reader.release(), true);
-    transport.setSource (readerSource.get(), 32768, &readAheadThread, sampleRate, juce::jmax (1, channels));
+    reader = std::move (newReader);
+    readerSource = std::make_unique<juce::AudioFormatReaderSource> (reader.get(), false);
+    transport.setSource (readerSource.get(), 32768, &readAheadThread, reader->sampleRate, juce::jmax (1, (int) reader->numChannels));
 
     position.setRange (0.0, juce::jmax (0.01, transport.getLengthInSeconds()));
     position.setValue (0.0, juce::dontSendNotification);
     updateControls();
-    return true;
 }
 
 void AudioPlayer::unload()
@@ -98,7 +148,7 @@ void AudioPlayer::unload()
     transport.stop();
     transport.setSource (nullptr);
     readerSource.reset();
-    details.clear();
+    reader.reset();
     updateControls();
 }
 
@@ -140,16 +190,19 @@ void AudioPlayer::updateControls()
 {
     const bool loaded = readerSource != nullptr;
     const bool playing = transport.isPlaying();
+    const bool deviceReady = deviceManager != nullptr;
 
     playButton.setButtonText (playing ? "Pause" : "Play");
-    playButton.setEnabled (loaded);
+    playButton.setEnabled (loaded && deviceReady);
     stopButton.setEnabled (loaded);
     position.setEnabled (loaded);
 
     if (! position.isMouseButtonDown())
         position.setValue (transport.getCurrentPosition(), juce::dontSendNotification);
 
-    time.setText (loaded ? formatTime (transport.getCurrentPosition()) + " / " + formatTime (transport.getLengthInSeconds()) : juce::String(),
+    time.setText (! loaded ? juce::String()
+                           : (deviceReady ? formatTime (transport.getCurrentPosition()) + " / " + formatTime (transport.getLengthInSeconds())
+                                          : juce::String ("Opening audio output...")),
                   juce::dontSendNotification);
 }
 

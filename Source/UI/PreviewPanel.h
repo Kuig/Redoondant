@@ -29,6 +29,7 @@ public:
         juce::Image image;
         juce::String text;
         Metadata details;
+        std::shared_ptr<juce::AudioFormatReader> audio;     ///< Opened off the message thread (can be slow).
     };
 
 private:
@@ -41,7 +42,7 @@ private:
     int generation = 0;                     ///< Identifies the latest request; older results are dropped.
     juce::ThreadPool loader { 1 };
 
-    void display (const juce::File& file, Data data);
+    void display (Data data);
     void showDetails (const Metadata& details);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreviewPanel)
