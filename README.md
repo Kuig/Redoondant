@@ -16,7 +16,11 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    videos/Office files, text, folder and archive content, audio player, and metadata:
    media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer;
    right-click opens the Windows Explorer context menu (items deleted or moved from there leave the list).
-5. Press **Move to Trash**. Items inside an already-checked folder are not counted twice.
+5. Press **Move to Trash** (a warning alert first asks for confirmation, showing the number of
+   items and their total size) or **Move to folder** (pick a destination, then confirm in an info box).
+   Items inside an already-checked folder are not counted twice. Moving to a folder never
+   overwrites: on a name clash the moved item becomes `name (2).ext`; folders moved across drives
+   are copied first and the original is deleted only after the copy succeeded.
 
 All settings (folder, per-criterion parameters, Recursive flags, column layout and sort,
 filters, panel sizes, window position, volume) are saved in

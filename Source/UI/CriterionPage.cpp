@@ -1,5 +1,6 @@
 ﻿#include "CriterionPage.h"
 #include "../Core/Format.h"
+#include "../Core/MoveToFolder.h"
 #include "../Core/Trash.h"
 #include "../Platform/ComInit.h"
 #include "../Platform/ShellContextMenu.h"
@@ -9,6 +10,15 @@ namespace
     constexpr int margin = 12;
     constexpr int rowHeight = 26;
     constexpr int gap = 8;
+
+    /** Text with paths that message boxes can wrap: invisible break opportunities (zero-width spaces) after each separator. */
+    juce::String wrappable (const juce::String& text)
+    {
+        const juce::String zeroWidthSpace (juce::CharPointer_UTF8 ("\xe2\x80\x8b"));
+        return text.replace ("\\", "\\" + zeroWidthSpace).replace ("/", "/" + zeroWidthSpace);
+    }
+
+    juce::String wrappable (const juce::File& path)     { return wrappable (path.getFullPathName()); }
 }
 
 /** Runs an analysis on a background thread behind a cancellable progress window.
@@ -75,6 +85,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     analyseButton.onClick = [this] { analyse(); };
     resetButton.onClick = [this] { resetToDefaults(); };
     trashButton.onClick = [this] { moveCheckedToTrash(); };
+    moveButton.onClick = [this] { moveCheckedToFolder(); };
     checksButton.onClick = [this] { cycleChecks(); };
 
     if (info.filterable)
@@ -105,7 +116,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     };
 
     for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &parametersPanel, &recursiveToggle,
-                                                                       &analyseButton, &resetButton, &status, &table, &summary, &checksButton, &trashButton })
+                                                                       &analyseButton, &resetButton, &status, &table, &summary, &checksButton, &moveButton, &trashButton })
         addAndMakeVisible (component);
 
     updateSummary();
@@ -144,6 +155,8 @@ void CriterionPage::resized()
 
     auto footer = area.removeFromBottom (rowHeight + 4);
     trashButton.setBounds (footer.removeFromRight (140));
+    footer.removeFromRight (gap);
+    moveButton.setBounds (footer.removeFromRight (140));
     checksButton.setBounds (footer.removeFromLeft (130));
     footer.removeFromLeft (gap);
     summary.setBounds (footer);
@@ -178,27 +191,99 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
     updateSummary();
 }
 
-void CriterionPage::moveCheckedToTrash()
+juce::String CriterionPage::describeChecked() const
 {
-    const auto report = Trash::moveToTrash (model.getCheckedEntries());
+    juce::int64 bytes = 0;
+    const auto checked = Trash::withoutNested (model.getCheckedEntries());
 
-    model.remove (report.trashed);
+    for (const auto& entry : checked)
+        bytes += entry.size;
+
+    return Format::count (checked.size(), "item") + " (" + Format::size (bytes) + ")";
+}
+
+void CriterionPage::confirm (juce::MessageBoxIconType icon, const juce::String& boxTitle, const juce::String& question,
+                             const juce::String& okText, std::function<void()> action)
+{
+    juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                      .withIconType (icon)
+                                      .withTitle (boxTitle)
+                                      .withMessage (question)
+                                      .withButton (okText)
+                                      .withButton ("Cancel")
+                                      .withAssociatedComponent (this),
+                                  [safeThis = juce::Component::SafePointer<CriterionPage> (this), action = std::move (action)] (int button)
+                                  {
+                                      // With two buttons JUCE reports 1 for the first (OK) and 0 for the second (Cancel).
+                                      constexpr int okResult = 1;
+
+                                      if (button == okResult && safeThis != nullptr)
+                                          action();
+                                  });
+}
+
+void CriterionPage::finishRemoval (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done)
+{
+    model.remove (report.movedFiles);
     table.refresh();
     updateSummary();
 
     if (onItemSelected != nullptr)
         onItemSelected (nullptr);
 
-    auto message = Format::count ((size_t) report.moved, "item") + " moved to the Recycle Bin.\n"
-                   + Format::size (report.bytesFreed) + " freed.";
+    auto message = Format::count ((size_t) report.moved, "item") + " " + done;
 
     if (! report.failures.isEmpty())
         message << "\n\n" << Format::count ((size_t) report.failures.size(), "item")
-                << " could not be moved:\n" << report.failures.joinIntoString ("\n");
+                << " could not be moved:\n" << wrappable (report.failures.joinIntoString ("\n"));
 
     juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() ? juce::MessageBoxIconType::InfoIcon
                                                                       : juce::MessageBoxIconType::WarningIcon,
-                                            "Move to Trash", message);
+                                            boxTitle, message);
+}
+
+void CriterionPage::moveCheckedToTrash()
+{
+    // A warning alert: trashing is the more drastic action of the two.
+    confirm (juce::MessageBoxIconType::WarningIcon, "Move to Trash",
+             "Move " + describeChecked() + " to the Recycle Bin?", "Move to Trash",
+             [this]
+             {
+                 const auto report = Trash::moveToTrash (model.getCheckedEntries());
+                 finishRemoval (report, "Move to Trash",
+                                "moved to the Recycle Bin.\n" + Format::size (report.bytesMoved) + " freed.");
+             });
+}
+
+void CriterionPage::moveCheckedToFolder()
+{
+    const juce::File last (settings.get ("moveTarget"));
+
+    chooser = std::make_unique<juce::FileChooser> ("Move the checked items to...",
+                                                    last.isDirectory() ? last : (getRootFolder != nullptr ? getRootFolder() : juce::File()));
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                          [safeThis = juce::Component::SafePointer<CriterionPage> (this)] (const juce::FileChooser& fc)
+                          {
+                              const auto destination = fc.getResult();
+
+                              if (safeThis == nullptr || destination == juce::File())
+                                  return;
+
+                              // An info box rather than a warning: moving keeps the files, unlike the Recycle Bin.
+                              safeThis->confirm (juce::MessageBoxIconType::InfoIcon, "Move to folder",
+                                                 "Move " + safeThis->describeChecked() + " to\n" + wrappable (destination) + " ?",
+                                                 "Move",
+                                                 [safeThis, destination]
+                                                 {
+                                                     safeThis->settings.set ("moveTarget", destination.getFullPathName());
+
+                                                     const auto report = MoveToFolder::run (safeThis->model.getCheckedEntries(), destination);
+                                                     safeThis->finishRemoval (report, "Move to folder",
+                                                                              "moved to " + wrappable (destination) + ".\n"
+                                                                                + Format::size (report.bytesMoved) + " moved.");
+                                                 });
+                          });
 }
 
 void CriterionPage::resetToDefaults()
@@ -265,6 +350,7 @@ void CriterionPage::updateSummary()
                      juce::dontSendNotification);
 
     trashButton.setEnabled (! checked.empty());
+    moveButton.setEnabled (! checked.empty());
 
     // The button shows what the next click does.
     using Checks = ResultsModel::Checks;

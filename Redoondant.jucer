@@ -28,6 +28,8 @@
         <FILE id="xkxwnQ" name="Grouping.cpp" compile="1" resource="0" file="Source/Core/Grouping.cpp"/>
         <FILE id="rS7RPe" name="Grouping.h" compile="0" resource="0" file="Source/Core/Grouping.h"/>
         <FILE id="SoIR7B" name="MessageThread.h" compile="0" resource="0" file="Source/Core/MessageThread.h"/>
+        <FILE id="WwodkB" name="MoveToFolder.cpp" compile="1" resource="0" file="Source/Core/MoveToFolder.cpp"/>
+        <FILE id="77xzKO" name="MoveToFolder.h" compile="0" resource="0" file="Source/Core/MoveToFolder.h"/>
         <FILE id="MOkIUp" name="ScanContext.h" compile="0" resource="0" file="Source/Core/ScanContext.h"/>
         <FILE id="kDyr7O" name="Settings.h" compile="0" resource="0" file="Source/Core/Settings.h"/>
         <FILE id="SJoRu1" name="Trash.cpp" compile="1" resource="0" file="Source/Core/Trash.cpp"/>
@@ -86,6 +88,7 @@
               file="Source/Tests/ArchiveTests.cpp"/>
         <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
         <FILE id="YXgljU" name="MediaTests.cpp" compile="1" resource="0" file="Source/Tests/MediaTests.cpp"/>
+        <FILE id="r5fsQk" name="MoveTests.cpp" compile="1" resource="0" file="Source/Tests/MoveTests.cpp"/>
         <FILE id="t04iFg" name="OverlapTests.cpp" compile="1" resource="0"
               file="Source/Tests/OverlapTests.cpp"/>
         <FILE id="AMVDV8" name="TestHelpers.h" compile="0" resource="0" file="Source/Tests/TestHelpers.h"/>

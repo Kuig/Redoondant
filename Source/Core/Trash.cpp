@@ -27,17 +27,17 @@ std::vector<FileEntry> Trash::withoutNested (std::vector<FileEntry> entries)
     return result;
 }
 
-TrashReport Trash::moveToTrash (std::vector<FileEntry> entries)
+RemovalReport Trash::moveToTrash (std::vector<FileEntry> entries)
 {
-    TrashReport report;
+    RemovalReport report;
 
     for (const auto& entry : withoutNested (std::move (entries)))
     {
         if (entry.file.moveToTrash())
         {
             ++report.moved;
-            report.bytesFreed += entry.size;
-            report.trashed.add (entry.file);
+            report.bytesMoved += entry.size;
+            report.movedFiles.add (entry.file);
         }
         else
         {
