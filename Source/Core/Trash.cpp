@@ -27,23 +27,36 @@ std::vector<FileEntry> Trash::withoutNested (std::vector<FileEntry> entries)
     return result;
 }
 
+namespace
+{
+    RemovalReport removeEach (std::vector<FileEntry> entries, const std::function<bool (const juce::File&)>& remove)
+    {
+        RemovalReport report;
+
+        for (const auto& entry : Trash::withoutNested (std::move (entries)))
+        {
+            if (remove (entry.file))
+            {
+                ++report.moved;
+                report.bytesMoved += entry.size;
+                report.movedFiles.add (entry.file);
+            }
+            else
+            {
+                report.failures.add (entry.file.getFullPathName());
+            }
+        }
+
+        return report;
+    }
+}
+
 RemovalReport Trash::moveToTrash (std::vector<FileEntry> entries)
 {
-    RemovalReport report;
+    return removeEach (std::move (entries), [] (const juce::File& f) { return f.moveToTrash(); });
+}
 
-    for (const auto& entry : withoutNested (std::move (entries)))
-    {
-        if (entry.file.moveToTrash())
-        {
-            ++report.moved;
-            report.bytesMoved += entry.size;
-            report.movedFiles.add (entry.file);
-        }
-        else
-        {
-            report.failures.add (entry.file.getFullPathName());
-        }
-    }
-
-    return report;
+RemovalReport Trash::deletePermanently (std::vector<FileEntry> entries)
+{
+    return removeEach (std::move (entries), [] (const juce::File& f) { return f.isDirectory() ? f.deleteRecursively() : f.deleteFile(); });
 }

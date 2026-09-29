@@ -21,6 +21,15 @@ public:
     bool   getBool   (const juce::String& name, bool fallback) const   { return properties->getBoolValue (key (name), fallback); }
     double getDouble (const juce::String& name, double fallback) const { return properties->getDoubleValue (key (name), fallback); }
 
+    /** Lists of strings are stored in one key, separated by '|' (which is neither legal in paths nor XML-sensitive). */
+    juce::StringArray getList (const juce::String& name) const
+    {
+        return juce::StringArray::fromTokens (get (name), "|", "");
+    }
+
+    void setList (const juce::String& name, const juce::StringArray& values)   { set (name, values.joinIntoString ("|")); }
+    bool has (const juce::String& name) const                                  { return properties->containsKey (key (name)); }
+
     void set (const juce::String& name, const juce::var& value)        { properties->setValue (key (name), value); }
     void remove (const juce::String& name)                             { properties->removeValue (key (name)); }
 

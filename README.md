@@ -22,6 +22,17 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    overwrites: on a name clash the moved item becomes `name (2).ext`; folders moved across drives
    are copied first and the original is deleted only after the copy succeeded.
 
+### Cache Cleaner
+
+The entry pinned at the bottom of the left bar lists temporary and cache folders (Windows temp and
+crash dumps, shader caches, Premiere media cache, Teams, browser and VS Code caches, pip/npm...),
+with their sizes, grouped under the deepest directory shared with another listed folder.
+Missing folders are shown dimmed. **Add folder...** / **Remove** edit the list, **Reset to defaults** restores it
+(defaults use `%APPDATA%`-style variables, so they don't depend on the user name); folders that are too
+broad (drive roots, the user profile, AppData, Windows...) can't be added. The buttons act on the *content* of the
+checked folders (the folders stay): **Move to Trash**, **Move to folder** or **Delete permanently** (bypasses the
+Recycle Bin). Files in use by a running program are reported and skipped. Big caches of browsers/VS Code/pip/npm are listed but not checked at first.
+
 All settings (folder, per-criterion parameters, Recursive flags, column layout and sort,
 filters, panel sizes, window position, volume) are saved in
 `%APPDATA%\Redoondant\Redoondant.settings`. Results are not saved: press Analyze again.
@@ -53,14 +64,15 @@ System, so what is shown for a format depends on the property handlers/codecs in
 ```
 Source/
   Core/       FileEntry, FileScanner (tree walk with folder sizes), Grouping helpers,
-              ContentHasher, FileCategory, Trash, Settings, Format
+              ContentHasher, FileCategory, Trash, MoveToFolder, EmptyFolders, Settings, Format
   Archives/   ArchiveReader (list / stream entries) implemented with libarchive
   Metadata/   Metadata model, MetadataReader (merges all sources), PE header reader
   Pdf/        PdfDocument: PDFium wrapper (metadata, page rendering)
   Platform/   Windows services: COM init, shell thumbnails, Property System metadata
   Criteria/   Criterion base class, Parameter declarations, one file per criterion
-  UI/         CriterionPage, ResultsModel/ResultsTable, ParametersPanel, FilterBar,
-              PreviewPanel, AudioPlayer
+  UI/         RemovalPage (checked items + Move/Trash/Delete actions), CriterionPage and CleanupPage
+              (Cache Cleaner) built on it, ResultsModel/ResultsTable, ParametersPanel, FilterBar,
+              PreviewPanel, TextPreview, AudioPlayer
   Tests/      juce::UnitTest suites
 ```
 

@@ -92,6 +92,18 @@ void ResultsTable::restoreLayoutState (const juce::String& state)
         table.getHeader().restoreFromString (state);
 }
 
+juce::Array<juce::File> ResultsTable::getSelectedFiles() const
+{
+    juce::Array<juce::File> files;
+    const auto selected = table.getSelectedRows();
+
+    for (int i = 0; i < selected.size(); ++i)
+        if (const auto* entry = model.getEntry (selected[i]))
+            files.add (entry->file);
+
+    return files;
+}
+
 void ResultsTable::resized()
 {
     table.setBounds (getLocalBounds());
@@ -170,12 +182,12 @@ void ResultsTable::paintCell (juce::Graphics& g, int row, int columnId, int widt
         return;
     }
 
-    auto cell = model.getCellText (*entry, column);
+    auto cell = model.getCellText (*entry, column, model.getGroup (row));
 
     if (column == Column::name && entry->isDirectory)
         cell += "/";
 
-    g.setColour (text);
+    g.setColour (entry->missing ? text.withAlpha (0.45f) : text);
     g.setFont (juce::FontOptions (14.0f, entry->isDirectory && column == Column::name ? juce::Font::bold : juce::Font::plain));
     g.drawText (cell, 4, 0, width - 8, height,
                 column == Column::size ? juce::Justification::centredRight : juce::Justification::centredLeft, true);

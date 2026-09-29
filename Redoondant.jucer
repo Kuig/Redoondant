@@ -19,6 +19,8 @@
         <FILE id="9Wvgfy" name="ContentHasher.cpp" compile="1" resource="0"
               file="Source/Core/ContentHasher.cpp"/>
         <FILE id="gw2wMq" name="ContentHasher.h" compile="0" resource="0" file="Source/Core/ContentHasher.h"/>
+        <FILE id="NonTr1" name="EmptyFolders.cpp" compile="1" resource="0" file="Source/Core/EmptyFolders.cpp"/>
+        <FILE id="yLeb0I" name="EmptyFolders.h" compile="0" resource="0" file="Source/Core/EmptyFolders.h"/>
         <FILE id="ZcUDIh" name="FileCategory.cpp" compile="1" resource="0"
               file="Source/Core/FileCategory.cpp"/>
         <FILE id="7yfJs1" name="FileCategory.h" compile="0" resource="0" file="Source/Core/FileCategory.h"/>
@@ -88,6 +90,7 @@
       <GROUP id="{4IWrXP}" name="Tests">
         <FILE id="2QcTtX" name="ArchiveTests.cpp" compile="1" resource="0"
               file="Source/Tests/ArchiveTests.cpp"/>
+        <FILE id="Fx9Ghc" name="CleanupTests.cpp" compile="1" resource="0" file="Source/Tests/CleanupTests.cpp"/>
         <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
         <FILE id="YXgljU" name="MediaTests.cpp" compile="1" resource="0" file="Source/Tests/MediaTests.cpp"/>
         <FILE id="r5fsQk" name="MoveTests.cpp" compile="1" resource="0" file="Source/Tests/MoveTests.cpp"/>
@@ -98,6 +101,8 @@
       <GROUP id="{a9U4Uq}" name="UI">
         <FILE id="GWlG6g" name="AudioPlayer.cpp" compile="1" resource="0" file="Source/UI/AudioPlayer.cpp"/>
         <FILE id="3Ot1OG" name="AudioPlayer.h" compile="0" resource="0" file="Source/UI/AudioPlayer.h"/>
+        <FILE id="W2rj7m" name="CleanupPage.cpp" compile="1" resource="0" file="Source/UI/CleanupPage.cpp"/>
+        <FILE id="pN4YUG" name="CleanupPage.h" compile="0" resource="0" file="Source/UI/CleanupPage.h"/>
         <FILE id="MmjxWk" name="CriterionPage.cpp" compile="1" resource="0"
               file="Source/UI/CriterionPage.cpp"/>
         <FILE id="I9X7H6" name="CriterionPage.h" compile="0" resource="0" file="Source/UI/CriterionPage.h"/>
@@ -110,6 +115,8 @@
         <FILE id="WIXiiQ" name="PreviewPanel.cpp" compile="1" resource="0"
               file="Source/UI/PreviewPanel.cpp"/>
         <FILE id="E8JkqH" name="PreviewPanel.h" compile="0" resource="0" file="Source/UI/PreviewPanel.h"/>
+        <FILE id="ojM9JQ" name="RemovalPage.cpp" compile="1" resource="0" file="Source/UI/RemovalPage.cpp"/>
+        <FILE id="yrUWqE" name="RemovalPage.h" compile="0" resource="0" file="Source/UI/RemovalPage.h"/>
         <FILE id="3MB9n7" name="ResultsModel.cpp" compile="1" resource="0"
               file="Source/UI/ResultsModel.cpp"/>
         <FILE id="IWUSmT" name="ResultsModel.h" compile="0" resource="0" file="Source/UI/ResultsModel.h"/>

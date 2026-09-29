@@ -22,4 +22,7 @@ namespace Trash
 
     /** Moves the entries to the Recycle Bin (after withoutNested) and reports the result. */
     RemovalReport moveToTrash (std::vector<FileEntry> entries);
+
+    /** Deletes the entries for good, bypassing the Recycle Bin (after withoutNested). */
+    RemovalReport deletePermanently (std::vector<FileEntry> entries);
 }

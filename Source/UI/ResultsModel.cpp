@@ -48,17 +48,25 @@ FileEntry* ResultsModel::getEntry (int row)
     return r != nullptr && ! r->isHeader() ? &result.groups[(size_t) r->group].items[(size_t) r->item] : nullptr;
 }
 
-juce::String ResultsModel::getCellText (const FileEntry& entry, Column column) const
+juce::String ResultsModel::getCellText (const FileEntry& entry, Column column, const ResultGroup* group) const
 {
     switch (column)
     {
-        case Column::name:      return entry.name();
+        case Column::name:
+            if (root == juce::File() && group != nullptr && group->title.isNotEmpty())
+                return entry.file.getRelativePathFrom (juce::File (group->title)).replace ("\\", "/");
+
+            return entry.name();
         case Column::folder:
         {
             const auto parent = entry.file.getParentDirectory();
+
+            if (root == juce::File())       // No analysed folder: show where the item is.
+                return parent.getFullPathName();
+
             return parent == root ? juce::String() : parent.getRelativePathFrom (root);
         }
-        case Column::size:      return Format::size (entry.size);
+        case Column::size:      return entry.missing ? juce::String ("-") : Format::size (entry.size);
         case Column::modified:  return Format::date (entry.modified);
         case Column::created:   return Format::date (entry.created);
         case Column::type:      return entry.isDirectory ? juce::String ("Folder")
@@ -72,7 +80,14 @@ juce::String ResultsModel::getCellText (const FileEntry& entry, Column column) c
 CheckState ResultsModel::getGroupState (int group) const
 {
     size_t total = 0, checked = 0;
-    forEachVisible (group, [&] (const FileEntry& e) { ++total; checked += e.selected ? 1 : 0; });
+    forEachVisible (group, [&] (const FileEntry& e)
+    {
+        if (! e.missing)    // Missing entries can't be checked: they don't count.
+        {
+            ++total;
+            checked += e.selected ? 1 : 0;
+        }
+    });
 
     return checked == 0 ? CheckState::none : (checked == total ? CheckState::all : CheckState::some);
 }
@@ -87,7 +102,7 @@ void ResultsModel::toggle (int row)
     if (! r->isHeader())
     {
         auto& entry = result.groups[(size_t) r->group].items[(size_t) r->item];
-        entry.selected = ! entry.selected;
+        entry.selected = ! entry.selected && ! entry.missing;
         return;
     }
 
@@ -95,7 +110,7 @@ void ResultsModel::toggle (int row)
 
     for (auto& item : result.groups[(size_t) r->group].items)
         if (isVisible (item))
-            item.selected = check;
+            item.selected = check && ! item.missing;
 }
 
 size_t ResultsModel::getVisibleCount() const
@@ -133,7 +148,14 @@ void ResultsModel::applyChecks (Checks checks)
     for (auto& group : result.groups)
         for (auto& item : group.items)
             if (isVisible (item))
-                item.selected = checks == Checks::all || (checks == Checks::defaults && item.selectedByDefault);
+                item.selected = ! item.missing && (checks == Checks::all || (checks == Checks::defaults && item.selectedByDefault));
+}
+
+void ResultsModel::checkWhere (const std::function<bool (const FileEntry&)>& shouldCheck)
+{
+    for (auto& group : result.groups)
+        for (auto& item : group.items)
+            item.selected = ! item.missing && shouldCheck (item);
 }
 
 void ResultsModel::remove (const juce::Array<juce::File>& files)
@@ -175,7 +197,9 @@ void ResultsModel::applySort()
     if (sortColumn == Column::check)
         return;
 
-    const auto compare = [this] (const FileEntry& a, const FileEntry& b) -> int
+    const ResultGroup* currentGroup = nullptr;
+
+    const auto compare = [this, &currentGroup] (const FileEntry& a, const FileEntry& b) -> int
     {
         switch (sortColumn)
         {
@@ -188,11 +212,12 @@ void ResultsModel::applySort()
             case Column::check:     break;
         }
 
-        return getCellText (a, sortColumn).compareNatural (getCellText (b, sortColumn));
+        return getCellText (a, sortColumn, currentGroup).compareNatural (getCellText (b, sortColumn, currentGroup));
     };
 
     for (auto& group : result.groups)
     {
+        currentGroup = &group;
         std::stable_sort (group.items.begin(), group.items.end(), [&] (const FileEntry& a, const FileEntry& b)
         {
             const int c = compare (a, b);

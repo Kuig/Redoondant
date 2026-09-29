@@ -4,6 +4,8 @@
 namespace
 {
     constexpr int folderBarHeight = 40;
+    constexpr int toolEntryHeight = 34;
+    const juce::String cleanupId ("tool.cache");      // Stored as the "criterion" setting when the tool is the last page.
 
     juce::File defaultFolder()
     {
@@ -43,6 +45,43 @@ private:
 };
 
 //==============================================================================
+void MainComponent::ToolEntry::setSelected (bool shouldBeSelected)
+{
+    selected = shouldBeSelected;
+    repaint();
+}
+
+void MainComponent::ToolEntry::paint (juce::Graphics& g)
+{
+    if (selected)
+        g.fillAll (findColour (juce::TextEditor::highlightColourId));
+
+    g.setColour (findColour (juce::ListBox::textColourId));
+    g.setFont (juce::FontOptions (15.0f, juce::Font::bold));
+    g.drawText ("Cache Cleaner", 12, 0, getWidth() - 16, getHeight(), juce::Justification::centredLeft, true);
+}
+
+MainComponent::Sidebar::Sidebar (juce::ListBox& criteria, ToolEntry& tool) : list (criteria), toolEntry (tool)
+{
+    addAndMakeVisible (list);
+    addAndMakeVisible (toolEntry);
+}
+
+void MainComponent::Sidebar::paint (juce::Graphics& g)
+{
+    g.setColour (findColour (juce::ListBox::outlineColourId).withAlpha (0.6f));
+    g.fillRect (0, getHeight() - toolEntryHeight - 1, getWidth(), 1);
+}
+
+void MainComponent::Sidebar::resized()
+{
+    auto area = getLocalBounds();
+    toolEntry.setBounds (area.removeFromBottom (toolEntryHeight));
+    area.removeFromBottom (1);
+    list.setBounds (area);
+}
+
+//==============================================================================
 MainComponent::MainComponent (Settings& appSettings)
     : settings (appSettings.root()),
       criteria (Criteria::createAll ([this] { return describePeers(); })),
@@ -56,6 +95,12 @@ MainComponent::MainComponent (Settings& appSettings)
         addChildComponent (*page);
         pages.push_back (std::move (page));
     }
+
+    cleanupPage = std::make_unique<CleanupPage> (settings.child ("cleanup"));
+    cleanupPage->onItemSelected = [this] (const FileEntry* entry) { preview.show (entry); };
+    addChildComponent (*cleanupPage);
+    cacheEntry.setTitle ("Cache Cleaner");
+    cacheEntry.onClick = [this] { showCleanupPage(); };
 
     const juce::File savedFolder (settings.get ("folder"));
     setRootFolder (savedFolder.isDirectory() ? savedFolder : defaultFolder());
@@ -75,11 +120,11 @@ MainComponent::MainComponent (Settings& appSettings)
 
     leftBar.onMoved = rightBar.onMoved = [this]
     {
-        settings.set ("layout.left", criteriaList.getWidth());
+        settings.set ("layout.left", sidebar.getWidth());
         settings.set ("layout.right", preview.getWidth());
     };
 
-    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &criteriaList,
+    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &sidebar,
                                                                &leftBar, &rightBar, &preview })
         addAndMakeVisible (c);
 
@@ -89,7 +134,11 @@ MainComponent::MainComponent (Settings& appSettings)
         if (criteria[i]->getInfo().id == settings.get ("criterion"))
             selected = (int) i;
 
-    criteriaList.selectRow (selected);
+    if (settings.get ("criterion") == cleanupId)
+        showCleanupPage();
+    else
+        criteriaList.selectRow (selected);
+
     setSize (1400, 820);
 }
 
@@ -137,11 +186,26 @@ void MainComponent::showPage (int index)
     if (! juce::isPositiveAndBelow (index, (int) pages.size()))
         return;
 
-    for (size_t i = 0; i < pages.size(); ++i)
-        pages[i]->setVisible ((int) i == index);
-
-    currentPage = pages[(size_t) index].get();
     settings.set ("criterion", criteria[(size_t) index]->getInfo().id);
+    cacheEntry.setSelected (false);
+    setCurrentPage (pages[(size_t) index].get());
+}
+
+void MainComponent::showCleanupPage()
+{
+    settings.set ("criterion", cleanupId);
+    criteriaList.deselectAllRows();
+    cacheEntry.setSelected (true);
+    setCurrentPage (cleanupPage.get());
+}
+
+void MainComponent::setCurrentPage (juce::Component* page)
+{
+    for (auto& p : pages)
+        p->setVisible (p.get() == page);
+
+    cleanupPage->setVisible (cleanupPage.get() == page);
+    currentPage = page;
     preview.show (nullptr);
     resized();
 }
@@ -161,6 +225,6 @@ void MainComponent::resized()
     folderBar.removeFromRight (8);
     folderEditor.setBounds (folderBar);
 
-    juce::Component* columns[] = { &criteriaList, &leftBar, currentPage, &rightBar, &preview };
+    juce::Component* columns[] = { &sidebar, &leftBar, currentPage, &rightBar, &preview };
     layout.layOutComponents (columns, 5, area.getX(), area.getY(), area.getWidth(), area.getHeight(), false, true);
 }

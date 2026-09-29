@@ -45,8 +45,10 @@ public:
     const ResultGroup* getGroup (int row) const;
     FileEntry* getEntry (int row);
 
-    /** Text shown in a cell. */
-    juce::String getCellText (const FileEntry& entry, Column column) const;
+    /** Text shown in a cell. Entries flagged `missing` have no size or dates. When no folder was
+        analysed (empty root) and the group's title is a folder, names are shown relative to it.
+    */
+    juce::String getCellText (const FileEntry& entry, Column column, const ResultGroup* group = nullptr) const;
 
     CheckState getGroupState (int group) const;
 
@@ -63,6 +65,9 @@ public:
     /** Bulk check states for the visible entries. */
     enum class Checks { defaults, all, none };
     void applyChecks (Checks checks);
+
+    /** Checks exactly the entries (missing ones excepted) for which `shouldCheck` is true. */
+    void checkWhere (const std::function<bool (const FileEntry&)>& shouldCheck);
 
     /** Removes entries (e.g. after trashing them). In grouped mode, groups that lose items and are left
         with fewer than 2 are dropped (a single remaining file is no longer a duplicate, a version...).

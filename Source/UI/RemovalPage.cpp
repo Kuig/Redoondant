@@ -1,0 +1,254 @@
+#include "RemovalPage.h"
+#include "../Core/Format.h"
+#include "../Core/MoveToFolder.h"
+#include "../Platform/ShellContextMenu.h"
+
+namespace
+{
+    constexpr int rowHeight = 26;
+    constexpr int gap = 8;
+
+    /** Text with paths that message boxes can wrap: invisible break opportunities (zero-width spaces) after each separator. */
+    juce::String wrappable (const juce::String& text)
+    {
+        const juce::String zeroWidthSpace (juce::CharPointer_UTF8 ("\xe2\x80\x8b"));
+        return text.replace ("\\", "\\" + zeroWidthSpace).replace ("/", "/" + zeroWidthSpace);
+    }
+}
+
+juce::String RemovalPage::wrappable (const juce::File& path)
+{
+    return ::wrappable (path.getFullPathName());
+}
+
+RemovalPage::RemovalPage (SettingsScope s, bool offerPermanentDelete)
+    : settings (s), permanentDelete (offerPermanentDelete)
+{
+    trashButton.onClick = [this] { moveCheckedToTrash(); };
+    moveButton.onClick = [this] { moveCheckedToFolder(); };
+    deleteButton.onClick = [this] { deleteChecked(); };
+    checksButton.onClick = [this] { cycleChecks(); };
+
+    table.restoreLayoutState (settings.get ("table"));
+    table.onLayoutChanged = [this] { settings.set ("table", table.getLayoutState()); };
+    table.onCheckedChanged = [this] { updateSummary(); };
+    table.onContextMenu = [this] (const juce::Array<juce::File>& files, juce::Point<int> position)
+    {
+        if (ShellContextMenu::show (files, position, *this))
+            forgetMissing (files);
+    };
+    table.onItemSelected = [this] (const FileEntry* entry)
+    {
+        if (onItemSelected != nullptr)
+            onItemSelected (entry);
+    };
+
+    for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &checksButton, &moveButton, &trashButton })
+        addAndMakeVisible (component);
+
+    // Red: unlike the other actions, this one can't be undone.
+    deleteButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xffb3261e));
+    deleteButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
+    deleteButton.setColour (juce::TextButton::textColourOnId, juce::Colours::white);
+
+    addChildComponent (deleteButton);
+    deleteButton.setVisible (permanentDelete);
+
+    updateSummary();
+}
+
+RemovalPage::~RemovalPage() = default;
+
+void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
+{
+    auto footer = area.removeFromBottom (rowHeight + 4);
+
+    if (permanentDelete)
+    {
+        deleteButton.setBounds (footer.removeFromRight (150));
+        footer.removeFromRight (gap);
+    }
+
+    trashButton.setBounds (footer.removeFromRight (140));
+    footer.removeFromRight (gap);
+    moveButton.setBounds (footer.removeFromRight (140));
+    checksButton.setBounds (footer.removeFromLeft (130));
+    footer.removeFromLeft (gap);
+    summary.setBounds (footer);
+    area.removeFromBottom (gap);
+
+    table.setBounds (area);
+}
+
+juce::String RemovalPage::describeChecked() const
+{
+    juce::int64 bytes = 0;
+    const auto checked = Trash::withoutNested (model.getCheckedEntries());
+
+    for (const auto& entry : checked)
+        bytes += entry.size;
+
+    return Format::count (checked.size(), "item") + " (" + Format::size (bytes) + ")";
+}
+
+juce::String RemovalPage::summaryText (size_t checkedCount, juce::int64 checkedBytes) const
+{
+    return model.hasResult()
+             ? Format::count (model.getVisibleCount(), "item") + " listed, "
+                 + juce::String ((int) checkedCount) + " checked (" + Format::size (checkedBytes) + ")"
+             : juce::String ("Press Analyze to search for candidates.");
+}
+
+void RemovalPage::itemsGone (const juce::Array<juce::File>& files)
+{
+    model.remove (files);
+    table.refresh();
+    updateSummary();
+}
+
+void RemovalPage::confirm (juce::MessageBoxIconType icon, const juce::String& boxTitle, const juce::String& question,
+                           const juce::String& okText, std::function<void()> action)
+{
+    juce::AlertWindow::showAsync (juce::MessageBoxOptions()
+                                      .withIconType (icon)
+                                      .withTitle (boxTitle)
+                                      .withMessage (question)
+                                      .withButton (okText)
+                                      .withButton ("Cancel")
+                                      .withAssociatedComponent (this),
+                                  [safeThis = juce::Component::SafePointer<RemovalPage> (this), action = std::move (action)] (int button)
+                                  {
+                                      // With two buttons JUCE reports 1 for the first (OK) and 0 for the second (Cancel).
+                                      constexpr int okResult = 1;
+
+                                      if (button == okResult && safeThis != nullptr)
+                                          action();
+                                  });
+}
+
+void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done)
+{
+    itemsGone (report.movedFiles);
+
+    if (onItemSelected != nullptr)
+        onItemSelected (nullptr);
+
+    auto message = Format::count ((size_t) report.moved, "item") + " " + done;
+
+    if (! report.failures.isEmpty())
+    {
+        message << "\n\n" << Format::count ((size_t) report.failures.size(), "item")
+                << " could not be removed:\n" << ::wrappable (report.failures.joinIntoString ("\n"));
+
+        if (const auto advice = failureAdvice(); advice.isNotEmpty())
+            message << "\n\n" << advice;
+    }
+
+    juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() ? juce::MessageBoxIconType::InfoIcon
+                                                                      : juce::MessageBoxIconType::WarningIcon,
+                                            boxTitle, message);
+}
+
+void RemovalPage::moveCheckedToTrash()
+{
+    // A warning alert: trashing is the more drastic action of the two.
+    confirm (juce::MessageBoxIconType::WarningIcon, "Move to Trash",
+             "Move " + describeChecked() + " to the Recycle Bin?", "Move to Trash",
+             [this]
+             {
+                 const auto report = Trash::moveToTrash (itemsToRemove());
+                 finishRemoval (report, "Move to Trash",
+                                "moved to the Recycle Bin.\n" + Format::size (report.bytesMoved) + " freed.");
+             });
+}
+
+void RemovalPage::deleteChecked()
+{
+    confirm (juce::MessageBoxIconType::WarningIcon, "Delete permanently",
+             "Permanently delete " + describeChecked() + "?\n\nThey bypass the Recycle Bin and can't be restored.", "Delete permanently",
+             [this]
+             {
+                 const auto report = Trash::deletePermanently (itemsToRemove());
+                 finishRemoval (report, "Delete permanently",
+                                "deleted permanently.\n" + Format::size (report.bytesMoved) + " freed.");
+             });
+}
+
+void RemovalPage::moveCheckedToFolder()
+{
+    const juce::File last (settings.get ("moveTarget"));
+
+    chooser = std::make_unique<juce::FileChooser> ("Move the checked items to...",
+                                                    last.isDirectory() ? last : (getRootFolder != nullptr ? getRootFolder() : juce::File()));
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                          [safeThis = juce::Component::SafePointer<RemovalPage> (this)] (const juce::FileChooser& fc)
+                          {
+                              const auto destination = fc.getResult();
+
+                              if (safeThis == nullptr || destination == juce::File())
+                                  return;
+
+                              // An info box rather than a warning: moving keeps the files, unlike the Recycle Bin.
+                              safeThis->confirm (juce::MessageBoxIconType::InfoIcon, "Move to folder",
+                                                 "Move " + safeThis->describeChecked() + " to\n" + wrappable (destination) + " ?",
+                                                 "Move",
+                                                 [safeThis, destination]
+                                                 {
+                                                     safeThis->settings.set ("moveTarget", destination.getFullPathName());
+
+                                                     const auto report = MoveToFolder::run (safeThis->itemsToRemove(), destination);
+                                                     safeThis->finishRemoval (report, "Move to folder",
+                                                                              "moved to " + wrappable (destination) + ".\n"
+                                                                                + Format::size (report.bytesMoved) + " moved.");
+                                                 });
+                          });
+}
+
+void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
+{
+    juce::Array<juce::File> missing;
+
+    for (const auto& file : files)
+        if (! file.exists())
+            missing.add (file);
+
+    if (missing.isEmpty())
+        return;
+
+    itemsGone (missing);
+
+    if (onItemSelected != nullptr)
+        onItemSelected (nullptr);
+}
+
+void RemovalPage::cycleChecks()
+{
+    using Checks = ResultsModel::Checks;
+    checks = checks == Checks::defaults ? Checks::all : (checks == Checks::all ? Checks::none : Checks::defaults);
+
+    model.applyChecks (checks);
+    table.refresh();
+    updateSummary();
+}
+
+void RemovalPage::updateSummary()
+{
+    checksChanged();
+
+    const auto checked = Trash::withoutNested (model.getCheckedEntries());
+    juce::int64 bytes = 0;
+
+    for (const auto& entry : checked)
+        bytes += entry.size;
+
+    summary.setText (summaryText (checked.size(), bytes), juce::dontSendNotification);
+
+    for (auto* button : { &trashButton, &moveButton, &deleteButton })
+        button->setEnabled (! checked.empty());
+
+    // The button shows what the next click does.
+    using Checks = ResultsModel::Checks;
+    checksButton.setButtonText (checks == Checks::defaults ? "Check all" : (checks == Checks::all ? "Uncheck all" : "Default checks"));
+    checksButton.setEnabled (model.getVisibleCount() > 0);
+}

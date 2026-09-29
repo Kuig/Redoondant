@@ -27,6 +27,9 @@ public:
     /** Right-click on items: the files to show a context menu for (same folder), and where. */
     std::function<void (const juce::Array<juce::File>&, juce::Point<int>)> onContextMenu;
 
+    /** The files of the selected (highlighted) rows, group headers excluded. */
+    juce::Array<juce::File> getSelectedFiles() const;
+
     void resized() override;
     bool keyPressed (const juce::KeyPress& key) override;
 
