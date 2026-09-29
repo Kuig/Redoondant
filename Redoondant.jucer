@@ -6,15 +6,20 @@
   <MAINGROUP id="j1TReh" name="Redoondant">
     <GROUP id="{AEBCF083-7E50-BCF9-E575-2CC2CC5C8BDB}" name="Source">
       <GROUP id="{OhbVrp}" name="Archives">
-        <FILE id="oiVgRV" name="ArchiveReader.cpp" compile="1" resource="0" file="Source/Archives/ArchiveReader.cpp"/>
+        <FILE id="oiVgRV" name="ArchiveReader.cpp" compile="1" resource="0"
+              file="Source/Archives/ArchiveReader.cpp"/>
         <FILE id="5IfLBc" name="ArchiveReader.h" compile="0" resource="0" file="Source/Archives/ArchiveReader.h"/>
-        <FILE id="UikylM" name="LibArchiveReader.cpp" compile="1" resource="0" file="Source/Archives/LibArchiveReader.cpp"/>
+        <FILE id="UikylM" name="LibArchiveReader.cpp" compile="1" resource="0"
+              file="Source/Archives/LibArchiveReader.cpp"/>
       </GROUP>
       <GROUP id="{Z3aWZk}" name="Core">
-        <FILE id="SBvrjn" name="AnalysisResult.h" compile="0" resource="0" file="Source/Core/AnalysisResult.h"/>
-        <FILE id="9Wvgfy" name="ContentHasher.cpp" compile="1" resource="0" file="Source/Core/ContentHasher.cpp"/>
+        <FILE id="SBvrjn" name="AnalysisResult.h" compile="0" resource="0"
+              file="Source/Core/AnalysisResult.h"/>
+        <FILE id="9Wvgfy" name="ContentHasher.cpp" compile="1" resource="0"
+              file="Source/Core/ContentHasher.cpp"/>
         <FILE id="gw2wMq" name="ContentHasher.h" compile="0" resource="0" file="Source/Core/ContentHasher.h"/>
-        <FILE id="ZcUDIh" name="FileCategory.cpp" compile="1" resource="0" file="Source/Core/FileCategory.cpp"/>
+        <FILE id="ZcUDIh" name="FileCategory.cpp" compile="1" resource="0"
+              file="Source/Core/FileCategory.cpp"/>
         <FILE id="7yfJs1" name="FileCategory.h" compile="0" resource="0" file="Source/Core/FileCategory.h"/>
         <FILE id="ON43xK" name="FileEntry.h" compile="0" resource="0" file="Source/Core/FileEntry.h"/>
         <FILE id="mTecQo" name="FileScanner.cpp" compile="1" resource="0" file="Source/Core/FileScanner.cpp"/>
@@ -30,25 +35,38 @@
       </GROUP>
       <GROUP id="{Zuzren}" name="Criteria">
         <FILE id="68K4Tu" name="AllCriteria.h" compile="0" resource="0" file="Source/Criteria/AllCriteria.h"/>
-        <FILE id="nPFz46" name="ArchiveMirrorsCriterion.cpp" compile="1" resource="0" file="Source/Criteria/ArchiveMirrorsCriterion.cpp"/>
+        <FILE id="nPFz46" name="ArchiveMirrorsCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/ArchiveMirrorsCriterion.cpp"/>
         <FILE id="PDjqip" name="Criterion.h" compile="0" resource="0" file="Source/Criteria/Criterion.h"/>
-        <FILE id="VJIqVL" name="CriterionRegistry.cpp" compile="1" resource="0" file="Source/Criteria/CriterionRegistry.cpp"/>
-        <FILE id="B5Lzxo" name="DateClustersCriterion.cpp" compile="1" resource="0" file="Source/Criteria/DateClustersCriterion.cpp"/>
-        <FILE id="iGFfWd" name="DuplicateFilesCriterion.cpp" compile="1" resource="0" file="Source/Criteria/DuplicateFilesCriterion.cpp"/>
-        <FILE id="3hjOkY" name="JunkFoldersCriterion.cpp" compile="1" resource="0" file="Source/Criteria/JunkFoldersCriterion.cpp"/>
-        <FILE id="Pn5ums" name="MultipleCriteriaCriterion.cpp" compile="1" resource="0" file="Source/Criteria/MultipleCriteriaCriterion.cpp"/>
+        <FILE id="VJIqVL" name="CriterionRegistry.cpp" compile="1" resource="0"
+              file="Source/Criteria/CriterionRegistry.cpp"/>
+        <FILE id="B5Lzxo" name="DateClustersCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/DateClustersCriterion.cpp"/>
+        <FILE id="iGFfWd" name="DuplicateFilesCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/DuplicateFilesCriterion.cpp"/>
+        <FILE id="3hjOkY" name="JunkFoldersCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/JunkFoldersCriterion.cpp"/>
+        <FILE id="Pn5ums" name="MultipleCriteriaCriterion.cpp" compile="1"
+              resource="0" file="Source/Criteria/MultipleCriteriaCriterion.cpp"/>
         <FILE id="RBMeyy" name="Parameter.h" compile="0" resource="0" file="Source/Criteria/Parameter.h"/>
         <FILE id="Fwy9n1" name="Peers.h" compile="0" resource="0" file="Source/Criteria/Peers.h"/>
-        <FILE id="akYj8D" name="SameContentCriterion.cpp" compile="1" resource="0" file="Source/Criteria/SameContentCriterion.cpp"/>
-        <FILE id="YiWkB8" name="SameNameCriterion.cpp" compile="1" resource="0" file="Source/Criteria/SameNameCriterion.cpp"/>
-        <FILE id="MDHqJ3" name="SimpleFilterCriteria.cpp" compile="1" resource="0" file="Source/Criteria/SimpleFilterCriteria.cpp"/>
-        <FILE id="8aRUhR" name="VersionedFilesCriterion.cpp" compile="1" resource="0" file="Source/Criteria/VersionedFilesCriterion.cpp"/>
+        <FILE id="akYj8D" name="SameContentCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/SameContentCriterion.cpp"/>
+        <FILE id="YiWkB8" name="SameNameCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/SameNameCriterion.cpp"/>
+        <FILE id="MDHqJ3" name="SimpleFilterCriteria.cpp" compile="1" resource="0"
+              file="Source/Criteria/SimpleFilterCriteria.cpp"/>
+        <FILE id="8aRUhR" name="VersionedFilesCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/VersionedFilesCriterion.cpp"/>
       </GROUP>
       <GROUP id="{O63KeH}" name="Metadata">
-        <FILE id="5XpvKs" name="ExecutableHeaders.cpp" compile="1" resource="0" file="Source/Metadata/ExecutableHeaders.cpp"/>
+        <FILE id="5XpvKs" name="ExecutableHeaders.cpp" compile="1" resource="0"
+              file="Source/Metadata/ExecutableHeaders.cpp"/>
         <FILE id="3YftNB" name="Metadata.h" compile="0" resource="0" file="Source/Metadata/Metadata.h"/>
-        <FILE id="zCKyp3" name="MetadataReader.cpp" compile="1" resource="0" file="Source/Metadata/MetadataReader.cpp"/>
-        <FILE id="poyUqA" name="MetadataReader.h" compile="0" resource="0" file="Source/Metadata/MetadataReader.h"/>
+        <FILE id="zCKyp3" name="MetadataReader.cpp" compile="1" resource="0"
+              file="Source/Metadata/MetadataReader.cpp"/>
+        <FILE id="poyUqA" name="MetadataReader.h" compile="0" resource="0"
+              file="Source/Metadata/MetadataReader.h"/>
       </GROUP>
       <GROUP id="{QKQCUf}" name="Pdf">
         <FILE id="1Xr2t8" name="PdfDocument.cpp" compile="1" resource="0" file="Source/Pdf/PdfDocument.cpp"/>
@@ -56,35 +74,48 @@
       </GROUP>
       <GROUP id="{fjvaGf}" name="Platform">
         <FILE id="a589DT" name="ComInit.h" compile="0" resource="0" file="Source/Platform/ComInit.h"/>
-        <FILE id="ZoQalL" name="ShellContextMenu.h" compile="0" resource="0" file="Source/Platform/ShellContextMenu.h"/>
-        <FILE id="HDLDFV" name="ShellThumbnail.h" compile="0" resource="0" file="Source/Platform/ShellThumbnail.h"/>
-        <FILE id="FIi53X" name="WindowsPlatform.cpp" compile="1" resource="0" file="Source/Platform/WindowsPlatform.cpp"/>
+        <FILE id="ZoQalL" name="ShellContextMenu.h" compile="0" resource="0"
+              file="Source/Platform/ShellContextMenu.h"/>
+        <FILE id="HDLDFV" name="ShellThumbnail.h" compile="0" resource="0"
+              file="Source/Platform/ShellThumbnail.h"/>
+        <FILE id="FIi53X" name="WindowsPlatform.cpp" compile="1" resource="0"
+              file="Source/Platform/WindowsPlatform.cpp"/>
       </GROUP>
       <GROUP id="{4IWrXP}" name="Tests">
-        <FILE id="2QcTtX" name="ArchiveTests.cpp" compile="1" resource="0" file="Source/Tests/ArchiveTests.cpp"/>
+        <FILE id="2QcTtX" name="ArchiveTests.cpp" compile="1" resource="0"
+              file="Source/Tests/ArchiveTests.cpp"/>
         <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
         <FILE id="YXgljU" name="MediaTests.cpp" compile="1" resource="0" file="Source/Tests/MediaTests.cpp"/>
-        <FILE id="t04iFg" name="OverlapTests.cpp" compile="1" resource="0" file="Source/Tests/OverlapTests.cpp"/>
+        <FILE id="t04iFg" name="OverlapTests.cpp" compile="1" resource="0"
+              file="Source/Tests/OverlapTests.cpp"/>
         <FILE id="AMVDV8" name="TestHelpers.h" compile="0" resource="0" file="Source/Tests/TestHelpers.h"/>
       </GROUP>
       <GROUP id="{a9U4Uq}" name="UI">
         <FILE id="GWlG6g" name="AudioPlayer.cpp" compile="1" resource="0" file="Source/UI/AudioPlayer.cpp"/>
         <FILE id="3Ot1OG" name="AudioPlayer.h" compile="0" resource="0" file="Source/UI/AudioPlayer.h"/>
-        <FILE id="MmjxWk" name="CriterionPage.cpp" compile="1" resource="0" file="Source/UI/CriterionPage.cpp"/>
+        <FILE id="MmjxWk" name="CriterionPage.cpp" compile="1" resource="0"
+              file="Source/UI/CriterionPage.cpp"/>
         <FILE id="I9X7H6" name="CriterionPage.h" compile="0" resource="0" file="Source/UI/CriterionPage.h"/>
         <FILE id="aMuFbh" name="FilterBar.cpp" compile="1" resource="0" file="Source/UI/FilterBar.cpp"/>
         <FILE id="7x41Zt" name="FilterBar.h" compile="0" resource="0" file="Source/UI/FilterBar.h"/>
-        <FILE id="pdp4K8" name="ParametersPanel.cpp" compile="1" resource="0" file="Source/UI/ParametersPanel.cpp"/>
-        <FILE id="ffUF0e" name="ParametersPanel.h" compile="0" resource="0" file="Source/UI/ParametersPanel.h"/>
-        <FILE id="WIXiiQ" name="PreviewPanel.cpp" compile="1" resource="0" file="Source/UI/PreviewPanel.cpp"/>
+        <FILE id="pdp4K8" name="ParametersPanel.cpp" compile="1" resource="0"
+              file="Source/UI/ParametersPanel.cpp"/>
+        <FILE id="ffUF0e" name="ParametersPanel.h" compile="0" resource="0"
+              file="Source/UI/ParametersPanel.h"/>
+        <FILE id="WIXiiQ" name="PreviewPanel.cpp" compile="1" resource="0"
+              file="Source/UI/PreviewPanel.cpp"/>
         <FILE id="E8JkqH" name="PreviewPanel.h" compile="0" resource="0" file="Source/UI/PreviewPanel.h"/>
-        <FILE id="3MB9n7" name="ResultsModel.cpp" compile="1" resource="0" file="Source/UI/ResultsModel.cpp"/>
+        <FILE id="3MB9n7" name="ResultsModel.cpp" compile="1" resource="0"
+              file="Source/UI/ResultsModel.cpp"/>
         <FILE id="IWUSmT" name="ResultsModel.h" compile="0" resource="0" file="Source/UI/ResultsModel.h"/>
-        <FILE id="tzQPxC" name="ResultsTable.cpp" compile="1" resource="0" file="Source/UI/ResultsTable.cpp"/>
+        <FILE id="tzQPxC" name="ResultsTable.cpp" compile="1" resource="0"
+              file="Source/UI/ResultsTable.cpp"/>
         <FILE id="5HChpo" name="ResultsTable.h" compile="0" resource="0" file="Source/UI/ResultsTable.h"/>
       </GROUP>
+      <FILE id="VfHDRL" name="Icon.png" compile="0" resource="1" file="Source/Icon.png"/>
       <FILE id="evbLJo" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
-      <FILE id="LoaeTO" name="MainComponent.cpp" compile="1" resource="0" file="Source/MainComponent.cpp"/>
+      <FILE id="LoaeTO" name="MainComponent.cpp" compile="1" resource="0"
+            file="Source/MainComponent.cpp"/>
       <FILE id="doe5c3" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
     </GROUP>
   </MAINGROUP>
@@ -100,14 +131,13 @@
   </MODULES>
   <JUCEOPTIONS JUCE_STRICT_REFCOUNTEDPOINTER="1"/>
   <EXPORTFORMATS>
-    <VS2026 targetFolder="Builds/VisualStudio2026" extraLinkerFlags="/DELAYLOAD:pdfium.dll">
+    <VS2026 targetFolder="Builds/VisualStudio2026" extraLinkerFlags="/DELAYLOAD:pdfium.dll"
+            smallIcon="VfHDRL" bigIcon="VfHDRL">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" targetName="Redoondant"
-                       headerPath="../../ThirdParty/vcpkg_installed/x64-windows-static-md/include;../../ThirdParty/pdfium/include"
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Redoondant" headerPath="../../ThirdParty/vcpkg_installed/x64-windows-static-md/include;../../ThirdParty/pdfium/include"
                        libraryPath="../../ThirdParty/vcpkg_installed/x64-windows-static-md/debug/lib;../../ThirdParty/pdfium/lib"
                        postbuildCommand="copy /Y &quot;$(ProjectDir)..\..\ThirdParty\pdfium\bin\pdfium.dll&quot; &quot;$(OutDir)&quot;"/>
-        <CONFIGURATION isDebug="0" name="Release" targetName="Redoondant"
-                       headerPath="../../ThirdParty/vcpkg_installed/x64-windows-static-md/include;../../ThirdParty/pdfium/include"
+        <CONFIGURATION isDebug="0" name="Release" targetName="Redoondant" headerPath="../../ThirdParty/vcpkg_installed/x64-windows-static-md/include;../../ThirdParty/pdfium/include"
                        libraryPath="../../ThirdParty/vcpkg_installed/x64-windows-static-md/lib;../../ThirdParty/pdfium/lib"
                        postbuildCommand="copy /Y &quot;$(ProjectDir)..\..\ThirdParty\pdfium\bin\pdfium.dll&quot; &quot;$(OutDir)&quot;"/>
       </CONFIGURATIONS>
