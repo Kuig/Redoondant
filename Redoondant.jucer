@@ -2,7 +2,8 @@
 
 <JUCERPROJECT id="hbGXmM" name="Redoondant" projectType="guiapp" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" cppLanguageStandard="17"
-              version="1.0.0">
+              version="1.0.0" companyName="Signal Perspective" companyWebsite="www.signalperspective.com"
+              companyEmail="info@signalperspective.com">
   <MAINGROUP id="j1TReh" name="Redoondant">
     <GROUP id="{AEBCF083-7E50-BCF9-E575-2CC2CC5C8BDB}" name="Source">
       <GROUP id="{OhbVrp}" name="Archives">
@@ -28,7 +29,8 @@
         <FILE id="xkxwnQ" name="Grouping.cpp" compile="1" resource="0" file="Source/Core/Grouping.cpp"/>
         <FILE id="rS7RPe" name="Grouping.h" compile="0" resource="0" file="Source/Core/Grouping.h"/>
         <FILE id="SoIR7B" name="MessageThread.h" compile="0" resource="0" file="Source/Core/MessageThread.h"/>
-        <FILE id="WwodkB" name="MoveToFolder.cpp" compile="1" resource="0" file="Source/Core/MoveToFolder.cpp"/>
+        <FILE id="WwodkB" name="MoveToFolder.cpp" compile="1" resource="0"
+              file="Source/Core/MoveToFolder.cpp"/>
         <FILE id="77xzKO" name="MoveToFolder.h" compile="0" resource="0" file="Source/Core/MoveToFolder.h"/>
         <FILE id="MOkIUp" name="ScanContext.h" compile="0" resource="0" file="Source/Core/ScanContext.h"/>
         <FILE id="kDyr7O" name="Settings.h" compile="0" resource="0" file="Source/Core/Settings.h"/>
