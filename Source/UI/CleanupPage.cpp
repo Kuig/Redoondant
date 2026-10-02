@@ -53,10 +53,10 @@ CleanupPage::CleanupPage (SettingsScope s)
     resetButton.onClick = [this] { resetToDefaults(); };
     refreshButton.onClick = [this] { refresh(); };
 
-    table.onItemSelected = [this] (const FileEntry* entry)
+    table.onSelectionChanged = [this] (std::vector<FileEntry> entries)
     {
-        if (onItemSelected != nullptr)
-            onItemSelected (entry);
+        if (onSelectionChanged != nullptr)
+            onSelectionChanged (std::move (entries));
 
         updateButtons();
     };

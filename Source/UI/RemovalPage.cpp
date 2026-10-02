@@ -43,10 +43,10 @@ RemovalPage::RemovalPage (SettingsScope s)
         if (ShellContextMenu::show (files, position, *this))
             forgetMissing (files);
     };
-    table.onItemSelected = [this] (const FileEntry* entry)
+    table.onSelectionChanged = [this] (std::vector<FileEntry> entries)
     {
-        if (onItemSelected != nullptr)
-            onItemSelected (entry);
+        if (onSelectionChanged != nullptr)
+            onSelectionChanged (std::move (entries));
     };
 
     for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &moveButton, &trashButton, &deleteButton })
@@ -184,8 +184,8 @@ void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String
 {
     itemsGone (report.movedFiles);
 
-    if (onItemSelected != nullptr)
-        onItemSelected (nullptr);
+    if (onSelectionChanged != nullptr)
+        onSelectionChanged ({});
 
     auto message = Format::count ((size_t) report.moved, "item") + " " + done;
 
@@ -336,8 +336,8 @@ void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
 
     itemsGone (missing);
 
-    if (onItemSelected != nullptr)
-        onItemSelected (nullptr);
+    if (onSelectionChanged != nullptr)
+        onSelectionChanged ({});
 }
 
 void RemovalPage::cycleChecks()

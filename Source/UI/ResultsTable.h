@@ -30,7 +30,8 @@ public:
 
     /** Explains what clicking the check column header does (shown as its tooltip). */
     void setHeaderTooltip (const juce::String& text);
-    std::function<void (const FileEntry*)> onItemSelected;
+    /** The selected (highlighted) entries, group headers excluded; empty when nothing is selected. */
+    std::function<void (std::vector<FileEntry>)> onSelectionChanged;
     std::function<void()> onLayoutChanged;
 
     /** Right-click on items: the files to show a context menu for (same folder), and where. */

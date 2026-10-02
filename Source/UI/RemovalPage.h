@@ -15,8 +15,8 @@ public:
     /** Optional: a folder to start the "Move to folder" chooser in when none was used before. */
     std::function<juce::File()> getRootFolder;
 
-    /** Called with the highlighted entry (or nullptr) for the preview. */
-    std::function<void (const FileEntry*)> onItemSelected;
+    /** Called with the highlighted entries (none: empty) for the preview. */
+    std::function<void (std::vector<FileEntry>)> onSelectionChanged;
 
 protected:
     explicit RemovalPage (SettingsScope settings);

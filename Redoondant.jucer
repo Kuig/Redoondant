@@ -72,6 +72,7 @@
         <FILE id="5XpvKs" name="ExecutableHeaders.cpp" compile="1" resource="0"
               file="Source/Metadata/ExecutableHeaders.cpp"/>
         <FILE id="3YftNB" name="Metadata.h" compile="0" resource="0" file="Source/Metadata/Metadata.h"/>
+        <FILE id="6jGcFr" name="MetadataDiff.h" compile="0" resource="0" file="Source/Metadata/MetadataDiff.h"/>
         <FILE id="zCKyp3" name="MetadataReader.cpp" compile="1" resource="0"
               file="Source/Metadata/MetadataReader.cpp"/>
         <FILE id="poyUqA" name="MetadataReader.h" compile="0" resource="0"

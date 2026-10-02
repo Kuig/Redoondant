@@ -14,7 +14,7 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    check box in the table header cycles all rows through *default checks*, *check all* and *uncheck all*),
    inspect them in the preview on the right (images, the file's icon when there is nothing else to show, PDF first page, OS thumbnails for
    videos/Office files, text, folder and archive content, audio player, and metadata:
-   media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer;
+   media tags, EXIF, PDF info, executable version/architecture...). Select several items (Ctrl/Shift) to see all their previews in a grid, with only the properties that differ between them listed per file. Double-click reveals an item in Explorer;
    right-click opens the Windows Explorer context menu (items deleted or moved from there leave the list).
 5. Press **Move to Trash** (a warning alert first asks for confirmation, showing the number of
    items and their total size), **Move to folder** (pick a destination, then confirm in an info box) or the red

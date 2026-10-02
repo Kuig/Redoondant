@@ -283,8 +283,19 @@ void ResultsTable::sortOrderChanged (int columnId, bool isForwards)
 
 void ResultsTable::selectedRowsChanged (int lastRowSelected)
 {
-    if (onItemSelected != nullptr)
-        onItemSelected (model.getEntry (lastRowSelected));
+    juce::ignoreUnused (lastRowSelected);
+
+    if (onSelectionChanged == nullptr)
+        return;
+
+    std::vector<FileEntry> selected;
+    const auto rows = table.getSelectedRows();
+
+    for (int i = 0; i < rows.size(); ++i)
+        if (const auto* entry = model.getEntry (rows[i]))
+            selected.push_back (*entry);
+
+    onSelectionChanged (std::move (selected));
 }
 
 juce::String ResultsTable::getCellTooltip (int row, int)

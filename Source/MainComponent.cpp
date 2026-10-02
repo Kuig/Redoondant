@@ -92,13 +92,13 @@ MainComponent::MainComponent (Settings& appSettings)
     {
         auto page = std::make_unique<CriterionPage> (*criterion, settings.child (criterion->getInfo().id));
         page->getRootFolder = [this] { return getRootFolder(); };
-        page->onItemSelected = [this] (const FileEntry* entry) { preview.show (entry); };
+        page->onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
         addChildComponent (*page);
         pages.push_back (std::move (page));
     }
 
     cleanupPage = std::make_unique<CleanupPage> (settings.child ("cleanup"));
-    cleanupPage->onItemSelected = [this] (const FileEntry* entry) { preview.show (entry); };
+    cleanupPage->onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
     addChildComponent (*cleanupPage);
     cacheEntry.setTitle ("Cache Cleaner");
     cacheEntry.onClick = [this] { showCleanupPage(); };
@@ -210,7 +210,7 @@ void MainComponent::setCurrentPage (juce::Component* page)
 
     cleanupPage->setVisible (cleanupPage.get() == page);
     currentPage = page;
-    preview.show (nullptr);
+    preview.show ({});
     resized();
 }
 
