@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="hbGXmM" name="Redoondant" projectType="guiapp" useAppConfig="0"
               addUsingNamespaceToJuceHeader="0" jucerFormatVersion="1" cppLanguageStandard="17"
-              version="1.0.0" companyName="Signal Perspective" companyWebsite="www.signalperspective.com"
+              version="1.1.0" companyName="Signal Perspective" companyWebsite="www.signalperspective.com"
               companyEmail="info@signalperspective.com">
   <MAINGROUP id="j1TReh" name="Redoondant">
     <GROUP id="{AEBCF083-7E50-BCF9-E575-2CC2CC5C8BDB}" name="Source">
