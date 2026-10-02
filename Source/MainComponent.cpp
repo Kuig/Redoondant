@@ -84,7 +84,8 @@ void MainComponent::Sidebar::resized()
 
 //==============================================================================
 MainComponent::MainComponent (Settings& appSettings)
-    : settings (appSettings.root()),
+    : appSettings (appSettings),
+      settings (appSettings.root()),
       criteria (Criteria::createAll ([this] { return describePeers(); })),
       preview (settings.child ("preview"))
 {
@@ -109,6 +110,9 @@ MainComponent::MainComponent (Settings& appSettings)
     folderEditor.onFocusLost = folderEditor.onReturnKey;
     browseButton.onClick = [this] { browseForFolder(); };
 
+    resetSettingsButton.setTooltip ("Delete the saved settings of Redoondant from this computer");
+    resetSettingsButton.onClick = [this] { confirmResetSettings(); };
+
     helpButton.setTooltip (juce::String (ProjectInfo::projectName) + " " + ProjectInfo::versionString + " - open the project page on GitHub");
     helpButton.onClick = [] { juce::URL (projectUrl).launchInDefaultBrowser(); };
 
@@ -128,7 +132,7 @@ MainComponent::MainComponent (Settings& appSettings)
         settings.set ("layout.right", preview.getWidth());
     };
 
-    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &helpButton, &sidebar,
+    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &resetSettingsButton, &helpButton, &sidebar,
                                                                &leftBar, &rightBar, &preview })
         addAndMakeVisible (c);
 
@@ -172,6 +176,27 @@ void MainComponent::setRootFolder (const juce::File& folder)
 
     if (folder.isDirectory())
         settings.set ("folder", folder.getFullPathName());
+}
+
+void MainComponent::confirmResetSettings()
+{
+    const auto options = juce::MessageBoxOptions()
+                             .withIconType (juce::MessageBoxIconType::QuestionIcon)
+                             .withTitle ("Reset settings")
+                             .withMessage ("Delete the saved settings (folder, filters, column layout, window position, "
+                                           "the Cache Cleaner list...)?\n\n" + appSettings.file().getFullPathName()
+                                           + "\n\nRedoondant will close and start from the defaults next time. Your files are not touched.")
+                             .withButton ("Delete settings and close")
+                             .withButton ("Cancel");
+
+    juce::AlertWindow::showAsync (options, [this] (int result)
+    {
+        if (result == 1)
+        {
+            appSettings.discardAll();
+            juce::JUCEApplication::getInstance()->quit();
+        }
+    });
 }
 
 void MainComponent::browseForFolder()
@@ -226,6 +251,8 @@ void MainComponent::resized()
     auto folderBar = area.removeFromTop (folderBarHeight).reduced (10, 7);
     folderLabel.setBounds (folderBar.removeFromLeft (60));
     helpButton.setBounds (folderBar.removeFromRight (28));
+    folderBar.removeFromRight (8);
+    resetSettingsButton.setBounds (folderBar.removeFromRight (120));
     folderBar.removeFromRight (8);
     browseButton.setBounds (folderBar.removeFromRight (100));
     folderBar.removeFromRight (8);

@@ -48,6 +48,7 @@ private:
         ToolEntry& toolEntry;
     };
 
+    Settings& appSettings;
     SettingsScope settings;
     std::vector<std::unique_ptr<Criterion>> criteria;
     std::vector<std::unique_ptr<CriterionPage>> pages;
@@ -57,6 +58,7 @@ private:
     juce::Label folderLabel { {}, "Folder:" };
     juce::TextEditor folderEditor;
     juce::TextButton browseButton { "Browse..." };
+    juce::TextButton resetSettingsButton { "Reset settings" };
     juce::TextButton helpButton { "?" };
     juce::TooltipWindow tooltipWindow { this };      // Shows the tooltips of all child components.
     std::unique_ptr<juce::FileChooser> chooser;
@@ -89,6 +91,7 @@ private:
     std::vector<PeerCriterion> describePeers() const;
     void setRootFolder (const juce::File& folder);
     void browseForFolder();
+    void confirmResetSettings();
     void showPage (int index);
     void showCleanupPage();
     void setCurrentPage (juce::Component* page);

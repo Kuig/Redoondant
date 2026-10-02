@@ -56,9 +56,31 @@ public:
         properties.setStorageParameters (options);
     }
 
+    ~Settings()
+    {
+        if (discarded)      // Whatever was written while closing must not bring the file back.
+        {
+            properties.getUserSettings()->setNeedsToBeSaved (false);
+            file().deleteFile();
+        }
+    }
+
     SettingsScope root()        { return { *properties.getUserSettings() }; }
-    void flush()                { properties.saveIfNeeded(); }
+    void flush()                { if (! discarded) properties.saveIfNeeded(); }
+
+    juce::File file()           { return properties.getUserSettings()->getFile(); }
+
+    /** Deletes the settings file and stops it from being written again: the next run starts from the defaults.
+        The application should quit right after, since its components still hold the old values.
+    */
+    void discardAll()
+    {
+        discarded = true;
+        properties.getUserSettings()->setNeedsToBeSaved (false);
+        file().deleteFile();
+    }
 
 private:
     juce::ApplicationProperties properties;
+    bool discarded = false;
 };
