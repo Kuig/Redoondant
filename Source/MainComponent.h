@@ -57,6 +57,8 @@ private:
     juce::Label folderLabel { {}, "Folder:" };
     juce::TextEditor folderEditor;
     juce::TextButton browseButton { "Browse..." };
+    juce::TextButton helpButton { "?" };
+    juce::TooltipWindow tooltipWindow { this };      // Shows the tooltips of all child components.
     std::unique_ptr<juce::FileChooser> chooser;
 
     std::unique_ptr<CriteriaListModel> criteriaModel;

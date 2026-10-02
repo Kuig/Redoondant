@@ -5,6 +5,7 @@ namespace
 {
     constexpr int folderBarHeight = 40;
     constexpr int toolEntryHeight = 34;
+    const juce::String projectUrl ("https://github.com/Kuig/Redoondant");
     const juce::String cleanupId ("tool.cache");      // Stored as the "criterion" setting when the tool is the last page.
 
     juce::File defaultFolder()
@@ -108,6 +109,9 @@ MainComponent::MainComponent (Settings& appSettings)
     folderEditor.onFocusLost = folderEditor.onReturnKey;
     browseButton.onClick = [this] { browseForFolder(); };
 
+    helpButton.setTooltip (juce::String (ProjectInfo::projectName) + " " + ProjectInfo::versionString + " - open the project page on GitHub");
+    helpButton.onClick = [] { juce::URL (projectUrl).launchInDefaultBrowser(); };
+
     criteriaModel = std::make_unique<CriteriaListModel> (*this);
     criteriaList.setModel (criteriaModel.get());
     criteriaList.setRowHeight (30);
@@ -124,7 +128,7 @@ MainComponent::MainComponent (Settings& appSettings)
         settings.set ("layout.right", preview.getWidth());
     };
 
-    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &sidebar,
+    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &helpButton, &sidebar,
                                                                &leftBar, &rightBar, &preview })
         addAndMakeVisible (c);
 
@@ -221,6 +225,8 @@ void MainComponent::resized()
 
     auto folderBar = area.removeFromTop (folderBarHeight).reduced (10, 7);
     folderLabel.setBounds (folderBar.removeFromLeft (60));
+    helpButton.setBounds (folderBar.removeFromRight (28));
+    folderBar.removeFromRight (8);
     browseButton.setBounds (folderBar.removeFromRight (100));
     folderBar.removeFromRight (8);
     folderEditor.setBounds (folderBar);

@@ -6,7 +6,7 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
 
 ## Usage
 
-1. Choose the folder to analyze (top bar; defaults to `~/Downloads`).
+1. Choose the folder to analyze (top bar; defaults to `~/Downloads`). The **?** button opens the project page on GitHub.
 2. Pick a criterion on the left, adjust its settings, optionally enable **Recursive**.
 3. Press **Analyze**. Every page has filters (name contains / doesn't contain, type with several choices, date, size) that hide rows; hidden rows are never checked or acted on. Candidates are listed with size and dates; grouped criteria show
    a separator row per group (a drop-down on the right orders the groups: analysis order, name, most items, largest, newest, oldest; its checkbox cycles the group: default checks, all, none).
