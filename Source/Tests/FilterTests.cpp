@@ -19,6 +19,7 @@ public:
         testArchivesByContent();
         testIcons();
         testDuplicateAlgorithms();
+        testLargeElements();
     }
 
 private:
@@ -159,6 +160,24 @@ private:
             ScanContext cancelled;
             cancelled.shouldStop = [] { return true; };
             expect (ContentHasher::checksum (temp.root.getChildFile ("a.txt"), cancelled).isEmpty());
+        }
+    }
+
+    void testLargeElements()
+    {
+        beginTest ("Large elements: folders only with the flag");
+        {
+            TempFolder temp;
+            temp.write ("big.bin", juce::String::repeatedString ("x", 3000));
+            temp.write ("dir/a.bin", juce::String::repeatedString ("x", 1500));
+            temp.write ("dir/b.bin", juce::String::repeatedString ("x", 1500));
+            temp.write ("small.bin", "x");
+
+            const auto criterion = Criteria::createLargeFiles();
+            const auto tweak = [] (bool folders) { return [folders] (ParameterSet& p) { setParameter (p, "minSize", 2000.0 / 1048576.0); setParameter (p, "folders", folders); }; };
+
+            expectEquals (names (run (*criterion, temp.root, true, tweak (false))).joinIntoString (","), juce::String ("big.bin"));
+            expectEquals (names (run (*criterion, temp.root, true, tweak (true))).joinIntoString (","), juce::String ("big.bin,dir"));
         }
     }
 

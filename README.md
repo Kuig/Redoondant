@@ -48,7 +48,7 @@ filters, panel sizes, window position, volume) are saved in
 | Same content, different format | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages) | All but the largest |
 | Archives & extracted folders | Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name and identical content; the option *Ignore folder name* matches any scanned folder with identical content | The folder |
 | Junk folders | Folders with configurable names (`Build;Builds;node_modules;...`) | All |
-| Large files | Files above a size threshold | None |
+| Large elements | Files (and, optionally, folders) above a size threshold | None |
 | Date clusters | Items grouped by modified/created date, split on time gaps | None |
 | Empty files & folders | 0-byte files, folders without files | All |
 | Incomplete downloads | `.crdownload`, `.part`, ... | All |

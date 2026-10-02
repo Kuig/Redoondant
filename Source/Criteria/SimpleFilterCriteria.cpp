@@ -29,22 +29,25 @@ namespace
     const Ordering byName       = [] (const FileEntry& a, const FileEntry& b) { return a.name().compareNatural (b.name()) < 0; };
 
     //==============================================================================
-    class LargeFiles final : public Criterion
+    class LargeElements final : public Criterion
     {
     public:
-        LargeFiles()
-            : Criterion ({ "largeFiles", "Large files", "Files larger than the given size, largest first." }) {}
+        LargeElements()
+            : Criterion ({ "largeFiles", "Large elements", "Files (and optionally folders) larger than the given size, largest first." }) {}
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::number ("minSize", "Larger than", 500, "MB") };
+            return { Parameter::number ("minSize", "Larger than", 500, "MB"),
+                     Parameter::toggle ("folders", "Include folders", false) };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
             const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * 1024.0 * 1024.0);
-            return filterScan (context, filesOnlyScan,
-                               [=] (const FileEntry& e) { return ! e.isDirectory && e.size >= minBytes; },
+            const bool folders = parameters.getBool ("folders");
+
+            return filterScan (context, folders ? fullScan : filesOnlyScan,
+                               [=] (const FileEntry& e) { return (folders || ! e.isDirectory) && e.size >= minBytes; },
                                largestFirst, false);
         }
     };
@@ -169,7 +172,7 @@ namespace
     };
 }
 
-std::unique_ptr<Criterion> Criteria::createLargeFiles()         { return std::make_unique<LargeFiles>(); }
+std::unique_ptr<Criterion> Criteria::createLargeFiles()         { return std::make_unique<LargeElements>(); }
 std::unique_ptr<Criterion> Criteria::createOldFiles()           { return std::make_unique<OldFiles>(); }
 std::unique_ptr<Criterion> Criteria::createEmptyItems()         { return std::make_unique<EmptyItems>(); }
 std::unique_ptr<Criterion> Criteria::createManualInspection()   { return std::make_unique<ManualInspection>(); }
