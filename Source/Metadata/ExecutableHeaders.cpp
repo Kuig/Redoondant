@@ -76,7 +76,7 @@ Metadata MetadataReader::readExecutableHeaders (const juce::File& file)
     const auto linkTime = juce::Time ((juce::int64) readAt<juce::uint32> (data, coff + 4) * 1000);
 
     if (linkTime.getYear() >= 1995 && linkTime < juce::Time::getCurrentTime())
-        metadata.add ("Pe.LinkTime", "Linked", linkTime.formatted ("%Y-%m-%d %H:%M"));
+        metadata.addDate ("Pe.LinkTime", "Linked", linkTime.formatted ("%Y-%m-%d %H:%M"), linkTime);
 
     return metadata;
 }

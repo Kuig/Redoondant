@@ -20,6 +20,7 @@ namespace
         { Column::size,     "Size",     80 },
         { Column::modified, "Modified", 125 },
         { Column::created,  "Created",  125 },
+        { Column::contentCreated, "Content created", 125 },
         { Column::type,     "Type",     60 },
     };
 }
@@ -108,6 +109,11 @@ juce::String ResultsTable::Table::getNameForRow (int row)
 ResultsTable::~ResultsTable()
 {
     table.getHeader().removeListener (headerListener.get());
+}
+
+bool ResultsTable::isColumnVisible (Column column) const
+{
+    return table.getHeader().isColumnVisible ((int) column);
 }
 
 void ResultsTable::setHeaderTooltip (const juce::String& text)

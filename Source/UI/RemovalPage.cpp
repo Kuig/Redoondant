@@ -1,6 +1,8 @@
 #include "RemovalPage.h"
 #include "../Core/Format.h"
 #include "../Core/MoveToFolder.h"
+#include "../Metadata/ContentDate.h"
+#include "../Platform/ComInit.h"
 #include "../Platform/ShellContextMenu.h"
 
 namespace
@@ -30,7 +32,11 @@ RemovalPage::RemovalPage (SettingsScope s)
     table.onHeaderCheckClicked = [this] { cycleChecks(); };
 
     table.restoreLayoutState (settings.get ("table"));
-    table.onLayoutChanged = [this] { settings.set ("table", table.getLayoutState()); };
+    table.onLayoutChanged = [this]
+    {
+        settings.set ("table", table.getLayoutState());
+        loadContentDates (false);       // The column may have just been shown or sorted.
+    };
     table.onCheckedChanged = [this] { updateSummary(); };
     table.onContextMenu = [this] (const juce::Array<juce::File>& files, juce::Point<int> position)
     {
@@ -54,7 +60,63 @@ RemovalPage::RemovalPage (SettingsScope s)
     updateSummary();
 }
 
-RemovalPage::~RemovalPage() = default;
+RemovalPage::~RemovalPage()
+{
+    ++dateRequest;
+    dateLoader.removeAllJobs (true, 10000);
+}
+
+void RemovalPage::loadContentDates (bool restart)
+{
+    if (! table.isColumnVisible (Column::contentCreated) || (datesPending > 0 && ! restart))
+        return;
+
+    const int request = ++dateRequest;
+    dateLoader.removeAllJobs (false, 0);
+
+    auto files = model.filesNeedingContentDate();
+    datesPending = (int) files.size();
+    updateSummary();
+
+    if (files.empty())
+        return;
+
+    dateLoader.addJob ([owner = this, safeThis = juce::Component::SafePointer<RemovalPage> (this), request, files = std::move (files)]
+    {
+        const ScopedComInit com;
+        std::vector<std::pair<juce::File, juce::Time>> batch;
+
+        const auto flush = [&batch, safeThis, request]
+        {
+            auto sent = std::move (batch);
+            batch.clear();
+
+            juce::MessageManager::callAsync ([safeThis, request, sent]
+            {
+                if (safeThis == nullptr || safeThis->dateRequest != request)
+                    return;
+
+                safeThis->model.setContentDates (sent);
+                safeThis->datesPending -= (int) sent.size();
+                safeThis->table.refresh();
+                safeThis->updateSummary();
+            });
+        };
+
+        for (const auto& file : files)
+        {
+            if (owner->dateRequest != request)     // The destructor waits for this job, so the page is alive.
+                return;
+
+            batch.emplace_back (file, ContentDate::of (file));
+
+            if (batch.size() >= 25)
+                flush();
+        }
+
+        flush();
+    });
+}
 
 void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
 {
@@ -233,7 +295,12 @@ void RemovalPage::updateSummary()
     for (const auto& entry : checked)
         bytes += entry.size;
 
-    summary.setText (summaryText (checked.size(), bytes), juce::dontSendNotification);
+    auto text = summaryText (checked.size(), bytes);
+
+    if (datesPending > 0)
+        text << "   (reading dates: " << datesPending << " left)";
+
+    summary.setText (text, juce::dontSendNotification);
 
     for (auto* button : { &trashButton, &moveButton, &deleteButton })
         button->setEnabled (! checked.empty());

@@ -49,13 +49,15 @@ filters, panel sizes, window position, volume) are saved in
 | Archives & extracted folders | Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name and identical content; the option *Ignore folder name* matches any scanned folder with identical content | The folder |
 | Junk folders | Folders with configurable names (`Build;Builds;node_modules;...`) | All |
 | Large elements | Files (and, optionally, folders) above a size threshold | None |
-| Date clusters | Items grouped by modified/created date, split on time gaps | None |
+| Date clusters | Items grouped by *File created*, *File modified* or *Content created* date (the oldest date in the file's metadata: photo taken, document created, PDF creation...), split on time gaps | None |
 | Empty files & folders | 0-byte files, folders without files | All |
 | Incomplete downloads | `.crdownload`, `.part`, ... | All |
 | Installers & junk files | Two lists, each with its own on/off check box: installers/disk images (`.exe`, `.msi`, `.iso`...) and junk (`.tmp`, `.bak`, `~$*`, and regenerable audio-software files: Cubase `.pek`/`.peak`, Ableton `.asd`, Reaper `.reapeaks`/`.RPP-bak`/`.RPP-UNDO`, WaveLab `.gpk`) | None |
-| Old files | Not modified for N days | None |
+| Old files | Files whose creation, modification or content date is older than N days | None |
 | Multiple criteria | Items marked by at least N criteria, grouped by combination (e.g. "Duplicate files + Old files"); a folder's mark covers its content. Data: existing results of the other pages (with your checks) or re-run all criteria; marked = checked or listed. "Folders only": top folders by number of marked files, or outermost folders with at least X% of their bytes marked | Items: all (checked mode); folders: none |
 | Manual inspection | Everything, sortable by any column (files and folders mixed), filterable by name, type, date and size | None |
+
+The *Content created* column (visible by default) is filled in the background after each analysis; files without a real metadata date stay empty.
 
 Encrypted archives are reported as unreadable. Metadata comes from the Windows Property
 System, so what is shown for a format depends on the property handlers/codecs installed.

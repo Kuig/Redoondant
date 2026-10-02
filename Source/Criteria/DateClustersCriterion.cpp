@@ -1,7 +1,9 @@
 #include "AllCriteria.h"
+#include "../Core/DateKind.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
 #include "../Core/Grouping.h"
+#include "../Metadata/ContentDate.h"
 
 namespace
 {
@@ -10,24 +12,34 @@ namespace
     public:
         DateClusters()
             : Criterion ({ "dateClusters", "Date clusters",
-                           "Files and folders grouped by modification or creation date: a new group starts whenever "
-                           "the gap from the previous item exceeds the given time. Newest groups first.",
+                           "Files and folders grouped by creation or modification date, or by the date written in the content's metadata "
+                           "(photo taken, document created...; folders and files without one are left out). "
+                           "A new group starts whenever the gap from the previous item exceeds the given time. Newest groups first.",
                            true, true }) {}
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::choice ("date", "Date", { "Modified", "Created" }, 1),
+            return { Parameter::choice ("date", "Date", { "File created", "File modified", "Content created" }, 0),
                      Parameter::number ("gap", "Max. gap", 0.5, "hours"),
                      Parameter::number ("minItems", "Min. group size", 2, "items") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
-            const bool useCreation = parameters.getChoice ("date") == 1;
-            const auto timeOf = [useCreation] (const FileEntry& e) { return useCreation ? e.created : e.modified; };
+            const auto kind = (DateKind) parameters.getChoice ("date");
+            const auto timeOf = [kind] (const FileEntry& e) { return dateOf (e, kind); };
             const auto minItems = (size_t) juce::jmax (1, (int) parameters.getNumber ("minItems"));
 
-            auto clusters = Grouping::clusterByTimeGap (FileScanner::scan (context), timeOf,
+            auto entries = FileScanner::scan (context);
+
+            if (kind == DateKind::content)
+            {
+                ContentDate::fill (entries, context);
+                entries.erase (std::remove_if (entries.begin(), entries.end(), [] (const FileEntry& e) { return e.contentCreated.toMilliseconds() == 0; }),
+                               entries.end());
+            }
+
+            auto clusters = Grouping::clusterByTimeGap (std::move (entries), timeOf,
                                                         juce::RelativeTime::hours (parameters.getNumber ("gap")), minItems);
             AnalysisResult result;
 

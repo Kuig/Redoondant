@@ -19,6 +19,7 @@
         <FILE id="9Wvgfy" name="ContentHasher.cpp" compile="1" resource="0"
               file="Source/Core/ContentHasher.cpp"/>
         <FILE id="gw2wMq" name="ContentHasher.h" compile="0" resource="0" file="Source/Core/ContentHasher.h"/>
+        <FILE id="zsO1xM" name="DateKind.h" compile="0" resource="0" file="Source/Core/DateKind.h"/>
         <FILE id="NonTr1" name="EmptyFolders.cpp" compile="1" resource="0" file="Source/Core/EmptyFolders.cpp"/>
         <FILE id="yLeb0I" name="EmptyFolders.h" compile="0" resource="0" file="Source/Core/EmptyFolders.h"/>
         <FILE id="ZcUDIh" name="FileCategory.cpp" compile="1" resource="0"
@@ -66,6 +67,8 @@
               file="Source/Criteria/VersionedFilesCriterion.cpp"/>
       </GROUP>
       <GROUP id="{O63KeH}" name="Metadata">
+        <FILE id="Ir7UHH" name="ContentDate.cpp" compile="1" resource="0" file="Source/Metadata/ContentDate.cpp"/>
+        <FILE id="SWvEnM" name="ContentDate.h" compile="0" resource="0" file="Source/Metadata/ContentDate.h"/>
         <FILE id="5XpvKs" name="ExecutableHeaders.cpp" compile="1" resource="0"
               file="Source/Metadata/ExecutableHeaders.cpp"/>
         <FILE id="3YftNB" name="Metadata.h" compile="0" resource="0" file="Source/Metadata/Metadata.h"/>

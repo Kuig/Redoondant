@@ -2,7 +2,9 @@
 
 #include "AllCriteria.h"
 #include "../Core/FileScanner.h"
+#include "../Core/DateKind.h"
 #include "../Core/Grouping.h"
+#include "../Metadata/ContentDate.h"
 #include <set>
 
 namespace
@@ -25,7 +27,6 @@ namespace
     const FileScanner::Options fullScan {};
 
     const Ordering largestFirst = [] (const FileEntry& a, const FileEntry& b) { return a.size > b.size; };
-    const Ordering oldestFirst  = [] (const FileEntry& a, const FileEntry& b) { return a.modified < b.modified; };
     const Ordering byName       = [] (const FileEntry& a, const FileEntry& b) { return a.name().compareNatural (b.name()) < 0; };
 
     //==============================================================================
@@ -57,19 +58,35 @@ namespace
     {
     public:
         OldFiles()
-            : Criterion ({ "oldFiles", "Old files", "Files not modified for longer than the given number of days, oldest first." }) {}
+            : Criterion ({ "oldFiles", "Old files", "Files whose creation, modification or content date (from the metadata: photo taken, "
+                                                    "document created...) is older than the given number of days, oldest first." }) {}
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::number ("days", "Not modified for", 800, "days") };
+            auto kind = Parameter::choice ("dateKind", {}, { "File created over", "File modified over", "Content created over" }, 1);
+            kind.editorWidth = 170;
+            return { kind, Parameter::number ("days", {}, 800, "days ago") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
+            const auto kind = (DateKind) parameters.getChoice ("dateKind");
             const auto cutoff = juce::Time::getCurrentTime() - juce::RelativeTime::days (parameters.getNumber ("days"));
-            return filterScan (context, filesOnlyScan,
-                               [=] (const FileEntry& e) { return ! e.isDirectory && e.modified < cutoff; },
-                               oldestFirst, false);
+
+            auto entries = FileScanner::filesOnly (FileScanner::scan (context, filesOnlyScan));
+
+            if (kind == DateKind::content)
+                ContentDate::fill (entries, context);
+
+            // Files without the date (content kind) are unknown, not old.
+            entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e)
+            {
+                const auto date = dateOf (e, kind);
+                return date.toMilliseconds() == 0 || date >= cutoff;
+            }), entries.end());
+
+            std::sort (entries.begin(), entries.end(), [kind] (const FileEntry& a, const FileEntry& b) { return dateOf (a, kind) < dateOf (b, kind); });
+            return AnalysisResult::flat (std::move (entries));
         }
     };
 

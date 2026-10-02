@@ -22,6 +22,10 @@ protected:
     explicit RemovalPage (SettingsScope settings);
     ~RemovalPage() override;
 
+    /** Reads the content dates of the listed files in the background (when their column is visible) and fills them in.
+        With `restart`, a running read is abandoned (the list changed); otherwise it is left to finish. */
+    void loadContentDates (bool restart);
+
     SettingsScope settings;
     ResultsModel model;
     ResultsTable table { model };
@@ -61,6 +65,9 @@ private:
     juce::Label summary;
     juce::TextButton moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
     std::unique_ptr<juce::FileChooser> chooser;
+    juce::ThreadPool dateLoader { 1 };
+    std::atomic<int> dateRequest { 0 };
+    int datesPending = 0;
 
     void moveCheckedToTrash();
     void moveCheckedToFolder();

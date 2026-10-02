@@ -3,6 +3,7 @@
 #include "TestHelpers.h"
 #include "../Core/ContentHasher.h"
 #include "../Core/Settings.h"
+#include "../Metadata/ContentDate.h"
 #include "../Criteria/AllCriteria.h"
 #include "../Platform/ComInit.h"
 #include "../Platform/ShellIcon.h"
@@ -25,6 +26,7 @@ public:
         testLargeElements();
         testGroupCycling();
         testTypeFilter();
+        testDates();
     }
 
 private:
@@ -269,6 +271,58 @@ private:
         type.value = "2,0,9,junk";
         expectEquals (type.selectedIndices().size(), 2);                              // Out-of-range and junk ignored.
         expect (type.selectedIndices().contains (2) && type.selectedIndices().contains (0));
+    }
+
+    void testDates()
+    {
+        beginTest ("Content date: the oldest plausible metadata date");
+
+        Metadata metadata;
+        metadata.addDate ("a", "Taken", "x", juce::Time (2019, 4, 2, 10, 0));
+        metadata.addDate ("b", "Created", "x", juce::Time (2015, 0, 15, 8, 30));
+        metadata.addDate ("c", "Placeholder", "x", juce::Time (1970, 0, 1, 0, 1));                           // Before 1980: ignored.
+        metadata.addDate ("d", "Future", "x", juce::Time::getCurrentTime() + juce::RelativeTime::days (30));  // Ignored.
+        metadata.add ("e", "Not a date", "2001", (juce::int64) 978307200000ll);                              // Raw but not isDate.
+
+        expect (ContentDate::oldestOf (metadata) == juce::Time (2015, 0, 15, 8, 30));
+        expectEquals ((juce::int64) ContentDate::oldestOf (Metadata()).toMilliseconds(), (juce::int64) 0);
+
+        beginTest ("Old files and date clusters use the chosen date");
+        {
+            TempFolder temp;
+            const auto old = temp.write ("old.txt", "x");
+            const auto recent = temp.write ("recent.txt", "x");
+            const auto now = juce::Time::getCurrentTime();
+            old.setLastModificationTime (now - juce::RelativeTime::days (900));
+            recent.setLastModificationTime (now - juce::RelativeTime::days (10));
+
+            const auto criterion = Criteria::createOldFiles();
+            const auto olderThan = [&] (int kind, double days)
+            {
+                return names (run (*criterion, temp.root, false, [&] (ParameterSet& p)
+                {
+                    setParameter (p, "dateKind", kind);
+                    setParameter (p, "days", days);
+                }));
+            };
+
+            expectEquals (olderThan (1, 800).joinIntoString (","), juce::String ("old.txt"));          // File modified over 800 days ago.
+            expectEquals (olderThan (1, 5).joinIntoString (","), juce::String ("old.txt,recent.txt"));
+            expectEquals (olderThan (2, 0).size(), 0);          // Content created: plain text has no real metadata date, so it is unknown, not old.
+
+            const auto clusters = Criteria::createDateClusters();
+            const auto grouped = [&] (int kind)
+            {
+                return (int) run (*clusters, temp.root, false, [&] (ParameterSet& p)
+                {
+                    setParameter (p, "date", kind);
+                    setParameter (p, "gap", 1.0);
+                }).groups.size();
+            };
+
+            expectEquals (grouped (1), 0);      // Modified 890 days apart: two singletons, below the minimum group size.
+            expectEquals (grouped (2), 0);      // No content dates at all.
+        }
     }
 
     void testIcons()

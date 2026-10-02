@@ -9,6 +9,7 @@ struct MetadataItem
     juce::String label;     ///< Human-readable name, e.g. "Contributing artists".
     juce::String value;     ///< Display value.
     juce::var raw;          ///< Numeric value when meaningful (e.g. duration in seconds), otherwise void.
+    bool isDate = false;    ///< The value is a date; `raw` then holds it as milliseconds since the epoch.
 };
 
 /** The metadata of a file, in display order. */
@@ -43,6 +44,12 @@ public:
     void add (const juce::String& key, const juce::String& label, const juce::String& value, const juce::var& raw = {})
     {
         add (MetadataItem { key, label, value, raw });
+    }
+
+    /** Adds a date item (shown as `value`; the time itself is kept in `raw` as milliseconds). */
+    void addDate (const juce::String& key, const juce::String& label, const juce::String& value, juce::Time time)
+    {
+        add (MetadataItem { key, label, value, (juce::int64) time.toMilliseconds(), true });
     }
 
     void append (const Metadata& other)

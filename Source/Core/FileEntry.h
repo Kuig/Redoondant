@@ -11,6 +11,7 @@ struct FileEntry
     int fileCount = 0;          ///< For folders: number of files they contain, recursively.
     juce::Time modified;
     juce::Time created;
+    juce::Time contentCreated;  ///< Oldest date written in the file's metadata (see ContentDate); unknown (0) until read.
     bool missing = false;       ///< Listed but not on disk (can't be checked).
     bool selected = false;      ///< Checked for deletion.
     bool selectedByDefault = false;     ///< Check state proposed by the criterion.

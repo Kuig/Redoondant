@@ -142,6 +142,7 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
                     juce::dontSendNotification);
     status.setTooltip (root.getFullPathName());
     updateSummary();
+    loadContentDates (true);
 }
 
 void CriterionPage::resetToDefaults()

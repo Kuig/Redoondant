@@ -327,11 +327,23 @@ Metadata MetadataReader::readSystemProperties (const juce::File& file)
             PSFormatForDisplayAlloc (key, value, PDFF_DEFAULT, &display);
 
             juce::var raw;
+            bool isDate = false;
 
             if (canonical == MetadataKeys::duration && value.vt == VT_UI8)
+            {
                 raw = (double) value.uhVal.QuadPart / 1.0e7;   // 100 ns units -> seconds
+            }
+            else if (value.vt == VT_FILETIME)
+            {
+                // FILETIME counts 100 ns units since 1601; juce::Time counts milliseconds since 1970.
+                ULARGE_INTEGER ticks;
+                ticks.LowPart = value.filetime.dwLowDateTime;
+                ticks.HighPart = value.filetime.dwHighDateTime;
+                raw = (juce::int64) (ticks.QuadPart / 10000ull) - 11644473600000ll;
+                isDate = true;
+            }
 
-            metadata.add (canonical, labelFor (canonical), takeString (display), raw);
+            metadata.add (MetadataItem { canonical, labelFor (canonical), takeString (display), raw, isDate });
         }
 
         PropVariantClear (&value);

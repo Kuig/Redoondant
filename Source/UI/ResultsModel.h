@@ -11,7 +11,8 @@ enum class Column
     size,
     modified,
     created,
-    type
+    type,
+    contentCreated
 };
 
 enum class CheckState { none, some, all };
@@ -63,6 +64,12 @@ public:
 
     size_t getVisibleCount() const;
     std::vector<FileEntry> getCheckedEntries() const;
+
+    /** Files (not folders) whose content date has not been read yet. */
+    std::vector<juce::File> filesNeedingContentDate() const;
+
+    /** Stores content dates read in the background (null times are kept as "unknown"). */
+    void setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates);
 
     /** Every entry of the result, visible or not. */
     std::vector<FileEntry> getAllEntries() const;

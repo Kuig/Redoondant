@@ -1,5 +1,6 @@
 #include "ResultsModel.h"
 #include "../Core/Format.h"
+#include <map>
 #include <set>
 
 void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped)
@@ -69,6 +70,7 @@ juce::String ResultsModel::getCellText (const FileEntry& entry, Column column, c
         case Column::size:      return entry.missing ? juce::String ("-") : Format::size (entry.size);
         case Column::modified:  return Format::date (entry.modified);
         case Column::created:   return Format::date (entry.created);
+        case Column::contentCreated:    return Format::date (entry.contentCreated);
         case Column::type:      return entry.isDirectory ? juce::String ("Folder")
                                                          : entry.file.getFileExtension().fromFirstOccurrenceOf (".", false, false).toUpperCase();
         case Column::check:     break;
@@ -156,6 +158,37 @@ std::vector<FileEntry> ResultsModel::getCheckedEntries() const
     return checked;
 }
 
+std::vector<juce::File> ResultsModel::filesNeedingContentDate() const
+{
+    std::vector<juce::File> files;
+
+    for (const auto& group : result.groups)
+        for (const auto& item : group.items)
+            if (! item.isDirectory && ! item.missing && item.contentCreated.toMilliseconds() == 0)
+                files.push_back (item.file);
+
+    return files;
+}
+
+void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates)
+{
+    std::map<juce::String, juce::Time> byPath;
+
+    for (const auto& [file, time] : dates)
+        byPath[file.getFullPathName()] = time;
+
+    for (auto& group : result.groups)
+        for (auto& item : group.items)
+            if (const auto found = byPath.find (item.file.getFullPathName()); found != byPath.end())
+                item.contentCreated = found->second;
+
+    if (sortColumn == Column::contentCreated)
+    {
+        applySort();
+        rebuildRows();
+    }
+}
+
 std::vector<FileEntry> ResultsModel::getAllEntries() const
 {
     std::vector<FileEntry> all;
@@ -233,6 +266,7 @@ void ResultsModel::applySort()
             case Column::size:      return a.size < b.size ? -1 : (a.size > b.size ? 1 : 0);
             case Column::modified:  return a.modified < b.modified ? -1 : (a.modified > b.modified ? 1 : 0);
             case Column::created:   return a.created < b.created ? -1 : (a.created > b.created ? 1 : 0);
+            case Column::contentCreated:    return a.contentCreated < b.contentCreated ? -1 : (a.contentCreated > b.contentCreated ? 1 : 0);
             case Column::name:
             case Column::folder:
             case Column::type:

@@ -83,6 +83,23 @@ namespace
         return juce::String (juce::CharPointer_UTF16 (text.get())).trim();
     }
 
+    /** "D:20240131153000+01'00'" -> the time (local, to the minute), or nullopt. */
+    std::optional<juce::Time> parsePdfDate (const juce::String& date)
+    {
+        const auto digits = date.fromFirstOccurrenceOf ("D:", false, false).retainCharacters ("0123456789");
+
+        if (digits.length() < 8)
+            return std::nullopt;
+
+        const auto part = [&] (int start, int length, int fallback)
+        {
+            return digits.length() >= start + length ? digits.substring (start, start + length).getIntValue() : fallback;
+        };
+
+        return juce::Time (part (0, 4, 1970), juce::jlimit (1, 12, part (4, 2, 1)) - 1, juce::jlimit (1, 31, part (6, 2, 1)),
+                           juce::jlimit (0, 23, part (8, 2, 0)), juce::jlimit (0, 59, part (10, 2, 0)), 0, 0, true);
+    }
+
     /** "D:20240131153000+01'00'" -> "2024-01-31 15:30". */
     juce::String formatPdfDate (const juce::String& date)
     {
@@ -144,7 +161,11 @@ Metadata PdfDocument::readMetadata (const juce::File& file)
     for (const auto& field : fields)
     {
         const auto value = metaText (document.get(), field.tag);
-        metadata.add (field.key, field.label, field.isDate ? formatPdfDate (value) : value);
+
+        if (const auto time = field.isDate ? parsePdfDate (value) : std::nullopt)
+            metadata.addDate (field.key, field.label, formatPdfDate (value), *time);
+        else
+            metadata.add (field.key, field.label, field.isDate ? formatPdfDate (value) : value);
     }
 
     const int pages = FPDF_GetPageCount (document.get());
