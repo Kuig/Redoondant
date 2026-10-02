@@ -7,6 +7,7 @@
 #include "../Platform/ComInit.h"
 #include "../Platform/ShellIcon.h"
 #include "../UI/ParametersPanel.h"
+#include "../UI/ResultsModel.h"
 
 class FilterTests final : public juce::UnitTest
 {
@@ -20,6 +21,7 @@ public:
         testIcons();
         testDuplicateAlgorithms();
         testLargeElements();
+        testGroupCycling();
     }
 
 private:
@@ -179,6 +181,42 @@ private:
             expectEquals (names (run (*criterion, temp.root, true, tweak (false))).joinIntoString (","), juce::String ("big.bin"));
             expectEquals (names (run (*criterion, temp.root, true, tweak (true))).joinIntoString (","), juce::String ("big.bin,dir"));
         }
+    }
+
+    void testGroupCycling()
+    {
+        beginTest ("Group check boxes cycle default -> all -> none");
+
+        const auto entry = [] (const juce::String& fileName, bool byDefault, bool missing = false)
+        {
+            FileEntry e;
+            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
+            e.selected = byDefault;
+            e.missing = missing;
+            return e;
+        };
+
+        AnalysisResult result;
+        result.groups.push_back ({ "first", { entry ("a", true), entry ("b", false), entry ("gone", false, true) } });
+        result.groups.push_back ({ "second", { entry ("c", true), entry ("d", false) } });
+
+        ResultsModel model;
+        model.setResult (std::move (result), {}, true);
+        model.setFilter ([] (const FileEntry& e) { return e.name() != "d"; });      // "d" is hidden: never touched.
+
+        const auto checked = [&] { return model.getCheckedEntries().size(); };
+        expectEquals ((int) checked(), 2);              // Defaults: a, c.
+        model.toggle (0);                               // Row 0 is the first group's header: -> all (not the missing one).
+        expectEquals ((int) checked(), 3);              // a, b + c from the second group.
+        model.toggle (0);                               // -> none
+        expectEquals ((int) checked(), 1);              // c only.
+        model.toggle (0);                               // -> default checks
+        expectEquals ((int) checked(), 2);
+        expect (model.getOverallState() == CheckState::some);
+
+        model.applyChecks (Checks::all);
+        expect (model.getOverallState() == CheckState::all);
+        expectEquals ((int) checked(), 3);              // a, b, c: "d" is hidden, "gone" is missing.
     }
 
     void testIcons()

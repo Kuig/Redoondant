@@ -27,7 +27,7 @@ RemovalPage::RemovalPage (SettingsScope s)
     trashButton.onClick = [this] { moveCheckedToTrash(); };
     moveButton.onClick = [this] { moveCheckedToFolder(); };
     deleteButton.onClick = [this] { deleteChecked(); };
-    checksButton.onClick = [this] { cycleChecks(); };
+    table.onHeaderCheckClicked = [this] { cycleChecks(); };
 
     table.restoreLayoutState (settings.get ("table"));
     table.onLayoutChanged = [this] { settings.set ("table", table.getLayoutState()); };
@@ -43,7 +43,7 @@ RemovalPage::RemovalPage (SettingsScope s)
             onItemSelected (entry);
     };
 
-    for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &checksButton, &moveButton, &trashButton, &deleteButton })
+    for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &moveButton, &trashButton, &deleteButton })
         addAndMakeVisible (component);
 
     // Red: unlike the other actions, this one can't be undone.
@@ -66,8 +66,6 @@ void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
     trashButton.setBounds (footer.removeFromRight (140));
     footer.removeFromRight (gap);
     moveButton.setBounds (footer.removeFromRight (140));
-    checksButton.setBounds (footer.removeFromLeft (130));
-    footer.removeFromLeft (gap);
     summary.setBounds (footer);
     area.removeFromBottom (gap);
 
@@ -218,8 +216,7 @@ void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
 
 void RemovalPage::cycleChecks()
 {
-    using Checks = ResultsModel::Checks;
-    checks = checks == Checks::defaults ? Checks::all : (checks == Checks::all ? Checks::none : Checks::defaults);
+    checks = nextChecks (checks);
 
     model.applyChecks (checks);
     table.refresh();
@@ -241,8 +238,8 @@ void RemovalPage::updateSummary()
     for (auto* button : { &trashButton, &moveButton, &deleteButton })
         button->setEnabled (! checked.empty());
 
-    // The button shows what the next click does.
-    using Checks = ResultsModel::Checks;
-    checksButton.setButtonText (checks == Checks::defaults ? "Check all" : (checks == Checks::all ? "Uncheck all" : "Default checks"));
-    checksButton.setEnabled (model.getVisibleCount() > 0);
+    // The check column header shows what the next click does.
+    const auto next = nextChecks (checks);
+    table.setHeaderTooltip (juce::String ("Click to cycle the check boxes. Next: ")
+                              + (next == Checks::defaults ? "default checks" : (next == Checks::all ? "check all" : "uncheck all")));
 }

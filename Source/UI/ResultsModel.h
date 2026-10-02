@@ -52,8 +52,14 @@ public:
 
     CheckState getGroupState (int group) const;
 
-    /** Flips an entry, or all visible entries of a group for header rows. */
+    /** Flips an entry; on a group header row, cycles the group (see cycleGroup). */
     void toggle (int row);
+
+    /** Applies the group's next bulk state (default checks -> all -> none -> default) to its visible entries. */
+    void cycleGroup (int group);
+
+    /** Whether none, some or all of the visible entries are checked. */
+    CheckState getOverallState() const;
 
     size_t getVisibleCount() const;
     std::vector<FileEntry> getCheckedEntries() const;
@@ -63,7 +69,7 @@ public:
     const juce::File& getRoot() const noexcept      { return root; }
 
     /** Bulk check states for the visible entries. */
-    enum class Checks { defaults, all, none };
+    using Checks = ::Checks;
     void applyChecks (Checks checks);
 
     /** Checks exactly the entries (missing ones excepted) for which `shouldCheck` is true. */

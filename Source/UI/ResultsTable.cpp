@@ -42,8 +42,42 @@ struct ResultsTable::HeaderListener final : public juce::TableHeaderComponent::L
     ResultsTable& owner;
 };
 
+/** Table header whose check column shows the overall check state and cycles it when clicked. */
+struct ResultsTable::CheckHeader final : public juce::TableHeaderComponent,
+                                         public juce::SettableTooltipClient
+{
+    explicit CheckHeader (ResultsTable& t) : owner (t) {}
+
+    void paint (juce::Graphics& g) override
+    {
+        TableHeaderComponent::paint (g);
+
+        const int index = getIndexOfColumnId ((int) Column::check, true);
+
+        if (index >= 0)
+            drawCheckBox (g, getColumnPosition (index).toFloat().withSizeKeepingCentre (14.0f, 14.0f),
+                          owner.model.getOverallState(), findColour (juce::TableHeaderComponent::textColourId));
+    }
+
+    void columnClicked (int columnId, const juce::ModifierKeys& mods) override
+    {
+        if (columnId == (int) Column::check)
+        {
+            if (owner.onHeaderCheckClicked != nullptr)
+                owner.onHeaderCheckClicked();
+        }
+        else
+        {
+            TableHeaderComponent::columnClicked (columnId, mods);
+        }
+    }
+
+    ResultsTable& owner;
+};
+
 ResultsTable::ResultsTable (ResultsModel& m) : model (m)
 {
+    table.setHeader (std::make_unique<CheckHeader> (*this));
     auto& header = table.getHeader();
     header.addColumn ({}, (int) Column::check, checkColumnWidth, checkColumnWidth, checkColumnWidth,
                       juce::TableHeaderComponent::visible);
@@ -76,8 +110,14 @@ ResultsTable::~ResultsTable()
     table.getHeader().removeListener (headerListener.get());
 }
 
+void ResultsTable::setHeaderTooltip (const juce::String& text)
+{
+    static_cast<CheckHeader&> (table.getHeader()).setTooltip (text);
+}
+
 void ResultsTable::refresh()
 {
+    table.getHeader().repaint();
     table.updateContent();
     table.repaint();
 }

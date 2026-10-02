@@ -106,11 +106,34 @@ void ResultsModel::toggle (int row)
         return;
     }
 
-    const bool check = getGroupState (r->group) != CheckState::all;
+    cycleGroup (r->group);
+}
 
-    for (auto& item : result.groups[(size_t) r->group].items)
+void ResultsModel::cycleGroup (int group)
+{
+    auto& g = result.groups[(size_t) group];
+    g.phase = nextChecks (g.phase);
+
+    for (auto& item : g.items)
         if (isVisible (item))
-            item.selected = check && ! item.missing;
+            item.selected = ! item.missing && (g.phase == Checks::all || (g.phase == Checks::defaults && item.selectedByDefault));
+}
+
+CheckState ResultsModel::getOverallState() const
+{
+    size_t total = 0, checked = 0;
+
+    for (int g = 0; g < (int) result.groups.size(); ++g)
+        forEachVisible (g, [&] (const FileEntry& e)
+        {
+            if (! e.missing)
+            {
+                ++total;
+                checked += e.selected ? 1 : 0;
+            }
+        });
+
+    return checked == 0 ? CheckState::none : (checked == total ? CheckState::all : CheckState::some);
 }
 
 size_t ResultsModel::getVisibleCount() const
@@ -146,9 +169,13 @@ std::vector<FileEntry> ResultsModel::getAllEntries() const
 void ResultsModel::applyChecks (Checks checks)
 {
     for (auto& group : result.groups)
+    {
+        group.phase = checks;
+
         for (auto& item : group.items)
             if (isVisible (item))
                 item.selected = ! item.missing && (checks == Checks::all || (checks == Checks::defaults && item.selectedByDefault));
+    }
 }
 
 void ResultsModel::checkWhere (const std::function<bool (const FileEntry&)>& shouldCheck)

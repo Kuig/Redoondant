@@ -22,6 +22,12 @@ public:
     void restoreLayoutState (const juce::String& state);
 
     std::function<void()> onCheckedChanged;
+
+    /** The header of the check column was clicked: the owner cycles the check states. */
+    std::function<void()> onHeaderCheckClicked;
+
+    /** Explains what clicking the check column header does (shown as its tooltip). */
+    void setHeaderTooltip (const juce::String& text);
     std::function<void (const FileEntry*)> onItemSelected;
     std::function<void()> onLayoutChanged;
 
@@ -48,6 +54,7 @@ private:
     IconCache icons;
 
     struct HeaderListener;
+    struct CheckHeader;
     std::unique_ptr<HeaderListener> headerListener;
 
     int getNumRows() override;

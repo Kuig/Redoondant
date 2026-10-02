@@ -25,7 +25,7 @@ protected:
     SettingsScope settings;
     ResultsModel model;
     ResultsTable table { model };
-    ResultsModel::Checks checks = ResultsModel::Checks::defaults;
+    Checks checks = Checks::defaults;
 
     /** Lays out the footer and the table in `area`. */
     void layoutTableAndFooter (juce::Rectangle<int> area);
@@ -59,7 +59,7 @@ protected:
 
 private:
     juce::Label summary;
-    juce::TextButton checksButton, moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
+    juce::TextButton moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
     std::unique_ptr<juce::FileChooser> chooser;
 
     void moveCheckedToTrash();
