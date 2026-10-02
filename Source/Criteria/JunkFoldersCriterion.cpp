@@ -16,7 +16,7 @@ namespace
         ParameterSet createParameters() const override
         {
             return { Parameter::text ("names", "Folder names (;)",
-                                      "Build;bin;obj;node_modules;__pycache__;.vs;.idea;.gradle;target;DerivedData;.cache;x64;Debug;Release") };
+                                      "Build;bin;obj;node_modules;__pycache__;.vs;.idea;.gradle;target;DerivedData;.cache;x64;Debug;Release;Builds;JuceLibraryCode") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override

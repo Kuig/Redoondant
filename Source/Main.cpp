@@ -29,7 +29,7 @@ public:
         }
 
         settings = std::make_unique<Settings>();
-        mainWindow = std::make_unique<MainWindow> (getApplicationName(), *settings);
+        mainWindow = std::make_unique<MainWindow> (getApplicationName() + " " + getApplicationVersion(), *settings);
     }
 
     void shutdown() override

@@ -5,7 +5,7 @@
 #include "ResultsTable.h"
 
 /** A page that lists items with check boxes and acts on the checked ones: the results table and the
-    footer (check cycling button, summary, Move to folder / Move to Trash, optionally Delete permanently),
+    footer (check cycling button, summary, Move to folder / Move to Trash / Delete permanently),
     with the confirmation and report boxes. Derived pages decide what is listed and what "the checked
     items" means for the actions.
 */
@@ -19,7 +19,7 @@ public:
     std::function<void (const FileEntry*)> onItemSelected;
 
 protected:
-    RemovalPage (SettingsScope settings, bool offerPermanentDelete = false);
+    explicit RemovalPage (SettingsScope settings);
     ~RemovalPage() override;
 
     SettingsScope settings;
@@ -61,7 +61,6 @@ private:
     juce::Label summary;
     juce::TextButton checksButton, moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
     std::unique_ptr<juce::FileChooser> chooser;
-    const bool permanentDelete;
 
     void moveCheckedToTrash();
     void moveCheckedToFolder();

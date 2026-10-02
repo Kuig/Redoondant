@@ -261,7 +261,7 @@ void PreviewPanel::resized()
     title.setBounds (area.removeFromTop (28));
     area.removeFromTop (6);
 
-    auto preview = area.removeFromTop (content == Content::audio ? 86 : (content == Content::none ? 0 : area.getHeight() * 55 / 100));
+    auto preview = area.removeFromTop (content == Content::audio ? 86 : area.getHeight() * 55 / 100);
 
     for (auto* c : std::initializer_list<juce::Component*> { &image, &text, &audio })
         c->setBounds (preview);

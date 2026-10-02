@@ -21,8 +21,8 @@ juce::String RemovalPage::wrappable (const juce::File& path)
     return ::wrappable (path.getFullPathName());
 }
 
-RemovalPage::RemovalPage (SettingsScope s, bool offerPermanentDelete)
-    : settings (s), permanentDelete (offerPermanentDelete)
+RemovalPage::RemovalPage (SettingsScope s)
+    : settings (s)
 {
     trashButton.onClick = [this] { moveCheckedToTrash(); };
     moveButton.onClick = [this] { moveCheckedToFolder(); };
@@ -43,16 +43,13 @@ RemovalPage::RemovalPage (SettingsScope s, bool offerPermanentDelete)
             onItemSelected (entry);
     };
 
-    for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &checksButton, &moveButton, &trashButton })
+    for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &checksButton, &moveButton, &trashButton, &deleteButton })
         addAndMakeVisible (component);
 
     // Red: unlike the other actions, this one can't be undone.
     deleteButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xffb3261e));
     deleteButton.setColour (juce::TextButton::textColourOffId, juce::Colours::white);
     deleteButton.setColour (juce::TextButton::textColourOnId, juce::Colours::white);
-
-    addChildComponent (deleteButton);
-    deleteButton.setVisible (permanentDelete);
 
     updateSummary();
 }
@@ -63,11 +60,8 @@ void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
 {
     auto footer = area.removeFromBottom (rowHeight + 4);
 
-    if (permanentDelete)
-    {
-        deleteButton.setBounds (footer.removeFromRight (150));
-        footer.removeFromRight (gap);
-    }
+    deleteButton.setBounds (footer.removeFromRight (150));
+    footer.removeFromRight (gap);
 
     trashButton.setBounds (footer.removeFromRight (140));
     footer.removeFromRight (gap);

@@ -29,7 +29,7 @@ namespace
 }
 
 CleanupPage::CleanupPage (SettingsScope s)
-    : RemovalPage (s, true)
+    : RemovalPage (s)
 {
     title.setText ("Cache Cleaner", juce::dontSendNotification);
     title.setFont (juce::FontOptions (20.0f, juce::Font::bold));

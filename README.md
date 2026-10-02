@@ -17,7 +17,8 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer;
    right-click opens the Windows Explorer context menu (items deleted or moved from there leave the list).
 5. Press **Move to Trash** (a warning alert first asks for confirmation, showing the number of
-   items and their total size) or **Move to folder** (pick a destination, then confirm in an info box).
+   items and their total size), **Move to folder** (pick a destination, then confirm in an info box) or the red
+   **Delete permanently** (bypasses the Recycle Bin, with a strong warning).
    Items inside an already-checked folder are not counted twice. Moving to a folder never
    overwrites: on a name clash the moved item becomes `name (2).ext`; folders moved across drives
    are copied first and the original is deleted only after the copy succeeded.
@@ -46,7 +47,7 @@ filters, panel sizes, window position, volume) are saved in
 | Same name, different extension | e.g. `video.mp4` + `video.mkv`, `thesis.docx` + `thesis.pdf` (optionally across folders / same kind only) | None |
 | Same content, different format | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages) | All but the largest |
 | Archives & extracted folders | Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name and identical content | The folder |
-| Junk folders | Folders with configurable names (`Build;node_modules;...`) | All |
+| Junk folders | Folders with configurable names (`Build;Builds;node_modules;...`) | All |
 | Large files | Files above a size threshold | None |
 | Date clusters | Items grouped by modified/created date, split on time gaps | None |
 | Empty files & folders | 0-byte files, folders without files | All |
