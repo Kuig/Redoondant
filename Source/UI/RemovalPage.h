@@ -2,6 +2,7 @@
 
 #include "../Core/Settings.h"
 #include "../Core/Trash.h"
+#include "../Core/DefaultSelection.h"
 #include "ResultsTable.h"
 
 /** A page that lists items with check boxes and acts on the checked ones: the results table and the
@@ -30,6 +31,14 @@ protected:
     ResultsModel model;
     ResultsTable table { model };
     Checks checks = Checks::defaults;
+
+    /** Shows the drop-down that chooses the default selection (what the check cycle calls "default checks"),
+        offering `available`. The last choice is remembered; `initial` is used when there is none or it is not offered.
+    */
+    void setupDefaultSelection (std::vector<DefaultSelection> available, DefaultSelection initial);
+
+    /** Goes back to the `initial` selection given to setupDefaultSelection. */
+    void resetDefaultSelection();
 
     /** Lays out the footer and the table in `area`. */
     void layoutTableAndFooter (juce::Rectangle<int> area);
@@ -65,6 +74,8 @@ protected:
 
 private:
     juce::Label summary;
+    juce::ComboBox selectionBox;
+    DefaultSelection initialSelection = DefaultSelection::none;
     juce::TextButton moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
     std::unique_ptr<juce::FileChooser> chooser;
     juce::ThreadPool dateLoader { 1 };
@@ -84,6 +95,7 @@ private:
     void moveCheckedToFolder();
     void deleteChecked();
     void cycleChecks();
+    void selectDefault (DefaultSelection selection);
 
     /** Updates the list and tells the user what happened. */
     void finishRemoval (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done);

@@ -56,7 +56,7 @@ namespace
             : Criterion ({ "overlaps", "Multiple criteria",
                            "Items marked by several criteria (a folder's mark covers its content), from the lists already "
                            "analyzed or by running all criteria again. \"Folders only\" lists the folders with most candidates.",
-                           true, false, true }),
+                           true, false, true, true }),
               peers (std::move (source)) {}
 
         ParameterSet createParameters() const override
@@ -87,7 +87,7 @@ namespace
             if (parameters.getChoice ("view") == foldersOnly)
                 return listFolders (context, parameters, marks, minCriteria);
 
-            return listItems (context, marks, minCriteria, parameters.getChoice ("marked") == checkedItems);
+            return listItems (context, marks, minCriteria);
         }
 
     private:
@@ -115,7 +115,10 @@ namespace
                 {
                     context.progress ((double) i / (double) peerList.size(), "Running " + peerInfo.name + "...");
 
-                    for (auto& group : peer.criterion->analyse (context, peer.parameters).groups)
+                    auto result = peer.criterion->analyse (context, peer.parameters);
+                    DefaultSelections::applyAndCheck (peer.selection, result.groups);
+
+                    for (auto& group : result.groups)
                         items.insert (items.end(), group.items.begin(), group.items.end());
                 }
                 else if (peer.results.has_value() && peer.resultsRoot == context.root)
@@ -131,7 +134,7 @@ namespace
             return marks;
         }
 
-        static AnalysisResult listItems (const ScanContext& context, const Marks& marks, int minCriteria, bool preselect)
+        static AnalysisResult listItems (const ScanContext& context, const Marks& marks, int minCriteria)
         {
             struct Combination
             {
@@ -153,7 +156,6 @@ namespace
                 combination.criteria = names.size();
                 combination.bytes += mark.first.size;
                 combination.items.push_back (mark.first);
-                combination.items.back().selected = preselect;
             }
 
             std::vector<std::pair<juce::String, Combination>> sorted (byCombination.begin(), byCombination.end());

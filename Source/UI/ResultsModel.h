@@ -1,19 +1,8 @@
 #pragma once
 
 #include "../Core/AnalysisResult.h"
-
-/** Columns of the results table (values are TableHeaderComponent column ids). */
-enum class Column
-{
-    check = 1,
-    name,
-    folder,
-    size,
-    modified,
-    created,
-    type,
-    contentCreated
-};
+#include "../Core/DefaultSelection.h"
+#include <optional>
 
 enum class CheckState { none, some, all };
 
@@ -48,6 +37,13 @@ public:
     void setFilter (Filter newFilter);
     void sort (Column column, bool forwards);
     void setGroupOrder (GroupOrder newOrder);
+
+    /** Chooses which entries are checked by default. Groups still in their "default" check state are updated
+        (and again whenever the sort or the filter changes, for the strategies that depend on them).
+        Without a call, the entries keep the checks the criterion gave them (Cache Cleaner).
+    */
+    void setDefaultSelection (DefaultSelection newSelection);
+    DefaultSelection getDefaultSelection() const    { return defaultSelection.value_or (DefaultSelection::none); }
 
     bool hasResult() const noexcept                 { return analysed; }
     bool isGrouped() const noexcept                 { return grouped; }
@@ -85,6 +81,7 @@ public:
     /** Every entry of the result, visible or not. */
     std::vector<FileEntry> getAllEntries() const;
     const juce::File& getRoot() const noexcept      { return root; }
+    const AnalysisResult& getResult() const noexcept    { return result; }
 
     /** Bulk check states for the visible entries. */
     using Checks = ::Checks;
@@ -104,6 +101,7 @@ private:
     bool grouped = false;
     bool analysed = false;
     Filter filter;
+    std::optional<DefaultSelection> defaultSelection;
     GroupOrder groupOrder = GroupOrder::analysis;
     Column sortColumn = Column::check;      // Column::check = keep the analysis order.
     bool sortForwards = true;
@@ -113,6 +111,10 @@ private:
     void applySort();
     void sortGroups();
     void rebuildRows();
+
+    /** Recomputes the defaults and checks the groups that are in their default state. */
+    void updateDefaults();
+    void updateViewDependentDefaults()      { if (defaultSelection && DefaultSelections::dependsOnView (*defaultSelection)) updateDefaults(); }
 
     template <typename Function>
     void forEachVisible (int group, Function&& f) const

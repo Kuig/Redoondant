@@ -38,6 +38,7 @@ private:
     void analyse();
     void showResult (AnalysisResult result, const juce::File& root);
     void resetToDefaults();
+    void applyDefaultSort();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CriterionPage)
 };

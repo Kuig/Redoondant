@@ -81,7 +81,7 @@ public:
             std::vector<PeerCriterion> list;
 
             for (const auto* c : { &alpha, &beta, &gamma })
-                list.push_back ({ c, {}, static_cast<const FakeCriterion*> (c)->items, c == &beta ? betaRoot : temp.root });
+                list.push_back ({ c, {}, static_cast<const FakeCriterion*> (c)->items, c == &beta ? betaRoot : temp.root, c == &gamma ? DefaultSelection::none : DefaultSelection::all });
 
             return list;
         };
@@ -108,7 +108,6 @@ public:
             expectEquals ((int) result.groups.size(), 1);
             expect (result.groups[0].title.startsWith ("Alpha + Beta"));
             expectEquals ((int) result.groups[0].items.size(), 2);     // x and y
-            expect (result.groups[0].items[0].selected);
         }
 
         beginTest ("Listed items, exhaustive criteria ignored");
@@ -121,7 +120,7 @@ public:
         beginTest ("Run all criteria");
         {
             const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "source", 1); });
-            expectEquals ((int) allItems (result).size(), 2);
+            expectEquals ((int) allItems (result).size(), 3);          // Each peer's default selection (all) decides what is checked: x, y, z.
         }
 
         beginTest ("Results of another folder are ignored");

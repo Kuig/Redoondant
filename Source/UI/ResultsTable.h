@@ -26,6 +26,9 @@ public:
     /** The header of the check column was clicked: the owner cycles the check states. */
     std::function<void()> onHeaderCheckClicked;
 
+    /** Sorts by a column (what clicking its header does). */
+    void setSort (Column column, bool forwards);
+
     bool isColumnVisible (Column column) const;
 
     /** Explains what clicking the check column header does (shown as its tooltip). */

@@ -2,6 +2,19 @@
 
 #include "FileEntry.h"
 
+/** Columns of the results table (values are TableHeaderComponent column ids). */
+enum class Column
+{
+    check = 1,
+    name,
+    folder,
+    size,
+    modified,
+    created,
+    type,
+    contentCreated
+};
+
 /** Bulk check states: the criterion's proposal, everything, nothing. They cycle in this order. */
 enum class Checks { defaults, all, none };
 

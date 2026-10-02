@@ -20,12 +20,43 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
     analysed = true;
     applySort();
     sortGroups();
+
+    if (defaultSelection)
+    {
+        DefaultSelections::apply (*defaultSelection, result.groups, [this] (const FileEntry& e) { return isVisible (e); });
+
+        for (auto& group : result.groups)
+            for (auto& item : group.items)
+                item.selected = item.selectedByDefault;
+    }
+
     rebuildRows();
+}
+
+void ResultsModel::setDefaultSelection (DefaultSelection newSelection)
+{
+    defaultSelection = newSelection;
+    updateDefaults();
+}
+
+void ResultsModel::updateDefaults()
+{
+    if (! defaultSelection)
+        return;
+
+    DefaultSelections::apply (*defaultSelection, result.groups, [this] (const FileEntry& e) { return isVisible (e); });
+
+    for (auto& group : result.groups)
+        if (group.phase == Checks::defaults)
+            for (auto& item : group.items)
+                if (isVisible (item))
+                    item.selected = item.selectedByDefault;
 }
 
 void ResultsModel::setFilter (Filter newFilter)
 {
     filter = std::move (newFilter);
+    updateViewDependentDefaults();
     rebuildRows();
 }
 
@@ -34,6 +65,7 @@ void ResultsModel::sort (Column column, bool forwards)
     sortColumn = column;
     sortForwards = forwards;
     applySort();
+    updateViewDependentDefaults();
     rebuildRows();
 }
 
@@ -245,6 +277,7 @@ void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce
     if (sortColumn == Column::contentCreated)
     {
         applySort();
+        updateViewDependentDefaults();
         rebuildRows();
     }
 }

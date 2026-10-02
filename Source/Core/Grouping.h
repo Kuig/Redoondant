@@ -3,7 +3,7 @@
 #include "FileEntry.h"
 #include <map>
 
-/** Generic helpers used by criteria to split entries into groups and pick default selections. */
+/** Generic helpers used by criteria to split entries into groups. */
 namespace Grouping
 {
     using Groups = std::vector<std::vector<FileEntry>>;
@@ -25,23 +25,6 @@ namespace Grouping
                 result.push_back (std::move (bucket.second));
 
         return result;
-    }
-
-    /** Selects every item except the one that compares lowest ("best") according to isBetter. */
-    template <typename Comparator>
-    void selectAllButBest (std::vector<FileEntry>& items, Comparator&& isBetter)
-    {
-        const auto best = std::min_element (items.begin(), items.end(), isBetter);
-
-        for (auto it = items.begin(); it != items.end(); ++it)
-            it->selected = (it != best);
-    }
-
-    /** Selects or deselects all items. */
-    inline void selectAll (std::vector<FileEntry>& items, bool shouldBeSelected)
-    {
-        for (auto& item : items)
-            item.selected = shouldBeSelected;
     }
 
     /** The different file extensions (lowercase, e.g. ".mp3") among the items. */

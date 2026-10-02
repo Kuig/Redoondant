@@ -20,6 +20,7 @@
               file="Source/Core/ContentHasher.cpp"/>
         <FILE id="gw2wMq" name="ContentHasher.h" compile="0" resource="0" file="Source/Core/ContentHasher.h"/>
         <FILE id="zsO1xM" name="DateKind.h" compile="0" resource="0" file="Source/Core/DateKind.h"/>
+        <FILE id="yvOCqJ" name="DefaultSelection.h" compile="0" resource="0" file="Source/Core/DefaultSelection.h"/>
         <FILE id="NonTr1" name="EmptyFolders.cpp" compile="1" resource="0" file="Source/Core/EmptyFolders.cpp"/>
         <FILE id="yLeb0I" name="EmptyFolders.h" compile="0" resource="0" file="Source/Core/EmptyFolders.h"/>
         <FILE id="ZcUDIh" name="FileCategory.cpp" compile="1" resource="0"

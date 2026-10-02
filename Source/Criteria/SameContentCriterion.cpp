@@ -91,8 +91,8 @@ namespace
                            "song as FLAC and MP3 (same artist, title, album, track, similar duration), the same photo as HEIC "
                            "and JPG (same date taken and camera) or the same document as DOCX and PDF (same title, author, pages). "
                            "The largest file of each group is kept.",
-                           true }),
-              readMetadata (source != nullptr ? std::move (source) : Criteria::MetadataSource (MetadataReader::read)) {}
+                           true },
+                        { DefaultSelection::followsSort, Column::size, false }),              readMetadata (source != nullptr ? std::move (source) : Criteria::MetadataSource (MetadataReader::read)) {}
 
         ParameterSet createParameters() const override
         {
@@ -139,7 +139,6 @@ namespace
                     if (extensions.size() < 2)
                         continue;
 
-                    Grouping::selectAllButBest (group, [] (const FileEntry& a, const FileEntry& b) { return a.size > b.size; });
                     result.groups.push_back ({ identityOf (group.front()).values.joinIntoString (" - ")
                                                  + "  (" + extensions.joinIntoString (", ") + ")",
                                                std::move (group) });

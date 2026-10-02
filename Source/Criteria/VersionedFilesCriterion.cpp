@@ -13,7 +13,8 @@ namespace
                            "Files in the same folder, with the same extension, whose names start the same way but end "
                            "differently (e.g. report.pdf, report (1).pdf, report_final.pdf). "
                            "The most recently modified file of each group is kept.",
-                           true }) {}
+                           true },
+                        { DefaultSelection::followsSort, Column::modified, false }) {}
 
         ParameterSet createParameters() const override
         {
@@ -41,7 +42,6 @@ namespace
 
                 for (auto& cluster : Grouping::clusterBySharedRoot (std::move (candidates), minRoot, minRatio))
                 {
-                    Grouping::selectAllButBest (cluster.items, [] (const FileEntry& a, const FileEntry& b) { return a.modified > b.modified; });
                     result.groups.push_back ({ cluster.root + juce::String (juce::CharPointer_UTF8 ("\xe2\x80\xa6")) + extension
                                                  + "  (" + Format::count (cluster.items.size(), "version") + ")",
                                                std::move (cluster.items) });

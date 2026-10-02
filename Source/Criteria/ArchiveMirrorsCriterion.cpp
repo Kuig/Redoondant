@@ -95,7 +95,8 @@ namespace
             : Criterion ({ "archives", "Archives & extracted folders",
                            "Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) and a folder with exactly the same content, "
                            "by default only if the folder is named like the archive. The folder is checked by default.",
-                           true }) {}
+                           true, false, false, true },
+                        { DefaultSelection::folders }) {}
 
         ParameterSet createParameters() const override
         {
@@ -146,7 +147,6 @@ namespace
 
                 for (auto& extracted : matches)
                 {
-                    extracted.selected = true;
                     items.push_back (std::move (extracted));
                 }
 

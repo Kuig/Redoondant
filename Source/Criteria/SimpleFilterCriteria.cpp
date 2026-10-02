@@ -3,7 +3,6 @@
 #include "AllCriteria.h"
 #include "../Core/FileScanner.h"
 #include "../Core/DateKind.h"
-#include "../Core/Grouping.h"
 #include "../Metadata/ContentDate.h"
 #include <set>
 
@@ -12,14 +11,13 @@ namespace
     using Predicate = std::function<bool (const FileEntry&)>;
     using Ordering  = std::function<bool (const FileEntry&, const FileEntry&)>;
 
-    /** Scans, keeps the entries accepted by the predicate, orders and optionally pre-selects them. */
+    /** Scans, keeps the entries accepted by the predicate and orders them. */
     AnalysisResult filterScan (const ScanContext& context, const FileScanner::Options& options,
-                               const Predicate& accept, const Ordering& order, bool preselect)
+                               const Predicate& accept, const Ordering& order)
     {
         auto entries = FileScanner::scan (context, options);
         entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e) { return ! accept (e); }), entries.end());
         std::sort (entries.begin(), entries.end(), order);
-        Grouping::selectAll (entries, preselect);
         return AnalysisResult::flat (std::move (entries));
     }
 
@@ -34,7 +32,9 @@ namespace
     {
     public:
         LargeElements()
-            : Criterion ({ "largeFiles", "Large elements", "Files (and optionally folders) larger than the given size, largest first." }) {}
+            : Criterion ({ "largeFiles", "Large elements", "Files (and optionally folders) larger than the given size, largest first.",
+                           false, false, false, true },
+                        { DefaultSelection::none, Column::size, false }) {}
 
         ParameterSet createParameters() const override
         {
@@ -49,7 +49,7 @@ namespace
 
             return filterScan (context, folders ? fullScan : filesOnlyScan,
                                [=] (const FileEntry& e) { return (folders || ! e.isDirectory) && e.size >= minBytes; },
-                               largestFirst, false);
+                               largestFirst);
         }
     };
 
@@ -96,13 +96,15 @@ namespace
     public:
         EmptyItems()
             : Criterion ({ "empty", "Empty files & folders",
-                           "Zero-byte files, and folders that contain no files (only empty sub-folders, if any)." }) {}
+                           "Zero-byte files, and folders that contain no files (only empty sub-folders, if any).",
+                           false, false, false, true },
+                        { DefaultSelection::all }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {
             auto result = filterScan (context, fullScan,
                                       [] (const FileEntry& e) { return e.isDirectory ? e.fileCount == 0 : e.size == 0; },
-                                      byName, true);
+                                      byName);
 
             // Only list the outermost empty folder of a chain of empty folders.
             auto& items = result.groups.front().items;
@@ -134,8 +136,8 @@ namespace
     class PatternFiles final : public Criterion
     {
     public:
-        PatternFiles (Info info, std::vector<PatternList> patternLists, bool preselectMatches)
-            : Criterion (std::move (info)), lists (std::move (patternLists)), preselect (preselectMatches) {}
+        PatternFiles (Info info, std::vector<PatternList> patternLists, DefaultSelection selection)
+            : Criterion (std::move (info), { selection }), lists (std::move (patternLists)) {}
 
         ParameterSet createParameters() const override
         {
@@ -164,12 +166,11 @@ namespace
                                        && std::any_of (wildcards.begin(), wildcards.end(),
                                                        [&] (const juce::String& w) { return e.name().matchesWildcard (w, true); });
                                },
-                               largestFirst, preselect);
+                               largestFirst);
         }
 
     private:
         std::vector<PatternList> lists;
-        bool preselect;
     };
 
     //==============================================================================
@@ -180,11 +181,11 @@ namespace
             : Criterion ({ "manual", "Manual inspection",
                            "Every file and folder, sortable by any column (files and folders are mixed) "
                            "and filterable by type, date and size.",
-                           false, true }) {}
+                           false, true, false, true }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {
-            return filterScan (context, fullScan, [] (const FileEntry&) { return true; }, byName, false);
+            return filterScan (context, fullScan, [] (const FileEntry&) { return true; }, byName);
         }
     };
 }
@@ -205,7 +206,7 @@ std::unique_ptr<Criterion> Criteria::createInstallersAndJunkFiles()
             { "installerPatterns", "Installers (;)", "exe;msi;msix;appx;dmg;pkg;iso;img", true, true },
             { "junkPatterns", "Junk files (;)",
               "tmp;temp;bak;old;~$*;pek;peak;asd;reapeaks;RPP-bak;RPP-UNDO;gpk", true, true } },
-        false);
+        DefaultSelection::none);
 }
 
 std::unique_ptr<Criterion> Criteria::createIncompleteDownloads()
@@ -213,5 +214,5 @@ std::unique_ptr<Criterion> Criteria::createIncompleteDownloads()
     return std::make_unique<PatternFiles> (
         Criterion::Info { "incomplete", "Incomplete downloads", "Leftovers of interrupted or failed browser downloads." },
         std::vector<PatternList> { { "patterns", "Extensions or patterns (;)", "crdownload;part;partial;download;opdownload;!ut" } },
-        true);
+        DefaultSelection::all);
 }

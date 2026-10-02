@@ -40,7 +40,7 @@ filters, panel sizes, window position, volume) are saved in
 
 ## Criteria
 
-| Criterion | Finds | Checked by default |
+| Criterion | Finds | Default selection (initial) |
 |---|---|---|
 | Duplicate files | Identical content; algorithm *Size + content* (same size, same quick fingerprint, then byte comparison; default) or *Checksum* (SHA-256 of every file) | All but the shortest name |
 | File versions | Same folder and extension, names sharing a long enough start (no assumption on the differing ending) | All but the most recently modified |
@@ -54,8 +54,10 @@ filters, panel sizes, window position, volume) are saved in
 | Incomplete downloads | `.crdownload`, `.part`, ... | All |
 | Installers & junk files | Two lists, each with its own on/off check box: installers/disk images (`.exe`, `.msi`, `.iso`...) and junk (`.tmp`, `.bak`, `~$*`, and regenerable audio-software files: Cubase `.pek`/`.peak`, Ableton `.asd`, Reaper `.reapeaks`/`.RPP-bak`/`.RPP-UNDO`, WaveLab `.gpk`) | None |
 | Old files | Files whose creation, modification or content date is older than N days | None |
-| Multiple criteria | Items marked by at least N criteria, grouped by combination (e.g. "Duplicate files + Old files"); a folder's mark covers its content. Data: existing results of the other pages (with your checks) or re-run all criteria; marked = checked or listed. "Folders only": top folders by number of marked files, or outermost folders with at least X% of their bytes marked | Items: all (checked mode); folders: none |
+| Multiple criteria | Items marked by at least N criteria, grouped by combination (e.g. "Duplicate files + Old files"); a folder's mark covers its content. Data: existing results of the other pages (with your checks) or re-run all criteria; marked = checked or listed. "Folders only": top folders by number of marked files, or outermost folders with at least X% of their bytes marked | None |
 | Manual inspection | Everything, sortable by any column (files and folders mixed), filterable by name, type, date and size | None |
+
+**Default selection.** The drop-down at the bottom left of every list (except Cache Cleaner) chooses what the *default checks* state means: *none*, *all*, *keep first (follows sort)* (in each group the first visible row, in the current sort order, is the only one left unchecked: it follows column sorting and filters), *keep longest name*, *keep shortest name* (grouped criteria) and *folders only* / *files only* (criteria that list folders). Changing it updates the check boxes unless you cycled them to *all* or *none*; it is remembered per page. The column of the table above says what each criterion starts with; criteria that keep one item per group also start sorted so that it is the one to keep (versions: newest first; same content: largest first; duplicates: by name). *Reset to defaults* restores both.
 
 The *Content created* column (visible by default) is filled in the background after each analysis; files without a real metadata date stay empty.
 
@@ -66,7 +68,7 @@ System, so what is shown for a format depends on the property handlers/codecs in
 
 ```
 Source/
-  Core/       FileEntry, FileScanner (tree walk with folder sizes), Grouping helpers,
+  Core/       FileEntry, FileScanner (tree walk with folder sizes), Grouping helpers, DefaultSelection (check strategies),
               ContentHasher, FileCategory, Trash, MoveToFolder, EmptyFolders, Settings, Format
   Archives/   ArchiveReader (list / stream entries) implemented with libarchive
   Metadata/   Metadata model, MetadataReader (merges all sources), PE header reader

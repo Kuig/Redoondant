@@ -1,6 +1,5 @@
 #include "AllCriteria.h"
 #include "../Core/FileScanner.h"
-#include "../Core/Grouping.h"
 
 namespace
 {
@@ -11,7 +10,8 @@ namespace
             : Criterion ({ "junkFolders", "Junk folders",
                            "Folders that can usually be regenerated, such as build outputs and caches. "
                            "Names are matched ignoring case; enable Recursive to find them inside projects.",
-                           false, false, true }) {}
+                           false, false, true, true },
+                        { DefaultSelection::all }) {}
 
         ParameterSet createParameters() const override
         {
@@ -31,7 +31,6 @@ namespace
             entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e) { return ! isJunk (e); }), entries.end());
             std::sort (entries.begin(), entries.end(), [] (const FileEntry& a, const FileEntry& b) { return a.size > b.size; });
 
-            Grouping::selectAll (entries, true);
             return AnalysisResult::flat (std::move (entries));
         }
     };

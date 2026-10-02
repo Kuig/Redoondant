@@ -116,6 +116,11 @@ bool ResultsTable::isColumnVisible (Column column) const
     return table.getHeader().isColumnVisible ((int) column);
 }
 
+void ResultsTable::setSort (Column column, bool forwards)
+{
+    table.getHeader().setSortColumnId ((int) column, forwards);
+}
+
 void ResultsTable::setHeaderTooltip (const juce::String& text)
 {
     static_cast<CheckHeader&> (table.getHeader()).setTooltip (text);

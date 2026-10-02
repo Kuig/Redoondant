@@ -14,7 +14,8 @@ namespace
             : Criterion ({ "duplicates", "Duplicate files",
                            "Files with identical content: same size then same bytes, or the same SHA-256 checksum (slower, reads every file). "
                            "In each group the file with the shortest name is kept, the others are checked.",
-                           true }) {}
+                           true },
+                        { DefaultSelection::shortestName, Column::name }) {}
 
         ParameterSet createParameters() const override
         {
@@ -31,7 +32,6 @@ namespace
             AnalysisResult result;
             const auto add = [&result] (std::vector<FileEntry> identical)
             {
-                Grouping::selectAllButBest (identical, keepShortestName);
                 result.groups.push_back ({ Format::count (identical.size(), "identical file") + ", "
                                              + Format::size (identical.front().size) + " each",
                                            std::move (identical) });
@@ -113,12 +113,6 @@ namespace
                                               [] (const std::vector<FileEntry>& p) { return p.size() < 2; }),
                               partitions.end());
             return partitions;
-        }
-
-        static bool keepShortestName (const FileEntry& a, const FileEntry& b)
-        {
-            const auto la = a.name().length(), lb = b.name().length();
-            return la != lb ? la < lb : a.created < b.created;
         }
 
         static juce::int64 wasted (const ResultGroup& group)

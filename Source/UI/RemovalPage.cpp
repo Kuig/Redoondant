@@ -66,6 +66,41 @@ RemovalPage::~RemovalPage()
     dateLoader.removeAllJobs (true, 10000);
 }
 
+void RemovalPage::setupDefaultSelection (std::vector<DefaultSelection> available, DefaultSelection initial)
+{
+    initialSelection = initial;
+    selectionBox.clear (juce::dontSendNotification);
+
+    for (const auto s : available)
+        selectionBox.addItem (DefaultSelections::nameOf (s), (int) s + 1);
+
+    const auto stored = settings.get ("defaultSelection");
+    auto selection = initial;
+
+    if (stored.isNotEmpty() && selectionBox.indexOfItemId (stored.getIntValue() + 1) >= 0)
+        selection = (DefaultSelection) stored.getIntValue();
+
+    selectionBox.setTooltip ("Which items are checked by default (the first state of the check cycle in the table header)");
+    selectionBox.onChange = [this] { selectDefault ((DefaultSelection) (selectionBox.getSelectedId() - 1)); };
+    selectionBox.setSelectedId ((int) selection + 1, juce::dontSendNotification);
+    model.setDefaultSelection (selection);
+    addAndMakeVisible (selectionBox);
+}
+
+void RemovalPage::resetDefaultSelection()
+{
+    selectionBox.setSelectedId ((int) initialSelection + 1, juce::dontSendNotification);
+    selectDefault (initialSelection);
+}
+
+void RemovalPage::selectDefault (DefaultSelection selection)
+{
+    settings.set ("defaultSelection", (int) selection);
+    model.setDefaultSelection (selection);
+    table.refresh();
+    updateSummary();
+}
+
 void RemovalPage::loadContentDates (bool restart)
 {
     if (! table.isColumnVisible (Column::contentCreated) || (datesPending > 0 && ! restart))
@@ -128,6 +163,13 @@ void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
     trashButton.setBounds (footer.removeFromRight (140));
     footer.removeFromRight (gap);
     moveButton.setBounds (footer.removeFromRight (140));
+
+    if (selectionBox.isVisible())
+    {
+        selectionBox.setBounds (footer.removeFromLeft (250));
+        footer.removeFromLeft (gap);
+    }
+
     summary.setBounds (footer);
     area.removeFromBottom (gap);
 

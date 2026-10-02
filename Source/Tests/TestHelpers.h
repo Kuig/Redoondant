@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Criteria/Criterion.h"
+#include "../UI/ResultsModel.h"
 
 /** Helpers shared by the unit tests. */
 namespace TestHelpers
@@ -22,7 +23,9 @@ namespace TestHelpers
         juce::File root;
     };
 
-    /** Runs a criterion with its default parameters (optionally tweaked). */
+    /** Runs a criterion with its default parameters (optionally tweaked), then sorts and checks the result
+        the way a page does at start: the criterion's default sort and default selection.
+    */
     inline AnalysisResult run (const Criterion& criterion, const juce::File& root, bool recursive = false,
                                const std::function<void (ParameterSet&)>& tweak = {})
     {
@@ -35,7 +38,12 @@ namespace TestHelpers
         if (tweak != nullptr)
             tweak (parameters);
 
-        return criterion.analyse (context, parameters);
+        ResultsModel model;
+        const auto& defaults = criterion.getDefaults();
+        model.setDefaultSelection (defaults.selection);
+        model.sort (defaults.sortColumn, defaults.sortForwards);
+        model.setResult (criterion.analyse (context, parameters), root, criterion.getInfo().grouped);
+        return model.getResult();
     }
 
     inline void setParameter (ParameterSet& parameters, const juce::String& id, const juce::var& value)

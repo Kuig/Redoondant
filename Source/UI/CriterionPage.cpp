@@ -82,6 +82,11 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     addChildComponent (groupOrderBox);
     groupOrderBox.setVisible (info.grouped);
 
+    setupDefaultSelection (DefaultSelections::available (info.grouped, info.showsFolders), criterion.getDefaults().selection);
+
+    if (settings.get ("table").isEmpty())       // Nothing remembered: start with the criterion's sort.
+        applyDefaultSort();
+
     analyseButton.onClick = [this] { analyse(); };
     resetButton.onClick = [this] { resetToDefaults(); };
 
@@ -169,16 +174,26 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
     loadContentDates (true);
 }
 
+void CriterionPage::applyDefaultSort()
+{
+    const auto& defaults = criterion.getDefaults();
+
+    if (defaults.sortColumn != Column::check)
+        table.setSort (defaults.sortColumn, defaults.sortForwards);
+}
+
 void CriterionPage::resetToDefaults()
 {
     parametersPanel.resetToDefaults();
+    resetDefaultSelection();
+    applyDefaultSort();
     recursiveToggle.setToggleState (criterion.getInfo().recursiveByDefault, juce::sendNotification);
     resized();
 }
 
 PeerCriterion CriterionPage::describeAsPeer() const
 {
-    PeerCriterion peer { &criterion, parameters, std::nullopt, {} };
+    PeerCriterion peer { &criterion, parameters, std::nullopt, {}, model.getDefaultSelection() };
 
     if (model.hasResult())
     {

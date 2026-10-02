@@ -30,6 +30,7 @@ public:
         testTypeFilter();
         testDates();
         testGroupOrder();
+        testDefaultSelection();
         testProgress();
         testMetadataDiff();
     }
@@ -227,6 +228,86 @@ private:
         model.applyChecks (Checks::all);
         expect (model.getOverallState() == CheckState::all);
         expectEquals ((int) checked(), 3);              // a, b, c: "d" is hidden, "gone" is missing.
+    }
+
+    void testDefaultSelection()
+    {
+        beginTest ("Default selection strategies");
+
+        const auto entry = [] (const juce::String& fileName, juce::int64 size = 1, bool folder = false)
+        {
+            FileEntry e;
+            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
+            e.size = size;
+            e.isDirectory = folder;
+            return e;
+        };
+
+        const auto makeResult = [&]
+        {
+            AnalysisResult result;
+            result.groups.push_back ({ "first", { entry ("bbb", 5), entry ("a", 9), entry ("cc", 1) } });
+            result.groups.push_back ({ "second", { entry ("zz", 1, true), entry ("y", 2) } });
+            return result;
+        };
+
+        // Names of the unchecked entries, group by group.
+        const auto kept = [] (ResultsModel& model)
+        {
+            juce::StringArray names;
+
+            for (const auto& e : model.getAllEntries())
+                if (! e.selected)
+                    names.add (e.name());
+
+            return names.joinIntoString (",");
+        };
+
+        ResultsModel model;
+        model.setDefaultSelection (DefaultSelection::shortestName);
+        model.setResult (makeResult(), {}, true);
+        expectEquals (kept (model), juce::String ("a,y"));
+
+        model.setDefaultSelection (DefaultSelection::longestName);
+        expectEquals (kept (model), juce::String ("bbb,zz"));
+
+        model.setDefaultSelection (DefaultSelection::none);
+        expectEquals (kept (model), juce::String ("bbb,a,cc,zz,y"));
+
+        model.setDefaultSelection (DefaultSelection::all);
+        expectEquals (kept (model), juce::String());
+
+        model.setDefaultSelection (DefaultSelection::folders);
+        expectEquals ((int) model.getCheckedEntries().size(), 1);
+        expectEquals (model.getCheckedEntries()[0].name(), juce::String ("zz"));
+
+        model.setDefaultSelection (DefaultSelection::files);
+        expectEquals ((int) model.getCheckedEntries().size(), 4);
+
+        // Follows the sort order, and the filter (hidden entries are never kept nor checked).
+        model.setDefaultSelection (DefaultSelection::followsSort);
+        model.sort (Column::size, false);                           // Biggest first: a (9), bbb (5), cc (1) / y (2), zz (1).
+        expectEquals (kept (model), juce::String ("a,y"));
+
+        model.sort (Column::size, true);                            // Smallest first: cc / zz (ties keep the sort order of the name... stable).
+        expectEquals (kept (model), juce::String ("cc,zz"));
+
+        model.setFilter ([] (const FileEntry& e) { return e.name() != "cc"; });
+        expectEquals ((int) model.getCheckedEntries().size(), 2);
+        expectEquals (kept (model), juce::String ("cc,bbb,zz"));    // "cc" is hidden (unchecked), "bbb" is the first visible of its group.
+
+        // Groups that left their default state (checked or unchecked as a whole) keep their checks.
+        model.setFilter ({});
+        model.sort (Column::size, false);
+        model.toggle (0);                                           // First group: -> all.
+        model.sort (Column::size, true);
+        expectEquals ((int) model.getCheckedEntries().size(), 4);   // The first group stays all checked; the second keeps one.
+
+        // Which strategies a criterion can offer.
+        expectEquals ((int) DefaultSelections::available (false, false).size(), 2);
+        expectEquals ((int) DefaultSelections::available (true, false).size(), 5);
+        expectEquals ((int) DefaultSelections::available (false, true).size(), 4);
+        expectEquals ((int) DefaultSelections::available (true, true).size(), 7);
     }
 
     void testTypeFilter()

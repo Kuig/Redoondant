@@ -15,7 +15,7 @@ namespace
                            "Files and folders grouped by creation or modification date, or by the date written in the content's metadata "
                            "(photo taken, document created...; folders and files without one are left out). "
                            "A new group starts whenever the gap from the previous item exceeds the given time. Newest groups first.",
-                           true, true }) {}
+                           true, true, false, true }) {}
 
         ParameterSet createParameters() const override
         {
