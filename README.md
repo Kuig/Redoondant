@@ -121,3 +121,27 @@ in `LibArchiveReader.cpp` and `PdfDocument.cpp`); include/library paths are set 
 
 Tests: `Redoondant.exe --test` runs the unit tests, writes `%TEMP%\Redoondant-tests.log`
 and exits with the number of failures.
+
+## License
+
+Redoondant's own source code is released under the [MIT License](LICENSE).
+
+The application is built on [JUCE](https://juce.com), used under its **AGPLv3** option, so the binaries
+are distributed under the terms of the **GNU AGPLv3**: the complete corresponding source is this repository.
+It also uses [libarchive](https://libarchive.org) (BSD) and [PDFium](https://pdfium.googlesource.com/pdfium/)
+(BSD-3-Clause / Apache 2.0), under their own licenses.
+
+## AI statement
+
+This project is developed with the help of an AI coding assistant, [Claude Code](https://claude.com/claude-code)
+(Anthropic's Claude models), used as a pair-programming tool:
+
+- The author decides what to build: the features, their behaviour and the defaults, reviewing and approving
+  the assistant's plans before any code is written.
+- The assistant explores the code base, proposes designs and writes most of the code, the unit tests and this
+  documentation; it also researches facts that the app relies on (for example which cache folders are safe to
+  empty, or which file extensions audio software regenerates) and checks them against public sources.
+- Changes are built and tested, and the app is run and inspected by the author, who also reads the diffs
+  and makes the commits.
+
+The assistant can be wrong. If you find a bug or an unsafe default, please open an issue.
