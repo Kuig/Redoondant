@@ -5,6 +5,7 @@
 #include "../Metadata/MetadataReader.h"
 #include "../Pdf/PdfDocument.h"
 #include "../Platform/ComInit.h"
+#include "../Platform/ShellIcon.h"
 #include "../Platform/ShellThumbnail.h"
 
 namespace
@@ -13,6 +14,7 @@ namespace
     constexpr int maxTextBytes = 64 * 1024;
     constexpr int maxListedItems = 500;
     constexpr int renderPixels = 800;
+    constexpr int iconPixels = 128;
 
     void setUpReadOnly (juce::TextEditor& editor)
     {
@@ -157,6 +159,10 @@ namespace
             data.text = readTextStart (file);
         else if (data.image.isNull())
             data.image = ShellThumbnail::get (file, renderPixels);
+
+        // Nothing to preview: show the file's icon (its own, for executables) instead of leaving the area blank.
+        if (data.image.isNull() && data.text.isEmpty() && data.content == Content::none)
+            data.image = ShellIcon::get (file, iconPixels);
 
         if (data.content == Content::none)
             data.content = data.image.isValid() ? Content::image : (data.text.isNotEmpty() ? Content::text : Content::none);

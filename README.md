@@ -12,7 +12,7 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    a separator row per group (its checkbox toggles the whole group).
 4. Check/uncheck items (click the checkbox column, or select rows and press Space; the
    button below the list cycles through *check all*, *uncheck all* and the *default checks*),
-   inspect them in the preview on the right (images, PDF first page, OS thumbnails for
+   inspect them in the preview on the right (images, the file's icon when there is nothing else to show, PDF first page, OS thumbnails for
    videos/Office files, text, folder and archive content, audio player, and metadata:
    media tags, EXIF, PDF info, executable version/architecture...). Double-click reveals an item in Explorer;
    right-click opens the Windows Explorer context menu (items deleted or moved from there leave the list).
@@ -46,13 +46,13 @@ filters, panel sizes, window position, volume) are saved in
 | File versions | Same folder and extension, names sharing a long enough start (no assumption on the differing ending) | All but the most recently modified |
 | Same name, different extension | e.g. `video.mp4` + `video.mkv`, `thesis.docx` + `thesis.pdf` (optionally across folders / same kind only) | None |
 | Same content, different format | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages) | All but the largest |
-| Archives & extracted folders | Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name and identical content | The folder |
+| Archives & extracted folders | Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name and identical content; the option *Ignore folder name* matches any scanned folder with identical content | The folder |
 | Junk folders | Folders with configurable names (`Build;Builds;node_modules;...`) | All |
 | Large files | Files above a size threshold | None |
 | Date clusters | Items grouped by modified/created date, split on time gaps | None |
 | Empty files & folders | 0-byte files, folders without files | All |
 | Incomplete downloads | `.crdownload`, `.part`, ... | All |
-| Installers & temp files | `.exe`, `.msi`, `.iso`, `.tmp`, `~$*`, ... | None |
+| Installers & junk files | Two lists, each with its own on/off check box: installers/disk images (`.exe`, `.msi`, `.iso`...) and junk (`.tmp`, `.bak`, `~$*`, and regenerable audio-software files: Cubase `.pek`/`.peak`, Ableton `.asd`, Reaper `.reapeaks`/`.RPP-bak`/`.RPP-UNDO`, WaveLab `.gpk`) | None |
 | Old files | Not modified for N days | None |
 | Multiple criteria | Items marked by at least N criteria, grouped by combination (e.g. "Duplicate files + Old files"); a folder's mark covers its content. Data: existing results of the other pages (with your checks) or re-run all criteria; marked = checked or listed. "Folders only": top folders by number of marked files, or outermost folders with at least X% of their bytes marked | Items: all (checked mode); folders: none |
 | Manual inspection | Everything, sortable by any column (files and folders mixed), filterable by name, type, date and size | None |

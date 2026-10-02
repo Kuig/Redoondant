@@ -82,6 +82,7 @@
         <FILE id="a589DT" name="ComInit.h" compile="0" resource="0" file="Source/Platform/ComInit.h"/>
         <FILE id="ZoQalL" name="ShellContextMenu.h" compile="0" resource="0"
               file="Source/Platform/ShellContextMenu.h"/>
+        <FILE id="b0oKxQ" name="ShellIcon.h" compile="0" resource="0" file="Source/Platform/ShellIcon.h"/>
         <FILE id="HDLDFV" name="ShellThumbnail.h" compile="0" resource="0"
               file="Source/Platform/ShellThumbnail.h"/>
         <FILE id="FIi53X" name="WindowsPlatform.cpp" compile="1" resource="0"
@@ -92,6 +93,7 @@
               file="Source/Tests/ArchiveTests.cpp"/>
         <FILE id="Fx9Ghc" name="CleanupTests.cpp" compile="1" resource="0" file="Source/Tests/CleanupTests.cpp"/>
         <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
+        <FILE id="ul9ZRg" name="FilterTests.cpp" compile="1" resource="0" file="Source/Tests/FilterTests.cpp"/>
         <FILE id="YXgljU" name="MediaTests.cpp" compile="1" resource="0" file="Source/Tests/MediaTests.cpp"/>
         <FILE id="r5fsQk" name="MoveTests.cpp" compile="1" resource="0" file="Source/Tests/MoveTests.cpp"/>
         <FILE id="t04iFg" name="OverlapTests.cpp" compile="1" resource="0"
@@ -108,6 +110,8 @@
         <FILE id="I9X7H6" name="CriterionPage.h" compile="0" resource="0" file="Source/UI/CriterionPage.h"/>
         <FILE id="aMuFbh" name="FilterBar.cpp" compile="1" resource="0" file="Source/UI/FilterBar.cpp"/>
         <FILE id="7x41Zt" name="FilterBar.h" compile="0" resource="0" file="Source/UI/FilterBar.h"/>
+        <FILE id="j2FNqs" name="IconCache.cpp" compile="1" resource="0" file="Source/UI/IconCache.cpp"/>
+        <FILE id="fi7Dzw" name="IconCache.h" compile="0" resource="0" file="Source/UI/IconCache.h"/>
         <FILE id="pdp4K8" name="ParametersPanel.cpp" compile="1" resource="0"
               file="Source/UI/ParametersPanel.cpp"/>
         <FILE id="ffUF0e" name="ParametersPanel.h" compile="0" resource="0"

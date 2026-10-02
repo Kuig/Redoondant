@@ -102,24 +102,40 @@ namespace
     };
 
     //==============================================================================
-    /** Files matching a list of extensions or wildcard patterns. */
+    /** One list of extensions or wildcard patterns; with `toggleable` the user can switch the whole list off. */
+    struct PatternList
+    {
+        juce::String id, label, defaults;
+        bool toggleable = false;
+        bool enabledByDefault = true;
+    };
+
+    /** Files matching the extensions or wildcard patterns of any enabled list. */
     class PatternFiles final : public Criterion
     {
     public:
-        PatternFiles (Info info, juce::String patterns, bool preselectMatches)
-            : Criterion (std::move (info)), defaultPatterns (std::move (patterns)), preselect (preselectMatches) {}
+        PatternFiles (Info info, std::vector<PatternList> patternLists, bool preselectMatches)
+            : Criterion (std::move (info)), lists (std::move (patternLists)), preselect (preselectMatches) {}
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::text ("patterns", "Extensions or patterns (;)", defaultPatterns) };
+            ParameterSet parameters;
+
+            for (const auto& list : lists)
+                parameters.all().push_back (list.toggleable ? Parameter::textWithToggle (list.id, list.label, list.defaults, list.enabledByDefault)
+                                                            : Parameter::text (list.id, list.label, list.defaults));
+
+            return parameters;
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
             juce::StringArray wildcards;
 
-            for (const auto& pattern : parameters.getList ("patterns"))
-                wildcards.add (pattern.containsAnyOf ("*?") ? pattern : "*." + pattern.trimCharactersAtStart ("."));
+            for (const auto& list : lists)
+                if (parameters.isEnabled (list.id))
+                    for (const auto& pattern : parameters.getList (list.id))
+                        wildcards.add (pattern.containsAnyOf ("*?") ? pattern : "*." + pattern.trimCharactersAtStart ("."));
 
             return filterScan (context, filesOnlyScan,
                                [&] (const FileEntry& e)
@@ -132,7 +148,7 @@ namespace
         }
 
     private:
-        juce::String defaultPatterns;
+        std::vector<PatternList> lists;
         bool preselect;
     };
 
@@ -158,17 +174,24 @@ std::unique_ptr<Criterion> Criteria::createOldFiles()           { return std::ma
 std::unique_ptr<Criterion> Criteria::createEmptyItems()         { return std::make_unique<EmptyItems>(); }
 std::unique_ptr<Criterion> Criteria::createManualInspection()   { return std::make_unique<ManualInspection>(); }
 
-std::unique_ptr<Criterion> Criteria::createInstallersAndTempFiles()
+std::unique_ptr<Criterion> Criteria::createInstallersAndJunkFiles()
 {
-    return std::make_unique<PatternFiles> (Criterion::Info { "installers", "Installers & temp files",
-                                                             "Installers and disk images that were probably already used, "
-                                                             "and temporary or backup files." },
-                                           "exe;msi;msix;appx;dmg;pkg;iso;img;tmp;temp;bak;old;~$*", false);
+    return std::make_unique<PatternFiles> (
+        Criterion::Info { "installers", "Installers & junk files",
+                          "Installers and disk images that were probably already used, and junk: temporary and backup files, "
+                          "and the regenerable peak, analysis and backup files of audio software (Cubase, Ableton Live, Reaper, WaveLab). "
+                          "Each list can be switched off." },
+        std::vector<PatternList> {
+            { "installerPatterns", "Installers (;)", "exe;msi;msix;appx;dmg;pkg;iso;img", true, true },
+            { "junkPatterns", "Junk files (;)",
+              "tmp;temp;bak;old;~$*;pek;peak;asd;reapeaks;RPP-bak;RPP-UNDO;gpk", true, true } },
+        false);
 }
 
 std::unique_ptr<Criterion> Criteria::createIncompleteDownloads()
 {
-    return std::make_unique<PatternFiles> (Criterion::Info { "incomplete", "Incomplete downloads",
-                                                             "Leftovers of interrupted or failed browser downloads." },
-                                           "crdownload;part;partial;download;opdownload;!ut", true);
+    return std::make_unique<PatternFiles> (
+        Criterion::Info { "incomplete", "Incomplete downloads", "Leftovers of interrupted or failed browser downloads." },
+        std::vector<PatternList> { { "patterns", "Extensions or patterns (;)", "crdownload;part;partial;download;opdownload;!ut" } },
+        true);
 }

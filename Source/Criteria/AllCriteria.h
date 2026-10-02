@@ -15,7 +15,7 @@ namespace Criteria
     std::unique_ptr<Criterion> createLargeFiles();
     std::unique_ptr<Criterion> createDateClusters();
     std::unique_ptr<Criterion> createEmptyItems();
-    std::unique_ptr<Criterion> createInstallersAndTempFiles();
+    std::unique_ptr<Criterion> createInstallersAndJunkFiles();
     std::unique_ptr<Criterion> createIncompleteDownloads();
     std::unique_ptr<Criterion> createOldFiles();
     std::unique_ptr<Criterion> createManualInspection();

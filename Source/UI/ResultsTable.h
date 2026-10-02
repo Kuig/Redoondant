@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IconCache.h"
 #include "ResultsModel.h"
 
 /** Table showing a ResultsModel: a checkbox column, file details, and group separator rows.
@@ -44,6 +45,7 @@ private:
 
     ResultsModel& model;
     Table table { *this };
+    IconCache icons;
 
     struct HeaderListener;
     std::unique_ptr<HeaderListener> headerListener;

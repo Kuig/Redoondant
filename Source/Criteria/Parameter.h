@@ -17,6 +17,9 @@ struct Parameter
     juce::String suffix;            ///< Unit shown after numbers, e.g. "MB".
     juce::StringArray choices;      ///< For Kind::choice; the value is the chosen index.
     int editorWidth = 60;           ///< Preferred width of the editing widget.
+    bool hasToggle = false;         ///< An enable check box in front of the editor (see textWithToggle).
+    bool enabled = true;
+    bool defaultEnabled = true;
 
     static Parameter toggle (const juce::String& id, const juce::String& label, bool defaultValue)
     {
@@ -33,6 +36,16 @@ struct Parameter
     static Parameter text (const juce::String& id, const juce::String& label, const juce::String& defaultValue, int width = 380)
     {
         return make (id, label, Kind::text, defaultValue, width);
+    }
+
+    /** A text parameter that can be switched off with a check box (e.g. a list of extensions to look for). */
+    static Parameter textWithToggle (const juce::String& id, const juce::String& label, const juce::String& defaultValue,
+                                     bool enabledByDefault, int width = 380)
+    {
+        auto p = make (id, label, Kind::text, defaultValue, width);
+        p.hasToggle = true;
+        p.enabled = p.defaultEnabled = enabledByDefault;
+        return p;
     }
 
     static Parameter choice (const juce::String& id, const juce::String& label, const juce::StringArray& choices, int defaultIndex = 0)
@@ -94,6 +107,17 @@ public:
     double       getNumber (const juce::String& id) const  { return (*this)[id]; }
     int          getChoice (const juce::String& id) const  { return (*this)[id]; }
     juce::String getText   (const juce::String& id) const  { return (*this)[id].toString(); }
+
+    /** False only for parameters with an enable check box that is unchecked. */
+    bool isEnabled (const juce::String& id) const
+    {
+        for (const auto& p : items)
+            if (p.id == id)
+                return ! p.hasToggle || p.enabled;
+
+        jassertfalse;   // Unknown parameter id
+        return false;
+    }
 
     /** Splits a text parameter on ';' into trimmed, non-empty tokens. */
     juce::StringArray getList (const juce::String& id) const

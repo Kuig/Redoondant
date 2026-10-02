@@ -14,7 +14,7 @@ std::vector<std::unique_ptr<Criterion>> Criteria::createAll (PeerSource peers)
     all.push_back (createDateClusters());
     all.push_back (createEmptyItems());
     all.push_back (createIncompleteDownloads());
-    all.push_back (createInstallersAndTempFiles());
+    all.push_back (createInstallersAndJunkFiles());
     all.push_back (createOldFiles());
     all.push_back (createManualInspection());
     all.push_back (createMultipleCriteria (std::move (peers)));

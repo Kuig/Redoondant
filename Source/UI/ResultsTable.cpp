@@ -55,6 +55,7 @@ ResultsTable::ResultsTable (ResultsModel& m) : model (m)
     headerListener = std::make_unique<HeaderListener> (*this);
     header.addListener (headerListener.get());
 
+    icons.onIconLoaded = [this] { table.repaint(); };
     table.setRowHeight (22);
     table.setMultipleSelectionEnabled (true);
     table.setWantsKeyboardFocus (true);
@@ -187,9 +188,24 @@ void ResultsTable::paintCell (juce::Graphics& g, int row, int columnId, int widt
     if (column == Column::name && entry->isDirectory)
         cell += "/";
 
+    int textX = 4;
+
+    if (column == Column::name)
+    {
+        // The system icon (loaded in the background; the space is reserved meanwhile).
+        const auto icon = icons.get (*entry);
+        const int size = IconCache::iconSize;
+
+        if (icon.isValid())
+            g.drawImage (icon, juce::Rectangle<float> (4.0f, ((float) height - (float) size) * 0.5f, (float) size, (float) size),
+                         juce::RectanglePlacement::centred, false);
+
+        textX = 4 + size + 4;
+    }
+
     g.setColour (entry->missing ? text.withAlpha (0.45f) : text);
     g.setFont (juce::FontOptions (14.0f, entry->isDirectory && column == Column::name ? juce::Font::bold : juce::Font::plain));
-    g.drawText (cell, 4, 0, width - 8, height,
+    g.drawText (cell, textX, 0, width - textX - 4, height,
                 column == Column::size ? juce::Justification::centredRight : juce::Justification::centredLeft, true);
 }
 

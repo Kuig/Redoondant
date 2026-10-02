@@ -24,6 +24,7 @@
 
 #include "ComInit.h"
 #include "ShellContextMenu.h"
+#include "ShellIcon.h"
 #include "ShellThumbnail.h"
 #include "../Metadata/MetadataReader.h"
 
@@ -96,62 +97,69 @@ ScopedComInit::~ScopedComInit()
 }
 
 //==============================================================================
-juce::Image ShellThumbnail::get (const juce::File& file, int maxPixels)
+namespace
 {
-    ComPtr<IShellItemImageFactory> factory;
-
-    if (FAILED (SHCreateItemFromParsingName (file.getFullPathName().toWideCharPointer(), nullptr, IID_PPV_ARGS (&factory))))
-        return {};
-
-    HBITMAP bitmap = nullptr;
-
-    if (FAILED (factory->GetImage ({ maxPixels, maxPixels }, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK, &bitmap)))
-        return {};
-
-    BITMAP info {};
-    GetObject (bitmap, sizeof (info), &info);
-
-    BITMAPINFO header {};
-    header.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
-    header.bmiHeader.biWidth = info.bmWidth;
-    header.bmiHeader.biHeight = -info.bmHeight;     // Top-down rows.
-    header.bmiHeader.biPlanes = 1;
-    header.bmiHeader.biBitCount = 32;
-    header.bmiHeader.biCompression = BI_RGB;
-
-    // 32-bit BGRA rows, the same byte order as juce's ARGB on little-endian machines.
-    const auto width = (int) info.bmWidth, height = (int) info.bmHeight;
-    std::vector<juce::uint8> bgra ((size_t) width * (size_t) height * 4);
-
-    auto* dc = GetDC (nullptr);
-    const bool copied = GetDIBits (dc, bitmap, 0, (UINT) height, bgra.data(), &header, DIB_RGB_COLORS) == height;
-    ReleaseDC (nullptr, dc);
-    DeleteObject (bitmap);
-
-    if (! copied)
-        return {};
-
-    // Opaque bitmaps come with alpha = 0 everywhere.
-    bool hasAlpha = false;
-
-    for (size_t i = 3; i < bgra.size() && ! hasAlpha; i += 4)
-        hasAlpha = bgra[i] != 0;
-
-    juce::Image image (juce::Image::ARGB, width, height, false);
-    const juce::Image::BitmapData pixels (image, juce::Image::BitmapData::writeOnly);
-
-    for (int y = 0; y < height; ++y)
+    /** The image the shell produces for a file with the given SIIGBF flags, or an invalid image. */
+    juce::Image shellImage (const juce::File& file, int maxPixels, SIIGBF flags)
     {
-        auto* row = pixels.getLinePointer (y);
-        std::memcpy (row, bgra.data() + (size_t) y * (size_t) width * 4, (size_t) width * 4);
+        ComPtr<IShellItemImageFactory> factory;
 
-        if (! hasAlpha)
-            for (int x = 0; x < width; ++x)
-                row[x * 4 + 3] = 0xff;
+        if (FAILED (SHCreateItemFromParsingName (file.getFullPathName().toWideCharPointer(), nullptr, IID_PPV_ARGS (&factory))))
+            return {};
+
+        HBITMAP bitmap = nullptr;
+
+        if (FAILED (factory->GetImage ({ maxPixels, maxPixels }, flags | SIIGBF_BIGGERSIZEOK, &bitmap)))
+            return {};
+
+        BITMAP info {};
+        GetObject (bitmap, sizeof (info), &info);
+
+        BITMAPINFO header {};
+        header.bmiHeader.biSize = sizeof (BITMAPINFOHEADER);
+        header.bmiHeader.biWidth = info.bmWidth;
+        header.bmiHeader.biHeight = -info.bmHeight;     // Top-down rows.
+        header.bmiHeader.biPlanes = 1;
+        header.bmiHeader.biBitCount = 32;
+        header.bmiHeader.biCompression = BI_RGB;
+
+        // 32-bit BGRA rows, the same byte order as juce's ARGB on little-endian machines.
+        const auto width = (int) info.bmWidth, height = (int) info.bmHeight;
+        std::vector<juce::uint8> bgra ((size_t) width * (size_t) height * 4);
+
+        auto* dc = GetDC (nullptr);
+        const bool copied = GetDIBits (dc, bitmap, 0, (UINT) height, bgra.data(), &header, DIB_RGB_COLORS) == height;
+        ReleaseDC (nullptr, dc);
+        DeleteObject (bitmap);
+
+        if (! copied)
+            return {};
+
+        // Opaque bitmaps come with alpha = 0 everywhere.
+        bool hasAlpha = false;
+
+        for (size_t i = 3; i < bgra.size() && ! hasAlpha; i += 4)
+            hasAlpha = bgra[i] != 0;
+
+        juce::Image image (juce::Image::ARGB, width, height, false);
+        const juce::Image::BitmapData pixels (image, juce::Image::BitmapData::writeOnly);
+
+        for (int y = 0; y < height; ++y)
+        {
+            auto* row = pixels.getLinePointer (y);
+            std::memcpy (row, bgra.data() + (size_t) y * (size_t) width * 4, (size_t) width * 4);
+
+            if (! hasAlpha)
+                for (int x = 0; x < width; ++x)
+                    row[x * 4 + 3] = 0xff;
+        }
+
+        return image;
     }
-
-    return image;
 }
+
+juce::Image ShellThumbnail::get (const juce::File& file, int maxPixels)    { return shellImage (file, maxPixels, SIIGBF_THUMBNAILONLY); }
+juce::Image ShellIcon::get (const juce::File& file, int pixels)            { return shellImage (file, pixels, SIIGBF_ICONONLY); }
 
 //==============================================================================
 namespace
@@ -338,6 +346,7 @@ ScopedComInit::ScopedComInit()  {}
 ScopedComInit::~ScopedComInit() {}
 
 juce::Image ShellThumbnail::get (const juce::File&, int)                  { return {}; }
+juce::Image ShellIcon::get (const juce::File&, int)                       { return {}; }
 bool ShellContextMenu::show (const juce::Array<juce::File>&, juce::Point<int>, juce::Component&)   { return false; }
 Metadata MetadataReader::readSystemProperties (const juce::File&)         { return {}; }
 

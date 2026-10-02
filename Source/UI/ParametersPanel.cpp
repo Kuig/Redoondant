@@ -6,6 +6,7 @@ namespace
     constexpr int lineGap = 6;
     constexpr int itemGap = 16;
     constexpr int innerGap = 6;
+    constexpr int toggleWidth = 26;
 
     /** "500" rather than "500.0"; up to 3 decimals otherwise. */
     juce::String formatNumber (double value)
@@ -26,13 +27,14 @@ namespace
 struct ParametersPanel::Editor
 {
     juce::Label label, suffix;
+    std::unique_ptr<juce::ToggleButton> enableToggle;     ///< Only for parameters with hasToggle.
     std::unique_ptr<juce::Component> widget;
     int widgetWidth = 0;
     std::function<void()> refresh;      ///< Updates the widget from the parameter value.
 
     int getWidth() const
     {
-        return textWidth (label.getText()) + widgetWidth + (suffix.getText().isEmpty() ? 0 : innerGap + textWidth (suffix.getText()));
+        return (enableToggle != nullptr ? toggleWidth : 0) + textWidth (label.getText()) + widgetWidth + (suffix.getText().isEmpty() ? 0 : innerGap + textWidth (suffix.getText()));
     }
 };
 
@@ -42,6 +44,7 @@ ParametersPanel::ParametersPanel (ParameterSet& p, SettingsScope s)
     for (auto& parameter : parameters.all())
     {
         parameter.value = parameter.parse (settings.get (parameter.id, parameter.defaultValue.toString()));
+        parameter.enabled = settings.getBool (parameter.id + ".on", parameter.defaultEnabled);
         editors.push_back (createEditor (parameter));
     }
 }
@@ -103,6 +106,29 @@ std::unique_ptr<ParametersPanel::Editor> ParametersPanel::createEditor (Paramete
         }
     }
 
+    if (parameter.hasToggle)
+    {
+        editor->enableToggle = std::make_unique<juce::ToggleButton>();
+        editor->enableToggle->onClick = [this, &parameter, e = editor.get()]
+        {
+            parameter.enabled = e->enableToggle->getToggleState();
+            settings.set (parameter.id + ".on", parameter.enabled);
+            e->widget->setEnabled (parameter.enabled);
+
+            if (onChange != nullptr)
+                onChange();
+        };
+
+        auto refreshValue = std::move (editor->refresh);
+        editor->refresh = [&parameter, e = editor.get(), refreshValue]
+        {
+            refreshValue();
+            e->enableToggle->setToggleState (parameter.enabled, juce::dontSendNotification);
+            e->widget->setEnabled (parameter.enabled);
+        };
+        addAndMakeVisible (*editor->enableToggle);
+    }
+
     editor->refresh();
     addAndMakeVisible (editor->label);
     addAndMakeVisible (*editor->widget);
@@ -125,7 +151,9 @@ void ParametersPanel::resetToDefaults()
     {
         auto& parameter = parameters.all()[i];
         parameter.value = parameter.defaultValue;
+        parameter.enabled = parameter.defaultEnabled;
         settings.remove (parameter.id);
+        settings.remove (parameter.id + ".on");
         editors[i]->refresh();
     }
 
@@ -163,6 +191,10 @@ int ParametersPanel::layout (int width, bool apply) const
         if (apply)
         {
             juce::Rectangle<int> line (x, y, w, lineHeight);
+
+            if (editor->enableToggle != nullptr)
+                editor->enableToggle->setBounds (line.removeFromLeft (toggleWidth));
+
             editor->label.setBounds (line.removeFromLeft (textWidth (editor->label.getText())));
             editor->widget->setBounds (line.removeFromLeft (editor->widgetWidth));
             editor->suffix.setBounds (line.withTrimmedLeft (innerGap));
