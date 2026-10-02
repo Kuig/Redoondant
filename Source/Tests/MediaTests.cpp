@@ -97,7 +97,7 @@ public:
             expectEquals ((int) result.groups[0].items.size(), 3);
         }
 
-        beginTest ("Same content, different format");
+        beginTest ("Similar metadata, different format");
         {
             TempFolder temp;
             temp.write ("song.flac", juce::String::repeatedString ("x", 1000));

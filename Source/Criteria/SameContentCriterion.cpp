@@ -86,11 +86,9 @@ namespace
     {
     public:
         explicit SameContentDifferentFormat (Criteria::MetadataSource source)
-            : Criterion ({ "sameContent", "Same content, different format",
-                           "Media and documents whose descriptive metadata match but whose format differs, such as the same "
-                           "song as FLAC and MP3 (same artist, title, album, track, similar duration), the same photo as HEIC "
-                           "and JPG (same date taken and camera) or the same document as DOCX and PDF (same title, author, pages). "
-                           "The largest file of each group is kept.",
+            : Criterion ({ "sameContent", "Similar metadata",
+                           "Media and documents with matching metadata (artist, title, album; date taken, camera; title, author) "
+                           "but a different format, such as FLAC and MP3 or DOCX and PDF. By default the largest file of each group is kept.",
                            true },
                         { DefaultSelection::followsSort, Column::size, false }),              readMetadata (source != nullptr ? std::move (source) : Criteria::MetadataSource (MetadataReader::read)) {}
 

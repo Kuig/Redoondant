@@ -12,7 +12,7 @@ namespace
             : Criterion ({ "versions", "File versions",
                            "Files in the same folder, with the same extension, whose names start the same way but end "
                            "differently (e.g. report.pdf, report (1).pdf, report_final.pdf). "
-                           "The most recently modified file of each group is kept.",
+                           "By default the most recently modified file of each group is kept.",
                            true },
                         { DefaultSelection::followsSort, Column::modified, false }) {}
 

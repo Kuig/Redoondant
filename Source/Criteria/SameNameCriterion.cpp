@@ -11,7 +11,7 @@ namespace
         SameNameDifferentExtension()
             : Criterion ({ "sameName", "Same name, different extension",
                            "Files with the same name but a different extension, such as video.mp4 and video.mkv, "
-                           "or thesis.docx and thesis.pdf. Nothing is checked by default.",
+                           "or thesis.docx and thesis.pdf. By default nothing is checked.",
                            true }) {}
 
         ParameterSet createParameters() const override

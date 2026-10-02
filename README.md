@@ -45,7 +45,7 @@ filters, panel sizes, window position, volume) are saved in
 | Duplicate files | Identical content; algorithm *Size + content* (same size, same quick fingerprint, then byte comparison; default) or *Checksum* (SHA-256 of every file) | All but the shortest name |
 | File versions | Same folder and extension, names sharing a long enough start (no assumption on the differing ending) | All but the most recently modified |
 | Same name, different extension | e.g. `video.mp4` + `video.mkv`, `thesis.docx` + `thesis.pdf` (optionally across folders / same kind only) | None |
-| Same content, different format | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages) | All but the largest |
+| Similar metadata | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages) | All but the largest |
 | Archives & extracted folders | Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) next to a folder with the same name and identical content; the option *Ignore folder name* matches any scanned folder with identical content | The folder |
 | Junk folders | Folders with configurable names (`Build;Builds;node_modules;...`) | All |
 | Large elements | Files (and, optionally, folders) above a size threshold | None |
