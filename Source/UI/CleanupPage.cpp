@@ -287,20 +287,23 @@ void CleanupPage::updateButtons()
     removeButton.setEnabled (! table.getSelectedFiles().isEmpty());
 }
 
-std::vector<FileEntry> CleanupPage::itemsToRemove() const
+std::function<std::vector<FileEntry> (std::vector<FileEntry>)> CleanupPage::removalExpander() const
 {
-    std::vector<FileEntry> contents;
-
-    for (const auto& folder : model.getCheckedEntries())
+    return [] (std::vector<FileEntry> folders)
     {
-        if (EmptyFolders::isTooBroad (folder.file))
-            continue;
+        std::vector<FileEntry> contents;
 
-        auto children = EmptyFolders::contentsOf (folder.file);
-        contents.insert (contents.end(), children.begin(), children.end());
-    }
+        for (const auto& folder : folders)
+        {
+            if (EmptyFolders::isTooBroad (folder.file))
+                continue;
 
-    return contents;
+            auto children = EmptyFolders::contentsOf (folder.file);
+            contents.insert (contents.end(), children.begin(), children.end());
+        }
+
+        return contents;
+    };
 }
 
 juce::String CleanupPage::describeChecked() const

@@ -41,7 +41,7 @@ bool MoveToFolder::moveItem (const juce::File& source, const juce::File& target,
     return source.deleteRecursively();
 }
 
-RemovalReport MoveToFolder::run (std::vector<FileEntry> entries, const juce::File& destination)
+RemovalReport MoveToFolder::run (std::vector<FileEntry> entries, const juce::File& destination, const Trash::Progress& progress)
 {
     RemovalReport report;
 
@@ -51,9 +51,25 @@ RemovalReport MoveToFolder::run (std::vector<FileEntry> entries, const juce::Fil
         return report;
     }
 
-    for (const auto& entry : Trash::withoutNested (std::move (entries)))
+    const auto items = Trash::withoutNested (std::move (entries));
+    juce::int64 totalBytes = 0, doneBytes = 0;
+
+    for (const auto& entry : items)
+        totalBytes += entry.size;
+
+    for (size_t i = 0; i < items.size(); ++i)
     {
+        const auto& entry = items[i];
         const auto& file = entry.file;
+        const double fraction = totalBytes > 0 ? (double) doneBytes / (double) totalBytes : (double) i / (double) items.size();
+
+        if (progress != nullptr && ! progress (fraction, entry.name()))
+        {
+            report.cancelled = true;
+            break;
+        }
+
+        doneBytes += entry.size;
 
         if (file.getParentDirectory() == destination)
             continue;   // Already there.

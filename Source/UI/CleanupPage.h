@@ -43,7 +43,7 @@ private:
     void showMeasured (std::vector<FileEntry> entries);
     void updateButtons();
 
-    std::vector<FileEntry> itemsToRemove() const override;
+    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const override;
     juce::String describeChecked() const override;
     void itemsGone (const juce::Array<juce::File>&) override    { refresh(); }
     void checksChanged() override;

@@ -19,5 +19,5 @@ namespace MoveToFolder
     /** Moves the entries into the destination folder (after Trash::withoutNested).
         Refuses to move a folder into itself, and skips items already in the destination.
     */
-    RemovalReport run (std::vector<FileEntry> entries, const juce::File& destination);
+    RemovalReport run (std::vector<FileEntry> entries, const juce::File& destination, const Trash::Progress& progress = {});
 }

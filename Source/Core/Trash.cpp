@@ -29,12 +29,30 @@ std::vector<FileEntry> Trash::withoutNested (std::vector<FileEntry> entries)
 
 namespace
 {
-    RemovalReport removeEach (std::vector<FileEntry> entries, const std::function<bool (const juce::File&)>& remove)
+    RemovalReport removeEach (std::vector<FileEntry> entries, const std::function<bool (const juce::File&)>& remove,
+                              const Trash::Progress& progress)
     {
         RemovalReport report;
+        const auto items = Trash::withoutNested (std::move (entries));
 
-        for (const auto& entry : Trash::withoutNested (std::move (entries)))
+        juce::int64 totalBytes = 0, doneBytes = 0;
+
+        for (const auto& entry : items)
+            totalBytes += entry.size;
+
+        for (size_t i = 0; i < items.size(); ++i)
         {
+            const auto& entry = items[i];
+            const double fraction = totalBytes > 0 ? (double) doneBytes / (double) totalBytes : (double) i / (double) items.size();
+
+            if (progress != nullptr && ! progress (fraction, entry.name()))
+            {
+                report.cancelled = true;
+                break;
+            }
+
+            doneBytes += entry.size;
+
             if (remove (entry.file))
             {
                 ++report.moved;
@@ -51,12 +69,12 @@ namespace
     }
 }
 
-RemovalReport Trash::moveToTrash (std::vector<FileEntry> entries)
+RemovalReport Trash::moveToTrash (std::vector<FileEntry> entries, const Progress& progress)
 {
-    return removeEach (std::move (entries), [] (const juce::File& f) { return f.moveToTrash(); });
+    return removeEach (std::move (entries), [] (const juce::File& f) { return f.moveToTrash(); }, progress);
 }
 
-RemovalReport Trash::deletePermanently (std::vector<FileEntry> entries)
+RemovalReport Trash::deletePermanently (std::vector<FileEntry> entries, const Progress& progress)
 {
-    return removeEach (std::move (entries), [] (const juce::File& f) { return f.isDirectory() ? f.deleteRecursively() : f.deleteFile(); });
+    return removeEach (std::move (entries), [] (const juce::File& f) { return f.isDirectory() ? f.deleteRecursively() : f.deleteFile(); }, progress);
 }

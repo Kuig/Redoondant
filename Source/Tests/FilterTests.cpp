@@ -2,6 +2,7 @@
 
 #include "TestHelpers.h"
 #include "../Core/ContentHasher.h"
+#include "../Core/MoveToFolder.h"
 #include "../Core/Settings.h"
 #include "../Metadata/ContentDate.h"
 #include "../Criteria/AllCriteria.h"
@@ -28,6 +29,7 @@ public:
         testTypeFilter();
         testDates();
         testGroupOrder();
+        testProgress();
     }
 
 private:
@@ -366,6 +368,50 @@ private:
         expectEquals (order (GroupOrder::newest), juce::String ("alpha,beta,gamma"));
         expectEquals (order (GroupOrder::oldest), juce::String ("gamma,beta,alpha"));
         expectEquals (order (GroupOrder::analysis), juce::String ("beta,alpha,gamma"));      // Back to the original order.
+    }
+
+    void testProgress()
+    {
+        beginTest ("Removal progress and cancellation");
+
+        TempFolder temp;
+        std::vector<FileEntry> entries;
+
+        for (int i = 0; i < 4; ++i)
+            entries.push_back (FileEntry::fromFile (temp.write ("f" + juce::String (i) + ".txt", juce::String::repeatedString ("x", 100 * (i + 1)))));
+
+        std::vector<double> fractions;
+        juce::StringArray seen;
+
+        const auto report = Trash::deletePermanently (entries, [&] (double fraction, const juce::String& itemName)
+        {
+            fractions.push_back (fraction);
+            seen.add (itemName);
+            return true;
+        });
+
+        expectEquals (report.moved, 4);
+        expect (! report.cancelled);
+        expectEquals ((int) fractions.size(), 4);
+        expectEquals (fractions.front(), 0.0);
+        expect (std::is_sorted (fractions.begin(), fractions.end()) && fractions.back() < 1.0);
+        expectEquals (seen.joinIntoString (","), juce::String ("f0.txt,f1.txt,f2.txt,f3.txt"));
+
+        // Cancelling stops before the next item and leaves the rest untouched.
+        std::vector<FileEntry> more;
+
+        for (int i = 0; i < 4; ++i)
+            more.push_back (FileEntry::fromFile (temp.write ("g" + juce::String (i) + ".txt", "y")));
+
+        const auto dest = temp.root.getChildFile ("dest");
+        dest.createDirectory();
+        int calls = 0;
+        const auto partial = MoveToFolder::run (more, dest, [&] (double, const juce::String&) { return ++calls <= 2; });
+
+        expect (partial.cancelled);
+        expectEquals (partial.moved, 2);
+        expectEquals (dest.getNumberOfChildFiles (juce::File::findFiles), 2);
+        expectEquals (temp.root.getNumberOfChildFiles (juce::File::findFiles), 2);      // g2, g3 were left where they were.
     }
 
     void testIcons()

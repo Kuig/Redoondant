@@ -189,6 +189,9 @@ void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String
 
     auto message = Format::count ((size_t) report.moved, "item") + " " + done;
 
+    if (report.cancelled)
+        message << "\n\nStopped before the end: the remaining items were left untouched.";
+
     if (! report.failures.isEmpty())
     {
         message << "\n\n" << Format::count ((size_t) report.failures.size(), "item")
@@ -203,6 +206,61 @@ void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String
                                             boxTitle, message);
 }
 
+/** Runs a removal action on a background thread behind a cancellable progress window.
+    Deletes itself when done; the outcome is only reported if the page still exists.
+*/
+class RemovalPage::RemovalJob final : public juce::ThreadWithProgressWindow
+{
+public:
+    RemovalJob (RemovalPage& page, const juce::String& windowTitle, std::vector<FileEntry> checked,
+                std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expand, Action act,
+                juce::String reportTitle, std::function<juce::String (const RemovalReport&)> describe)
+        : ThreadWithProgressWindow (windowTitle, true, true, 10000, {}, &page),
+          owner (&page), items (std::move (checked)), expander (std::move (expand)), action (std::move (act)),
+          boxTitle (std::move (reportTitle)), done (std::move (describe))
+    {
+        setProgress (-1.0);
+    }
+
+    void run() override
+    {
+        const ScopedComInit com;
+
+        if (expander != nullptr)
+            items = expander (std::move (items));
+
+        report = action (std::move (items), [this] (double fraction, const juce::String& item)
+        {
+            setProgress (fraction);
+            setStatusMessage (item);
+            return ! threadShouldExit();
+        });
+    }
+
+    void threadComplete (bool) override
+    {
+        if (owner != nullptr)
+            owner->finishRemoval (report, boxTitle, done (report));
+
+        delete this;
+    }
+
+private:
+    juce::Component::SafePointer<RemovalPage> owner;
+    std::vector<FileEntry> items;
+    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expander;
+    Action action;
+    juce::String boxTitle;
+    std::function<juce::String (const RemovalReport&)> done;
+    RemovalReport report;
+};
+
+void RemovalPage::runRemoval (const juce::String& windowTitle, Action action, const juce::String& boxTitle,
+                              std::function<juce::String (const RemovalReport&)> done)
+{
+    (new RemovalJob (*this, windowTitle, model.getCheckedEntries(), removalExpander(), std::move (action), boxTitle, std::move (done)))->launchThread();
+}
+
 void RemovalPage::moveCheckedToTrash()
 {
     // A warning alert: trashing is the more drastic action of the two.
@@ -210,9 +268,10 @@ void RemovalPage::moveCheckedToTrash()
              "Move " + describeChecked() + " to the Recycle Bin?", "Move to Trash",
              [this]
              {
-                 const auto report = Trash::moveToTrash (itemsToRemove());
-                 finishRemoval (report, "Move to Trash",
-                                "moved to the Recycle Bin.\n" + Format::size (report.bytesMoved) + " freed.");
+                 runRemoval ("Moving to the Recycle Bin", [] (std::vector<FileEntry> items, const Trash::Progress& progress)
+                             { return Trash::moveToTrash (std::move (items), progress); },
+                             "Move to Trash",
+                             [] (const RemovalReport& r) { return "moved to the Recycle Bin.\n" + Format::size (r.bytesMoved) + " freed."; });
              });
 }
 
@@ -222,9 +281,10 @@ void RemovalPage::deleteChecked()
              "Permanently delete " + describeChecked() + "?\n\nThey bypass the Recycle Bin and can't be restored.", "Delete permanently",
              [this]
              {
-                 const auto report = Trash::deletePermanently (itemsToRemove());
-                 finishRemoval (report, "Delete permanently",
-                                "deleted permanently.\n" + Format::size (report.bytesMoved) + " freed.");
+                 runRemoval ("Deleting", [] (std::vector<FileEntry> items, const Trash::Progress& progress)
+                             { return Trash::deletePermanently (std::move (items), progress); },
+                             "Delete permanently",
+                             [] (const RemovalReport& r) { return "deleted permanently.\n" + Format::size (r.bytesMoved) + " freed."; });
              });
 }
 
@@ -251,10 +311,14 @@ void RemovalPage::moveCheckedToFolder()
                                                  {
                                                      safeThis->settings.set ("moveTarget", destination.getFullPathName());
 
-                                                     const auto report = MoveToFolder::run (safeThis->itemsToRemove(), destination);
-                                                     safeThis->finishRemoval (report, "Move to folder",
-                                                                              "moved to " + wrappable (destination) + ".\n"
-                                                                                + Format::size (report.bytesMoved) + " moved.");
+                                                     safeThis->runRemoval ("Moving to folder",
+                                                                           [destination] (std::vector<FileEntry> items, const Trash::Progress& progress)
+                                                                           { return MoveToFolder::run (std::move (items), destination, progress); },
+                                                                           "Move to folder",
+                                                                           [destination] (const RemovalReport& r)
+                                                                           {
+                                                                               return "moved to " + wrappable (destination) + ".\n" + Format::size (r.bytesMoved) + " moved.";
+                                                                           });
                                                  });
                           });
 }

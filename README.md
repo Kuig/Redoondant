@@ -18,7 +18,7 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    right-click opens the Windows Explorer context menu (items deleted or moved from there leave the list).
 5. Press **Move to Trash** (a warning alert first asks for confirmation, showing the number of
    items and their total size), **Move to folder** (pick a destination, then confirm in an info box) or the red
-   **Delete permanently** (bypasses the Recycle Bin, with a strong warning).
+   **Delete permanently** (bypasses the Recycle Bin, with a strong warning). All three run behind a progress window with a Cancel button.
    Items inside an already-checked folder are not counted twice. Moving to a folder never
    overwrites: on a name clash the moved item becomes `name (2).ext`; folders moved across drives
    are copied first and the original is deleted only after the copy succeeded.

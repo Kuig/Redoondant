@@ -37,8 +37,10 @@ protected:
     /** Refreshes the summary line and the buttons' state. */
     void updateSummary();
 
-    /** What the actions operate on: by default the checked entries. */
-    virtual std::vector<FileEntry> itemsToRemove() const        { return model.getCheckedEntries(); }
+    /** Turns the checked entries into the items the actions operate on, e.g. a folder into its content.
+        Runs on the worker thread, so it must be self-contained (not capture the page); empty = use the checked entries as they are.
+    */
+    virtual std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const    { return {}; }
 
     /** "12 items (340 MB)": what the check boxes currently select, as the actions see it. */
     virtual juce::String describeChecked() const;
@@ -68,6 +70,15 @@ private:
     juce::ThreadPool dateLoader { 1 };
     std::atomic<int> dateRequest { 0 };
     int datesPending = 0;
+
+    class RemovalJob;
+    using Action = std::function<RemovalReport (std::vector<FileEntry>, const Trash::Progress&)>;
+
+    /** Runs an action on the checked items on a worker thread behind a progress window (with Cancel),
+        then reports the outcome. `done` describes what was achieved, e.g. "moved to the Recycle Bin.".
+    */
+    void runRemoval (const juce::String& windowTitle, Action action, const juce::String& boxTitle,
+                     std::function<juce::String (const RemovalReport&)> done);
 
     void moveCheckedToTrash();
     void moveCheckedToFolder();
