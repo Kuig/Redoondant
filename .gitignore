@@ -3,3 +3,4 @@ Builds/
 JuceLibraryCode/
 ThirdParty/vcpkg_installed/
 ThirdParty/pdfium/
+Distribution/
