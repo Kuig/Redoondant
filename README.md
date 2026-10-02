@@ -42,7 +42,7 @@ filters, panel sizes, window position, volume) are saved in
 
 | Criterion | Finds | Checked by default |
 |---|---|---|
-| Duplicate files | Identical content (same size, same quick fingerprint, then byte comparison) | All but the shortest name |
+| Duplicate files | Identical content; algorithm *Size + content* (same size, same quick fingerprint, then byte comparison; default) or *Checksum* (SHA-256 of every file) | All but the shortest name |
 | File versions | Same folder and extension, names sharing a long enough start (no assumption on the differing ending) | All but the most recently modified |
 | Same name, different extension | e.g. `video.mp4` + `video.mkv`, `thesis.docx` + `thesis.pdf` (optionally across folders / same kind only) | None |
 | Same content, different format | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages) | All but the largest |
@@ -93,7 +93,7 @@ background thread (cancellable progress window). Their settings are declared as
 ## Building
 
 Dependencies:
-- JUCE 8 (modules `juce_core`, `juce_data_structures`, `juce_events`, `juce_graphics`,
+- JUCE 8 (modules `juce_core`, `juce_cryptography`, `juce_data_structures`, `juce_events`, `juce_graphics`,
   `juce_gui_basics`, `juce_audio_basics`, `juce_audio_formats`, `juce_audio_devices`);
 - **libarchive** (static, with zlib, bzip2, lzma, zstd, lz4), from `ThirdParty/vcpkg.json`;
 - **PDFium** prebuilt binaries from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries)
