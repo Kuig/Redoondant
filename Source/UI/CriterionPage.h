@@ -19,6 +19,7 @@ public:
     PeerCriterion describeAsPeer() const;
 
     void resized() override;
+    void paint (juce::Graphics&) override;
 
 private:
     class AnalysisJob;
@@ -32,6 +33,7 @@ private:
     juce::TextButton analyseButton { "Analyze" }, resetButton { "Reset to defaults" };
     std::unique_ptr<FilterBar> filterBar;
     juce::ComboBox groupOrderBox;
+    int separatorY = 0;        ///< Where the line between the analysis controls and the filters is drawn.
 
     void analyse();
     void showResult (AnalysisResult result, const juce::File& root);

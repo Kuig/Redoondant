@@ -36,12 +36,12 @@ ParameterSet FilterBar::createParameters()
     for (const auto& option : ageOptions)
         ages.add (option.label);
 
-    auto age = Parameter::choice ("age", "Date", ages);
+    auto age = Parameter::choice ("age", {}, ages);
     age.editorWidth = 150;
 
     return { Parameter::text ("name", "Name contains", {}, 120),
-             Parameter::text ("notName", "doesn't contain", {}, 120),
-             Parameter::multiChoice ("type", "Type", "All types", types),
+             Parameter::text ("notName", "and not", {}, 120),
+             Parameter::multiChoice ("type", {}, "All types", types),
              age,
              Parameter::number ("minSize", "Size from", 0, "MB"),
              Parameter::number ("maxSize", "to", 0, "MB (0 = any)") };

@@ -127,11 +127,19 @@ void CriterionPage::resized()
 
     status.setBounds (actions);
     area.removeFromTop (gap);
+    separatorY = area.getY();
+    area.removeFromTop (gap);
 
     filterBar->setBounds (area.removeFromTop (filterBar->getHeightForWidth (area.getWidth())));
     area.removeFromTop (gap);
 
     layoutTableAndFooter (area);
+}
+
+void CriterionPage::paint (juce::Graphics& g)
+{
+    g.setColour (findColour (juce::ResizableWindow::backgroundColourId).contrasting (0.15f));
+    g.fillRect (margin, separatorY, getWidth() - 2 * margin, 1);
 }
 
 void CriterionPage::analyse()
