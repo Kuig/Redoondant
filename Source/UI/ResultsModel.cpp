@@ -1,5 +1,6 @@
 #include "ResultsModel.h"
 #include "../Core/Format.h"
+#include <limits>
 #include <map>
 #include <set>
 
@@ -8,6 +9,9 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
     result = std::move (newResult);
     root = scannedRoot;
 
+    for (size_t i = 0; i < result.groups.size(); ++i)
+        result.groups[i].order = (int) i;
+
     for (auto& group : result.groups)
         for (auto& item : group.items)
             item.selectedByDefault = item.selected;
@@ -15,6 +19,7 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
     grouped = isGrouped;
     analysed = true;
     applySort();
+    sortGroups();
     rebuildRows();
 }
 
@@ -30,6 +35,61 @@ void ResultsModel::sort (Column column, bool forwards)
     sortForwards = forwards;
     applySort();
     rebuildRows();
+}
+
+void ResultsModel::setGroupOrder (GroupOrder newOrder)
+{
+    groupOrder = newOrder;
+    sortGroups();
+    rebuildRows();
+}
+
+void ResultsModel::sortGroups()
+{
+    const auto total = [] (const ResultGroup& g)
+    {
+        juce::int64 bytes = 0;
+
+        for (const auto& item : g.items)
+            bytes += item.size;
+
+        return bytes;
+    };
+
+    const auto newest = [] (const ResultGroup& g)
+    {
+        juce::int64 latest = 0;
+
+        for (const auto& item : g.items)
+            latest = juce::jmax (latest, item.modified.toMilliseconds());
+
+        return latest;
+    };
+
+    const auto oldest = [] (const ResultGroup& g)
+    {
+        juce::int64 earliest = std::numeric_limits<juce::int64>::max();
+
+        for (const auto& item : g.items)
+            earliest = juce::jmin (earliest, item.modified.toMilliseconds());
+
+        return earliest;
+    };
+
+    std::stable_sort (result.groups.begin(), result.groups.end(), [&] (const ResultGroup& a, const ResultGroup& b)
+    {
+        switch (groupOrder)
+        {
+            case GroupOrder::name:      { const int c = a.title.compareNatural (b.title); if (c != 0) return c < 0; break; }
+            case GroupOrder::mostItems: if (a.items.size() != b.items.size()) return a.items.size() > b.items.size(); break;
+            case GroupOrder::largest:   if (total (a) != total (b)) return total (a) > total (b); break;
+            case GroupOrder::newest:    if (newest (a) != newest (b)) return newest (a) > newest (b); break;
+            case GroupOrder::oldest:    if (oldest (a) != oldest (b)) return oldest (a) < oldest (b); break;
+            case GroupOrder::analysis:  break;
+        }
+
+        return a.order < b.order;
+    });
 }
 
 const ResultsModel::Row* ResultsModel::getRow (int index) const

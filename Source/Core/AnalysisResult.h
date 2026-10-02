@@ -12,6 +12,7 @@ struct ResultGroup
 {
     juce::String title;
     std::vector<FileEntry> items;
+    int order = 0;                      ///< Position in the analysis result (set by ResultsModel).
     Checks phase = Checks::defaults;    ///< The last bulk state applied to this group (see ResultsModel::cycleGroup).
 };
 

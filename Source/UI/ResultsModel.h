@@ -17,6 +17,16 @@ enum class Column
 
 enum class CheckState { none, some, all };
 
+/** How the groups are ordered in a grouped list (items inside a group follow the column sort). */
+enum class GroupOrder { analysis, name, mostItems, largest, newest, oldest };
+
+inline const juce::StringArray& groupOrderNames()
+{
+    static const juce::StringArray names { "Groups: analysis order", "Groups: by name", "Groups: most items first",
+                                           "Groups: largest first", "Groups: newest first", "Groups: oldest first" };
+    return names;
+}
+
 /** The results of an analysis as displayed: groups flattened into rows (a header row per group
     when grouped), with sorting, filtering and check-state bookkeeping.
     Only visible (unfiltered) entries count as checked and can be trashed.
@@ -37,6 +47,7 @@ public:
     void setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped);
     void setFilter (Filter newFilter);
     void sort (Column column, bool forwards);
+    void setGroupOrder (GroupOrder newOrder);
 
     bool hasResult() const noexcept                 { return analysed; }
     bool isGrouped() const noexcept                 { return grouped; }
@@ -93,12 +104,14 @@ private:
     bool grouped = false;
     bool analysed = false;
     Filter filter;
+    GroupOrder groupOrder = GroupOrder::analysis;
     Column sortColumn = Column::check;      // Column::check = keep the analysis order.
     bool sortForwards = true;
     std::vector<Row> rows;
 
     bool isVisible (const FileEntry& entry) const   { return filter == nullptr || filter (entry); }
     void applySort();
+    void sortGroups();
     void rebuildRows();
 
     template <typename Function>

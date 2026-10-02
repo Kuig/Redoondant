@@ -27,6 +27,7 @@ public:
         testGroupCycling();
         testTypeFilter();
         testDates();
+        testGroupOrder();
     }
 
 private:
@@ -323,6 +324,48 @@ private:
             expectEquals (grouped (1), 0);      // Modified 890 days apart: two singletons, below the minimum group size.
             expectEquals (grouped (2), 0);      // No content dates at all.
         }
+    }
+
+    void testGroupOrder()
+    {
+        beginTest ("Group order");
+
+        const auto entry = [] (const juce::String& fileName, juce::int64 size, int daysAgo)
+        {
+            FileEntry e;
+            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
+            e.size = size;
+            e.modified = juce::Time::getCurrentTime() - juce::RelativeTime::days (daysAgo);
+            return e;
+        };
+
+        AnalysisResult result;
+        result.groups.push_back ({ "beta",  { entry ("a", 10, 5), entry ("b", 10, 6), entry ("c", 10, 7) } });     // 3 items, 30 bytes, newest 5 days
+        result.groups.push_back ({ "alpha", { entry ("d", 500, 1), entry ("e", 500, 2) } });                        // 2 items, 1000 bytes, newest 1 day
+        result.groups.push_back ({ "gamma", { entry ("f", 1, 30), entry ("g", 1, 40) } });                          // 2 items, 2 bytes, oldest 40 days
+
+        ResultsModel model;
+        model.setResult (std::move (result), {}, true);
+
+        const auto order = [&] (GroupOrder o)
+        {
+            model.setGroupOrder (o);
+            juce::StringArray titles;
+
+            for (int row = 0; row < model.getNumRows(); ++row)
+                if (model.getRow (row)->isHeader())
+                    titles.add (model.getGroup (row)->title);
+
+            return titles.joinIntoString (",");
+        };
+
+        expectEquals (order (GroupOrder::analysis), juce::String ("beta,alpha,gamma"));
+        expectEquals (order (GroupOrder::name), juce::String ("alpha,beta,gamma"));
+        expectEquals (order (GroupOrder::mostItems), juce::String ("beta,alpha,gamma"));     // Ties keep the analysis order.
+        expectEquals (order (GroupOrder::largest), juce::String ("alpha,beta,gamma"));
+        expectEquals (order (GroupOrder::newest), juce::String ("alpha,beta,gamma"));
+        expectEquals (order (GroupOrder::oldest), juce::String ("gamma,beta,alpha"));
+        expectEquals (order (GroupOrder::analysis), juce::String ("beta,alpha,gamma"));      // Back to the original order.
     }
 
     void testIcons()

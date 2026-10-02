@@ -9,7 +9,7 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
 1. Choose the folder to analyze (top bar; defaults to `~/Downloads`).
 2. Pick a criterion on the left, adjust its settings, optionally enable **Recursive**.
 3. Press **Analyze**. Every page has filters (name contains / doesn't contain, type with several choices, date, size) that hide rows; hidden rows are never checked or acted on. Candidates are listed with size and dates; grouped criteria show
-   a separator row per group (its checkbox cycles the group: default checks, all, none).
+   a separator row per group (a drop-down on the right orders the groups: analysis order, name, most items, largest, newest, oldest; its checkbox cycles the group: default checks, all, none).
 4. Check/uncheck items (click the checkbox column, or select rows and press Space; the
    check box in the table header cycles all rows through *default checks*, *check all* and *uncheck all*),
    inspect them in the preview on the right (images, the file's icon when there is nothing else to show, PDF first page, OS thumbnails for

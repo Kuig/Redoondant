@@ -31,6 +31,7 @@ private:
     juce::ToggleButton recursiveToggle { "Recursive (include sub-folders)" };
     juce::TextButton analyseButton { "Analyze" }, resetButton { "Reset to defaults" };
     std::unique_ptr<FilterBar> filterBar;
+    juce::ComboBox groupOrderBox;
 
     void analyse();
     void showResult (AnalysisResult result, const juce::File& root);

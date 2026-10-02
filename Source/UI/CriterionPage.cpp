@@ -69,6 +69,19 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     recursiveToggle.setToggleState (settings.getBool ("recursive", info.recursiveByDefault), juce::dontSendNotification);
     recursiveToggle.onClick = [this] { settings.set ("recursive", recursiveToggle.getToggleState()); };
 
+    groupOrderBox.addItemList (groupOrderNames(), 1);
+    groupOrderBox.setSelectedItemIndex (juce::jlimit (0, groupOrderNames().size() - 1, settings.get ("groupOrder").getIntValue()), juce::dontSendNotification);
+    groupOrderBox.setTooltip ("How the groups are ordered (the column headers sort the items inside each group)");
+    groupOrderBox.onChange = [this]
+    {
+        settings.set ("groupOrder", groupOrderBox.getSelectedItemIndex());
+        model.setGroupOrder ((GroupOrder) groupOrderBox.getSelectedItemIndex());
+        table.refresh();
+    };
+    model.setGroupOrder ((GroupOrder) groupOrderBox.getSelectedItemIndex());
+    addChildComponent (groupOrderBox);
+    groupOrderBox.setVisible (info.grouped);
+
     analyseButton.onClick = [this] { analyse(); };
     resetButton.onClick = [this] { resetToDefaults(); };
 
@@ -109,6 +122,9 @@ void CriterionPage::resized()
     actions.removeFromLeft (gap);
     resetButton.setBounds (actions.removeFromLeft (130));
     actions.removeFromLeft (gap);
+    if (groupOrderBox.isVisible())
+        groupOrderBox.setBounds (actions.removeFromRight (190));
+
     status.setBounds (actions);
     area.removeFromTop (gap);
 
