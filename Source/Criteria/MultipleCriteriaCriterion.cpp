@@ -56,7 +56,7 @@ namespace
             : Criterion ({ "overlaps", "Multiple criteria",
                            "Items marked by several criteria (a folder's mark covers its content), from the lists already "
                            "analyzed or by running all criteria again. \"Folders only\" lists the folders with most candidates.",
-                           true, false, false, true }),
+                           true, false, true }),
               peers (std::move (source)) {}
 
         ParameterSet createParameters() const override

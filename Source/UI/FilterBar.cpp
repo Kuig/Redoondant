@@ -27,7 +27,7 @@ namespace
 
 ParameterSet FilterBar::createParameters()
 {
-    juce::StringArray types { "All types" };
+    juce::StringArray types;
     juce::StringArray ages;
 
     for (auto category : FileCategories::all())
@@ -40,7 +40,8 @@ ParameterSet FilterBar::createParameters()
     age.editorWidth = 150;
 
     return { Parameter::text ("name", "Name contains", {}, 120),
-             Parameter::choice ("type", "Type", types),
+             Parameter::text ("notName", "doesn't contain", {}, 120),
+             Parameter::multiChoice ("type", "Type", "All types", types),
              age,
              Parameter::number ("minSize", "Size from", 0, "MB"),
              Parameter::number ("maxSize", "to", 0, "MB (0 = any)") };
@@ -61,7 +62,12 @@ FilterBar::FilterBar (SettingsScope settings)
 ResultsModel::Filter FilterBar::createFilter() const
 {
     const auto name = parameters.getText ("name").trim();
-    const int typeIndex = parameters.getChoice ("type") - 1;     // -1 = all types
+    const auto notName = parameters.getText ("notName").trim();
+    std::vector<FileCategory> types;     // Empty = all types.
+
+    for (const int index : parameters.getSelection ("type"))
+        types.push_back (FileCategories::all()[(size_t) index]);
+
     const auto& age = ageOptions[juce::jlimit (0, (int) std::size (ageOptions) - 1, parameters.getChoice ("age"))];
     const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * bytesPerMB);
     const auto maxBytes = (juce::int64) (parameters.getNumber ("maxSize") * bytesPerMB);
@@ -72,7 +78,10 @@ ResultsModel::Filter FilterBar::createFilter() const
         if (name.isNotEmpty() && ! e.name().containsIgnoreCase (name))
             return false;
 
-        if (typeIndex >= 0 && FileCategories::of (e) != FileCategories::all()[(size_t) typeIndex])
+        if (notName.isNotEmpty() && e.name().containsIgnoreCase (notName))
+            return false;
+
+        if (! types.empty() && std::find (types.begin(), types.end(), FileCategories::of (e)) == types.end())
             return false;
 
         if (age.days > 0 && (e.modified >= cutoff) != age.newer)

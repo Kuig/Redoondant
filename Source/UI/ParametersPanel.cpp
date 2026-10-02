@@ -23,6 +23,68 @@ namespace
     }
 }
 
+/** The pop-up of a multiChoice parameter: an "all" check box and one per choice; it stays open while ticking. */
+class ChecklistPopup final : public juce::Component
+{
+public:
+    ChecklistPopup (const Parameter& parameter, std::function<void (const juce::String&)> onChanged)
+        : all (parameter.allLabel), changed (std::move (onChanged))
+    {
+        const auto selected = parameter.selectedIndices();
+
+        all.setToggleState (selected.isEmpty(), juce::dontSendNotification);
+        all.onClick = [this] { allClicked(); };
+        addAndMakeVisible (all);
+
+        for (int i = 0; i < parameter.choices.size(); ++i)
+        {
+            auto* box = boxes.add (new juce::ToggleButton (parameter.choices[i]));
+            box->setToggleState (selected.contains (i), juce::dontSendNotification);
+            box->onClick = [this] { choiceClicked(); };
+            addAndMakeVisible (box);
+        }
+
+        setSize (190, (boxes.size() + 1) * rowHeight + 12);
+    }
+
+    void resized() override
+    {
+        auto area = getLocalBounds().reduced (6);
+        all.setBounds (area.removeFromTop (rowHeight));
+
+        for (auto* box : boxes)
+            box->setBounds (area.removeFromTop (rowHeight));
+    }
+
+private:
+    static constexpr int rowHeight = 24;
+
+    juce::ToggleButton all;
+    juce::OwnedArray<juce::ToggleButton> boxes;
+    std::function<void (const juce::String&)> changed;
+
+    void allClicked()
+    {
+        for (auto* box : boxes)
+            box->setToggleState (false, juce::dontSendNotification);
+
+        all.setToggleState (true, juce::dontSendNotification);
+        changed ({});
+    }
+
+    void choiceClicked()
+    {
+        juce::StringArray chosen;
+
+        for (int i = 0; i < boxes.size(); ++i)
+            if (boxes[i]->getToggleState())
+                chosen.add (juce::String (i));
+
+        all.setToggleState (chosen.isEmpty(), juce::dontSendNotification);
+        changed (chosen.joinIntoString (","));
+    }
+};
+
 /** One parameter's widgets: an optional label, the editing widget and an optional unit. */
 struct ParametersPanel::Editor
 {
@@ -91,6 +153,45 @@ std::unique_ptr<ParametersPanel::Editor> ParametersPanel::createEditor (Paramete
             };
             editor->label.setText (parameter.label, juce::dontSendNotification);
             editor->widget = std::move (text);
+            break;
+        }
+
+        case Parameter::Kind::multiChoice:
+        {
+            auto button = std::make_unique<juce::TextButton>();
+            const auto summarise = [&parameter]
+            {
+                const auto selected = parameter.selectedIndices();
+
+                if (selected.isEmpty())
+                    return parameter.allLabel;
+
+                if (selected.size() > 2)
+                    return juce::String (selected.size()) + " selected";
+
+                juce::StringArray names;
+
+                for (const int index : selected)
+                    names.add (parameter.choices[index]);
+
+                return names.joinIntoString (", ");
+            };
+
+            button->onClick = [this, &parameter, summarise, b = juce::Component::SafePointer<juce::TextButton> (button.get())]
+            {
+                auto popup = std::make_unique<ChecklistPopup> (parameter, [this, &parameter, summarise, b] (const juce::String& value)
+                {
+                    changed (parameter, value);
+
+                    if (b != nullptr)
+                        b->setButtonText (summarise());
+                });
+
+                juce::CallOutBox::launchAsynchronously (std::move (popup), b->getScreenBounds(), nullptr);
+            };
+            editor->refresh = [summarise, t = button.get()] { t->setButtonText (summarise()); };
+            editor->label.setText (parameter.label, juce::dontSendNotification);
+            editor->widget = std::move (button);
             break;
         }
 

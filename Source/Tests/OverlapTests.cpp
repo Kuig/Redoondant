@@ -11,7 +11,7 @@ namespace
     {
     public:
         FakeCriterion (const juce::String& name, std::vector<FileEntry> list, bool exhaustive = false)
-            : Criterion ({ name.toLowerCase(), name, {}, false, false, exhaustive }), items (std::move (list)) {}
+            : Criterion ({ name.toLowerCase(), name, {}, false, exhaustive }), items (std::move (list)) {}
 
         AnalysisResult analyse (const ScanContext&, const ParameterSet&) const override   { return AnalysisResult::flat (items); }
 

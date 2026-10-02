@@ -7,7 +7,7 @@
 */
 struct Parameter
 {
-    enum class Kind { toggle, number, text, choice };
+    enum class Kind { toggle, number, text, choice, multiChoice };
 
     juce::String id;
     juce::String label;
@@ -15,7 +15,8 @@ struct Parameter
     juce::var defaultValue;
     juce::var value;
     juce::String suffix;            ///< Unit shown after numbers, e.g. "MB".
-    juce::StringArray choices;      ///< For Kind::choice; the value is the chosen index.
+    juce::StringArray choices;      ///< For Kind::choice; the value is the chosen index. For Kind::multiChoice, the chosen indices joined by ','.
+    juce::String allLabel;          ///< For Kind::multiChoice: the entry meaning "no restriction" (nothing chosen).
     int editorWidth = 60;           ///< Preferred width of the editing widget.
     bool hasToggle = false;         ///< An enable check box in front of the editor (see textWithToggle).
     bool enabled = true;
@@ -55,6 +56,27 @@ struct Parameter
         return p;
     }
 
+    /** Any number of `choices` can be ticked; nothing ticked means "all" (shown as `allLabel`). */
+    static Parameter multiChoice (const juce::String& id, const juce::String& label, const juce::String& allLabel, const juce::StringArray& choices)
+    {
+        auto p = make (id, label, Kind::multiChoice, juce::String(), 130);
+        p.allLabel = allLabel;
+        p.choices = choices;
+        return p;
+    }
+
+    /** The ticked indices of a multiChoice value ("1,3" -> {1, 3}), within the range of `choices`. */
+    juce::Array<int> selectedIndices() const
+    {
+        juce::Array<int> indices;
+
+        for (const auto& token : juce::StringArray::fromTokens (value.toString(), ",", {}))
+            if (token.isNotEmpty() && juce::isPositiveAndBelow (token.getIntValue(), choices.size()))
+                indices.addIfNotAlreadyThere (token.getIntValue());
+
+        return indices;
+    }
+
     /** Converts a stored string back into a value of the right type. */
     juce::var parse (const juce::String& stored) const
     {
@@ -63,7 +85,8 @@ struct Parameter
             case Kind::toggle: return stored.getIntValue() != 0 || stored.equalsIgnoreCase ("true");
             case Kind::number: return stored.getDoubleValue();
             case Kind::choice: return juce::jlimit (0, juce::jmax (0, choices.size() - 1), stored.getIntValue());
-            case Kind::text:   break;
+            case Kind::text:
+            case Kind::multiChoice: break;
         }
 
         return stored;
@@ -107,6 +130,17 @@ public:
     double       getNumber (const juce::String& id) const  { return (*this)[id]; }
     int          getChoice (const juce::String& id) const  { return (*this)[id]; }
     juce::String getText   (const juce::String& id) const  { return (*this)[id].toString(); }
+
+    /** The ticked indices of a multiChoice parameter (empty = no restriction). */
+    juce::Array<int> getSelection (const juce::String& id) const
+    {
+        for (const auto& p : items)
+            if (p.id == id)
+                return p.selectedIndices();
+
+        jassertfalse;   // Unknown parameter id
+        return {};
+    }
 
     /** False only for parameters with an enable check box that is unchecked. */
     bool isEnabled (const juce::String& id) const

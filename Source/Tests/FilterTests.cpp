@@ -6,6 +6,8 @@
 #include "../Criteria/AllCriteria.h"
 #include "../Platform/ComInit.h"
 #include "../Platform/ShellIcon.h"
+#include "../Core/FileCategory.h"
+#include "../UI/FilterBar.h"
 #include "../UI/ParametersPanel.h"
 #include "../UI/ResultsModel.h"
 
@@ -22,6 +24,7 @@ public:
         testDuplicateAlgorithms();
         testLargeElements();
         testGroupCycling();
+        testTypeFilter();
     }
 
 private:
@@ -217,6 +220,55 @@ private:
         model.applyChecks (Checks::all);
         expect (model.getOverallState() == CheckState::all);
         expectEquals ((int) checked(), 3);              // a, b, c: "d" is hidden, "gone" is missing.
+    }
+
+    void testTypeFilter()
+    {
+        beginTest ("Filter bar: several types, and names to exclude");
+
+        TempFolder temp;
+        juce::PropertiesFile::Options options;
+        options.filenameSuffix = ".settings";
+        juce::PropertiesFile file (temp.root.getChildFile ("t.settings"), options);
+        SettingsScope scope (file, "filter");
+
+        const auto entry = [] (const juce::String& fileName)
+        {
+            FileEntry e;
+            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
+            return e;
+        };
+
+        const auto accepted = [&]
+        {
+            const auto filter = FilterBar (scope).createFilter();
+            return std::vector<bool> { filter (entry ("a.png")), filter (entry ("b.mp3")), filter (entry ("c.txt")), filter (entry ("a copy.png")) };
+        };
+
+        const auto indexOf = [] (FileCategory c)
+        {
+            const auto& all = FileCategories::all();
+            return juce::String ((int) (std::find (all.begin(), all.end(), c) - all.begin()));
+        };
+
+        expect ((accepted() == std::vector<bool> { true, true, true, true }));      // Nothing ticked: all types.
+
+        scope.set ("type", indexOf (FileCategory::image) + "," + indexOf (FileCategory::audio));
+        expect ((accepted() == std::vector<bool> { true, true, false, true }));
+
+        scope.set ("notName", "copy");
+        expect ((accepted() == std::vector<bool> { true, true, false, false }));
+
+        scope.set ("type", "");
+        expect ((accepted() == std::vector<bool> { true, true, true, false }));
+
+        beginTest ("multiChoice parameter values");
+
+        auto type = Parameter::multiChoice ("type", "Type", "All types", { "x", "y", "z" });
+        expect (type.selectedIndices().isEmpty());
+        type.value = "2,0,9,junk";
+        expectEquals (type.selectedIndices().size(), 2);                              // Out-of-range and junk ignored.
+        expect (type.selectedIndices().contains (2) && type.selectedIndices().contains (0));
     }
 
     void testIcons()

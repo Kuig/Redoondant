@@ -72,18 +72,15 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     analyseButton.onClick = [this] { analyse(); };
     resetButton.onClick = [this] { resetToDefaults(); };
 
-    if (info.filterable)
+    filterBar = std::make_unique<FilterBar> (settings.child ("filter"));
+    filterBar->onChange = [this]
     {
-        filterBar = std::make_unique<FilterBar> (settings.child ("filter"));
-        filterBar->onChange = [this]
-        {
-            model.setFilter (filterBar->createFilter());
-            table.refresh();
-            updateSummary();
-        };
         model.setFilter (filterBar->createFilter());
-        addAndMakeVisible (*filterBar);
-    }
+        table.refresh();
+        updateSummary();
+    };
+    model.setFilter (filterBar->createFilter());
+    addAndMakeVisible (*filterBar);
 
     for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &parametersPanel, &recursiveToggle,
                                                                        &analyseButton, &resetButton, &status })
@@ -115,11 +112,8 @@ void CriterionPage::resized()
     status.setBounds (actions);
     area.removeFromTop (gap);
 
-    if (filterBar != nullptr)
-    {
-        filterBar->setBounds (area.removeFromTop (filterBar->getHeightForWidth (area.getWidth())));
-        area.removeFromTop (gap);
-    }
+    filterBar->setBounds (area.removeFromTop (filterBar->getHeightForWidth (area.getWidth())));
+    area.removeFromTop (gap);
 
     layoutTableAndFooter (area);
 }
