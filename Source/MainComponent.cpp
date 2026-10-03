@@ -22,8 +22,8 @@ class MainComponent::CriteriaListModel final : public juce::ListBoxModel
 public:
     explicit CriteriaListModel (MainComponent& o) : owner (o) {}
 
-    int getNumRows() override                       { return (int) owner.criteria.size(); }
-    juce::String getNameForRow (int row) override   { return owner.criteria[(size_t) row]->getInfo().name; }
+    int getNumRows() override                       { return (int) owner.entries.size(); }
+    juce::String getNameForRow (int row) override   { return owner.entries[(size_t) row].criterion->getInfo().name; }
 
     void paintListBoxItem (int row, juce::Graphics& g, int width, int height, bool isSelected) override
     {
@@ -88,15 +88,14 @@ void MainComponent::Sidebar::resized()
 MainComponent::MainComponent (Settings& appSettings)
     : appSettings (appSettings),
       settings (appSettings.root()),
-      criteria (Criteria::createAll()),
       preview (settings.child ("preview"))
 {
-    for (const auto& criterion : criteria)
+    for (auto& criterion : Criteria::createAll())
     {
         auto page = std::make_unique<CriterionPage> (*criterion, settings.child (criterion->getInfo().id));
         wirePage (*page);
         page->getPeers = [this] { return describePeers(); };
-        pages.push_back (std::move (page));
+        entries.push_back ({ std::move (criterion), std::move (page) });
     }
 
     cleanupPage = std::make_unique<CleanupPage> (settings.child ("cleanup"));
@@ -145,8 +144,8 @@ MainComponent::MainComponent (Settings& appSettings)
 
     int selected = 0;
 
-    for (size_t i = 0; i < criteria.size(); ++i)
-        if (criteria[i]->getInfo().id == settings.get ("criterion"))
+    for (size_t i = 0; i < entries.size(); ++i)
+        if (entries[i].criterion->getInfo().id == settings.get ("criterion"))
             selected = (int) i;
 
     if (settings.get (cleanupPageKey) == cleanupPageValue || settings.get ("criterion") == legacyCleanupId)
@@ -166,8 +165,8 @@ std::vector<PeerCriterion> MainComponent::describePeers() const
 {
     std::vector<PeerCriterion> peers;
 
-    for (const auto& page : pages)
-        peers.push_back (page->describeAsPeer());
+    for (const auto& entry : entries)
+        peers.push_back (entry.page->describeAsPeer());
 
     return peers;
 }
@@ -204,8 +203,8 @@ void MainComponent::setRootFolder (const juce::File& folder)
     {
         analysedFolder = folder;
 
-        for (auto& page : pages)
-            page->forgetResults();
+        for (auto& entry : entries)
+            entry.page->forgetResults();
     }
 
     if (folder.isDirectory())
@@ -246,13 +245,13 @@ void MainComponent::browseForFolder()
 
 void MainComponent::showPage (int index)
 {
-    if (! juce::isPositiveAndBelow (index, (int) pages.size()))
+    if (! juce::isPositiveAndBelow (index, (int) entries.size()))
         return;
 
-    settings.set ("criterion", criteria[(size_t) index]->getInfo().id);
+    settings.set ("criterion", entries[(size_t) index].criterion->getInfo().id);
     settings.remove (cleanupPageKey);
     cacheEntry.setSelected (false);
-    setCurrentPage (pages[(size_t) index].get());
+    setCurrentPage (entries[(size_t) index].page.get());
 }
 
 void MainComponent::showCleanupPage()
@@ -265,8 +264,8 @@ void MainComponent::showCleanupPage()
 
 void MainComponent::setCurrentPage (RemovalPage* page)
 {
-    for (auto& p : pages)
-        p->setVisible (p.get() == page);
+    for (auto& entry : entries)
+        entry.page->setVisible (entry.page.get() == page);
 
     cleanupPage->setVisible (cleanupPage.get() == page);
     currentPage = page;

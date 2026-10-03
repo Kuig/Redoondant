@@ -121,120 +121,124 @@ std::unique_ptr<ParametersPanel::Editor> ParametersPanel::createEditor (Paramete
 
     switch (parameter.kind)
     {
-        case Parameter::Kind::toggle:
-        {
-            auto toggle = std::make_unique<juce::ToggleButton> (parameter.label);
-            toggle->onClick = [this, &parameter, t = toggle.get()] { changed (parameter, t->getToggleState()); };
-            editor->refresh = [&parameter, t = toggle.get()] { t->setToggleState ((bool) parameter.value, juce::dontSendNotification); };
-            editor->widgetWidth = textWidth (parameter.label) + 30;
-            editor->widget = std::move (toggle);
-            break;
-        }
-
+        case Parameter::Kind::toggle:       fillToggle (parameter, *editor); break;
         case Parameter::Kind::number:
-        case Parameter::Kind::text:
-        {
-            const bool isNumber = parameter.kind == Parameter::Kind::number;
-            auto text = std::make_unique<juce::TextEditor>();
-
-            if (isNumber)
-            {
-                text->setInputRestrictions (12, "0123456789.");
-                text->setJustification (juce::Justification::centredRight);
-            }
-
-            text->onTextChange = [this, &parameter, isNumber, t = text.get()]
-            {
-                changed (parameter, isNumber ? juce::var (t->getText().getDoubleValue()) : juce::var (t->getText()));
-            };
-            editor->refresh = [&parameter, isNumber, t = text.get()]
-            {
-                t->setText (isNumber ? formatNumber (parameter.value) : parameter.value.toString(), false);
-            };
-            editor->label.setText (parameter.label, juce::dontSendNotification);
-            editor->widget = std::move (text);
-            break;
-        }
-
-        case Parameter::Kind::multiChoice:
-        {
-            auto button = std::make_unique<juce::TextButton>();
-            const auto summarise = [&parameter]
-            {
-                const auto selected = parameter.selectedIndices();
-
-                if (selected.isEmpty())
-                    return parameter.allLabel;
-
-                if (selected.size() > 2)
-                    return juce::String (selected.size()) + " selected";
-
-                juce::StringArray names;
-
-                for (const int index : selected)
-                    names.add (parameter.choices[index]);
-
-                return names.joinIntoString (", ");
-            };
-
-            button->onClick = [this, &parameter, summarise, b = juce::Component::SafePointer<juce::TextButton> (button.get())]
-            {
-                auto popup = std::make_unique<ChecklistPopup> (parameter, [this, &parameter, summarise, b] (const juce::String& value)
-                {
-                    changed (parameter, value);
-
-                    if (b != nullptr)
-                        b->setButtonText (summarise());
-                });
-
-                juce::CallOutBox::launchAsynchronously (std::move (popup), b->getScreenBounds(), nullptr);
-            };
-            editor->refresh = [summarise, t = button.get()] { t->setButtonText (summarise()); };
-            editor->label.setText (parameter.label, juce::dontSendNotification);
-            editor->widget = std::move (button);
-            break;
-        }
-
-        case Parameter::Kind::choice:
-        {
-            auto combo = std::make_unique<juce::ComboBox>();
-            combo->addItemList (parameter.choices, 1);
-            combo->onChange = [this, &parameter, c = combo.get()] { changed (parameter, c->getSelectedItemIndex()); };
-            editor->refresh = [&parameter, c = combo.get()] { c->setSelectedItemIndex ((int) parameter.value, juce::dontSendNotification); };
-            editor->label.setText (parameter.label, juce::dontSendNotification);
-            editor->widget = std::move (combo);
-            break;
-        }
+        case Parameter::Kind::text:         fillText (parameter, *editor); break;
+        case Parameter::Kind::multiChoice:  fillMultiChoice (parameter, *editor); break;
+        case Parameter::Kind::choice:       fillChoice (parameter, *editor); break;
     }
 
     if (parameter.hasToggle)
-    {
-        editor->enableToggle = std::make_unique<juce::ToggleButton>();
-        editor->enableToggle->onClick = [this, &parameter, e = editor.get()]
-        {
-            parameter.enabled = e->enableToggle->getToggleState();
-            settings.set (parameter.id + ".on", parameter.enabled);
-            e->widget->setEnabled (parameter.enabled);
-
-            if (onChange != nullptr)
-                onChange();
-        };
-
-        auto refreshValue = std::move (editor->refresh);
-        editor->refresh = [&parameter, e = editor.get(), refreshValue]
-        {
-            refreshValue();
-            e->enableToggle->setToggleState (parameter.enabled, juce::dontSendNotification);
-            e->widget->setEnabled (parameter.enabled);
-        };
-        addAndMakeVisible (*editor->enableToggle);
-    }
+        addEnableToggle (parameter, *editor);
 
     editor->refresh();
     addAndMakeVisible (editor->label);
     addAndMakeVisible (*editor->widget);
     addAndMakeVisible (editor->suffix);
     return editor;
+}
+
+void ParametersPanel::fillToggle (Parameter& parameter, Editor& editor)
+{
+    auto toggle = std::make_unique<juce::ToggleButton> (parameter.label);
+    toggle->onClick = [this, &parameter, t = toggle.get()] { changed (parameter, t->getToggleState()); };
+    editor.refresh = [&parameter, t = toggle.get()] { t->setToggleState ((bool) parameter.value, juce::dontSendNotification); };
+    editor.widgetWidth = textWidth (parameter.label) + 30;
+    editor.widget = std::move (toggle);
+}
+
+void ParametersPanel::fillText (Parameter& parameter, Editor& editor)
+{
+    const bool isNumber = parameter.kind == Parameter::Kind::number;
+    auto text = std::make_unique<juce::TextEditor>();
+
+    if (isNumber)
+    {
+        text->setInputRestrictions (12, "0123456789.");
+        text->setJustification (juce::Justification::centredRight);
+    }
+
+    text->onTextChange = [this, &parameter, isNumber, t = text.get()]
+    {
+        changed (parameter, isNumber ? juce::var (t->getText().getDoubleValue()) : juce::var (t->getText()));
+    };
+    editor.refresh = [&parameter, isNumber, t = text.get()]
+    {
+        t->setText (isNumber ? formatNumber (parameter.value) : parameter.value.toString(), false);
+    };
+    editor.label.setText (parameter.label, juce::dontSendNotification);
+    editor.widget = std::move (text);
+}
+
+void ParametersPanel::fillMultiChoice (Parameter& parameter, Editor& editor)
+{
+    auto button = std::make_unique<juce::TextButton>();
+    const auto summarise = [&parameter]
+    {
+        const auto selected = parameter.selectedIndices();
+
+        if (selected.isEmpty())
+            return parameter.allLabel;
+
+        if (selected.size() > 2)
+            return juce::String (selected.size()) + " selected";
+
+        juce::StringArray names;
+
+        for (const int index : selected)
+            names.add (parameter.choices[index]);
+
+        return names.joinIntoString (", ");
+    };
+
+    button->onClick = [this, &parameter, summarise, b = juce::Component::SafePointer<juce::TextButton> (button.get())]
+    {
+        auto popup = std::make_unique<ChecklistPopup> (parameter, [this, &parameter, summarise, b] (const juce::String& value)
+        {
+            changed (parameter, value);
+
+            if (b != nullptr)
+                b->setButtonText (summarise());
+        });
+
+        juce::CallOutBox::launchAsynchronously (std::move (popup), b->getScreenBounds(), nullptr);
+    };
+    editor.refresh = [summarise, t = button.get()] { t->setButtonText (summarise()); };
+    editor.label.setText (parameter.label, juce::dontSendNotification);
+    editor.widget = std::move (button);
+}
+
+void ParametersPanel::fillChoice (Parameter& parameter, Editor& editor)
+{
+    auto combo = std::make_unique<juce::ComboBox>();
+    combo->addItemList (parameter.choices, 1);
+    combo->onChange = [this, &parameter, c = combo.get()] { changed (parameter, c->getSelectedItemIndex()); };
+    editor.refresh = [&parameter, c = combo.get()] { c->setSelectedItemIndex ((int) parameter.value, juce::dontSendNotification); };
+    editor.label.setText (parameter.label, juce::dontSendNotification);
+    editor.widget = std::move (combo);
+}
+
+void ParametersPanel::addEnableToggle (Parameter& parameter, Editor& editor)
+{
+    editor.enableToggle = std::make_unique<juce::ToggleButton>();
+    editor.enableToggle->onClick = [this, &parameter, e = &editor]
+    {
+        parameter.enabled = e->enableToggle->getToggleState();
+        settings.set (parameter.id + ".on", parameter.enabled);
+        e->widget->setEnabled (parameter.enabled);
+
+        if (onChange != nullptr)
+            onChange();
+    };
+
+    auto refreshValue = std::move (editor.refresh);
+    editor.refresh = [&parameter, e = &editor, refreshValue]
+    {
+        refreshValue();
+        e->enableToggle->setToggleState (parameter.enabled, juce::dontSendNotification);
+        e->widget->setEnabled (parameter.enabled);
+    };
+    addAndMakeVisible (*editor.enableToggle);
 }
 
 void ParametersPanel::changed (Parameter& parameter, const juce::var& newValue)

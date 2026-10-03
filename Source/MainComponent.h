@@ -50,8 +50,14 @@ private:
 
     Settings& appSettings;
     SettingsScope settings;
-    std::vector<std::unique_ptr<Criterion>> criteria;
-    std::vector<std::unique_ptr<CriterionPage>> pages;
+    /** A criterion and its page (declared in this order so the page, which refers to the criterion, goes first). */
+    struct CriterionEntry
+    {
+        std::unique_ptr<Criterion> criterion;
+        std::unique_ptr<CriterionPage> page;
+    };
+
+    std::vector<CriterionEntry> entries;
     std::unique_ptr<CleanupPage> cleanupPage;
     RemovalPage* currentPage = nullptr;
     juce::File analysedFolder;          ///< The folder the pages were last reset for.

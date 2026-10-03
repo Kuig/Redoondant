@@ -36,6 +36,15 @@ private:
     std::vector<std::unique_ptr<Editor>> editors;
 
     std::unique_ptr<Editor> createEditor (Parameter& parameter);
+
+    /** One editing widget per parameter kind, put into the editor (see createEditor). */
+    void fillToggle (Parameter& parameter, Editor& editor);
+    void fillText (Parameter& parameter, Editor& editor);       // Numbers and text.
+    void fillMultiChoice (Parameter& parameter, Editor& editor);
+    void fillChoice (Parameter& parameter, Editor& editor);
+
+    /** The enable check box of parameters that have one (hasToggle). */
+    void addEnableToggle (Parameter& parameter, Editor& editor);
     void changed (Parameter& parameter, const juce::var& newValue);
 
     /** Places editors in lines; returns the total height. */
