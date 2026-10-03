@@ -18,7 +18,15 @@ struct FileEntry
     bool selectedByDefault = false;     ///< Check state proposed by the criterion.
 
     juce::String name() const   { return file.getFileName(); }
-
-    /** Builds an entry by querying the file system (folder sizes are computed recursively). */
-    static FileEntry fromFile (const juce::File& file);
 };
+
+/** The sum of the sizes of the entries (a folder counts its whole content). */
+inline juce::int64 totalSize (const std::vector<FileEntry>& entries)
+{
+    juce::int64 bytes = 0;
+
+    for (const auto& entry : entries)
+        bytes += entry.size;
+
+    return bytes;
+}

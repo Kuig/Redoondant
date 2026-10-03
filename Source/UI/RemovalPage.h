@@ -41,7 +41,7 @@ protected:
     SettingsScope settings;
     ResultsModel model;
     ResultsTable table { model };
-    Checks checks = Checks::defaults;
+    BulkCheck checks = BulkCheck::defaults;
 
     /** Shows the drop-down that chooses the default selection (what the check cycle calls "default checks"),
         offering `available`. The last choice is remembered; `initial` is used when there is none or it is not offered.

@@ -90,7 +90,7 @@ background thread (cancellable progress window). Their settings are declared as
 ### Adding a criterion
 
 1. Create `Source/Criteria/MyCriterion.cpp` with a class deriving from `Criterion`:
-   pass an `Info` (id, name, description, grouped?, filterable?), override
+   pass an `Info` (id, name, description and optional `Trait` flags such as `Trait::grouped | Trait::showsFolders`), override
    `createParameters()` if it has settings, and implement `analyse()` — usually
    `FileScanner::scan()` followed by the `Grouping` helpers.
 2. Declare its factory in `AllCriteria.h` and add it to `CriterionRegistry.cpp`.

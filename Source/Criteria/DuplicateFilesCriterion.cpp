@@ -1,4 +1,5 @@
 #include "AllCriteria.h"
+#include "ParameterChoices.h"
 #include "../Core/ContentHasher.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
@@ -14,7 +15,7 @@ namespace
             : Criterion ({ "duplicates", "Duplicate files",
                            "Files with identical content: same size then same bytes, or the same SHA-256 checksum (slower, reads every file). "
                            "By default the file with the shortest name of each group is kept and the others are checked.",
-                           true },
+                           Trait::grouped },
                         { DefaultSelection::shortestName, Column::name }) {}
 
         ParameterSet createParameters() const override
@@ -26,8 +27,7 @@ namespace
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
-            auto files = FileScanner::filesOnly (FileScanner::scan (context, { false }));
-            files.erase (std::remove_if (files.begin(), files.end(), [] (const FileEntry& e) { return e.size == 0; }), files.end());
+            auto files = FileScanner::keepIf (FileScanner::scanFiles (context), [] (const FileEntry& e) { return e.size != 0; });
 
             AnalysisResult result;
             const auto add = [&result] (std::vector<FileEntry> identical)
@@ -37,7 +37,7 @@ namespace
                                            std::move (identical) });
             };
 
-            if (parameters.getChoice ("algorithm") == 1)
+            if (parameters.getEnum<ParameterChoices::DuplicateAlgorithm> ("algorithm") == ParameterChoices::DuplicateAlgorithm::checksum)
                 findByChecksum (std::move (files), context, add);
             else
                 findBySizeAndContent (std::move (files), context, add);
@@ -45,7 +45,7 @@ namespace
             // Most space wasted first.
             std::sort (result.groups.begin(), result.groups.end(), [] (const ResultGroup& a, const ResultGroup& b)
             {
-                return wasted (a) > wasted (b);
+                return a.wastedSize() > b.wastedSize();
             });
 
             return result;
@@ -113,11 +113,6 @@ namespace
                                               [] (const std::vector<FileEntry>& p) { return p.size() < 2; }),
                               partitions.end());
             return partitions;
-        }
-
-        static juce::int64 wasted (const ResultGroup& group)
-        {
-            return group.items.front().size * (juce::int64) (group.items.size() - 1);
         }
     };
 }

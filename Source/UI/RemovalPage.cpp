@@ -77,11 +77,10 @@ void RemovalPage::setupDefaultSelection (std::vector<DefaultSelection> available
     for (const auto s : available)
         selectionBox.addItem (DefaultSelections::nameOf (s), (int) s + 1);
 
-    const auto stored = settings.get ("defaultSelection");
     auto selection = initial;
 
-    if (stored.isNotEmpty() && selectionBox.indexOfItemId (stored.getIntValue() + 1) >= 0)
-        selection = (DefaultSelection) stored.getIntValue();
+    if (settings.has ("defaultSelection") && selectionBox.indexOfItemId (settings.getInt ("defaultSelection") + 1) >= 0)
+        selection = (DefaultSelection) settings.getInt ("defaultSelection");
 
     selectionBox.setTooltip ("Which items are checked by default (the first state of the check cycle in the table header)");
     selectionBox.onChange = [this] { selectDefault ((DefaultSelection) (selectionBox.getSelectedId() - 1)); };
@@ -110,7 +109,7 @@ void RemovalPage::discardResults()
     dateLoader.removeAllJobs (false, 0);
     datesPending = 0;
     model.clear();
-    checks = Checks::defaults;
+    checks = BulkCheck::defaults;
     table.refresh();
     updateSummary();
 
@@ -198,13 +197,8 @@ void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
 
 juce::String RemovalPage::describeChecked() const
 {
-    juce::int64 bytes = 0;
     const auto checked = Removal::withoutNested (model.getCheckedEntries());
-
-    for (const auto& entry : checked)
-        bytes += entry.size;
-
-    return Format::count (checked.size(), "item") + " (" + Format::size (bytes) + ")";
+    return Format::count (checked.size(), "item") + " (" + Format::size (totalSize (checked)) + ")";
 }
 
 juce::String RemovalPage::summaryText (size_t checkedCount, juce::int64 checkedBytes) const
@@ -249,17 +243,17 @@ void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String
     if (onSelectionChanged != nullptr)
         onSelectionChanged ({});
 
-    auto message = Format::count ((size_t) report.processed, "item") + " " + done;
+    auto message = Format::count (report.processed, "item") + " " + done;
 
     if (report.alreadyGone > 0)
-        message << "\n" << Format::count ((size_t) report.alreadyGone, "item") << " didn't exist any more.";
+        message << "\n" << Format::count (report.alreadyGone, "item") << " didn't exist any more.";
 
     if (report.cancelled)
         message << "\n\nStopped before the end: the remaining items were left untouched.";
 
     if (! report.failures.isEmpty())
     {
-        message << "\n\n" << Format::count ((size_t) report.failures.size(), "item")
+        message << "\n\n" << Format::count (report.failures.size(), "item")
                 << " could not be removed:\n" << ::wrappable (report.failures.joinIntoString ("\n"));
 
         if (const auto advice = failureAdvice(); advice.isNotEmpty())
@@ -267,7 +261,7 @@ void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String
     }
 
     if (! report.leftBehind.isEmpty())
-        message << "\n\n" << Format::count ((size_t) report.leftBehind.size(), "item")
+        message << "\n\n" << Format::count (report.leftBehind.size(), "item")
                 << " copied to the destination, but the original could not be removed completely (a file may be in use). "
                    "Both copies exist:\n" << ::wrappable (report.leftBehind.joinIntoString ("\n"));
 
@@ -417,7 +411,7 @@ void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
 
 void RemovalPage::cycleChecks()
 {
-    checks = nextChecks (checks);
+    checks = nextBulkCheck (checks);
 
     model.applyChecks (checks);
     table.refresh();
@@ -440,12 +434,7 @@ void RemovalPage::updateSummary()
     checksChanged();
 
     const auto checked = Removal::withoutNested (model.getCheckedEntries());
-    juce::int64 bytes = 0;
-
-    for (const auto& entry : checked)
-        bytes += entry.size;
-
-    auto text = summaryText (checked.size(), bytes);
+    auto text = summaryText (checked.size(), totalSize (checked));
 
     if (datesPending > 0)
         text << "   (reading dates: " << datesPending << " left)";
@@ -456,9 +445,9 @@ void RemovalPage::updateSummary()
         button->setEnabled (! checked.empty());
 
     // The check column header shows what the next click does.
-    const auto next = nextChecks (checks);
+    const auto next = nextBulkCheck (checks);
     table.setHeaderTooltip (juce::String ("Click to cycle the check boxes. Next: ")
-                              + (next == Checks::defaults ? "default checks" : (next == Checks::all ? "check all" : "uncheck all")));
+                              + (next == BulkCheck::defaults ? "default checks" : (next == BulkCheck::all ? "check all" : "uncheck all")));
 
     if (onListChanged != nullptr)
         onListChanged();

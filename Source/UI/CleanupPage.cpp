@@ -1,5 +1,6 @@
 #include "CleanupPage.h"
 #include "../Core/EmptyFolders.h"
+#include "../Core/FileScanner.h"
 #include "../Core/Format.h"
 
 namespace
@@ -13,7 +14,7 @@ namespace
     FileEntry measure (const juce::File& folder)
     {
         if (folder.isDirectory())
-            return FileEntry::fromFile (folder);
+            return FileScanner::makeEntry (folder);
 
         FileEntry entry;
         entry.file = folder;
@@ -254,10 +255,10 @@ void CleanupPage::showMeasured (std::vector<FileEntry> entries)
         {
             auto entry = entries[index];
             entry.selected = ! entry.missing && folders[index].checkedByDefault;
-            total += entry.size;
             g.items.push_back (std::move (entry));
         }
 
+        total += g.totalSize();
         result.groups.push_back (std::move (g));
     }
 
@@ -314,13 +315,8 @@ std::function<std::vector<FileEntry> (std::vector<FileEntry>)> CleanupPage::remo
 
 juce::String CleanupPage::describeChecked() const
 {
-    juce::int64 bytes = 0;
     const auto checked = model.getCheckedEntries();
-
-    for (const auto& folder : checked)
-        bytes += folder.size;
-
-    return "the contents of " + Format::count (checked.size(), "folder") + " (" + Format::size (bytes) + ")";
+    return "the contents of " + Format::count (checked.size(), "folder") + " (" + Format::size (totalSize (checked)) + ")";
 }
 
 juce::String CleanupPage::failureAdvice() const

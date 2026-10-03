@@ -229,7 +229,7 @@ private:
         expectEquals ((int) checked(), 2);
         expect (model.getOverallState() == CheckState::some);
 
-        model.applyChecks (Checks::all);
+        model.applyChecks (BulkCheck::all);
         expect (model.getOverallState() == CheckState::all);
         expectEquals ((int) checked(), 3);              // a, b, c: "d" is hidden, "gone" is missing.
     }
@@ -563,7 +563,7 @@ private:
         std::vector<FileEntry> entries;
 
         for (int i = 0; i < 4; ++i)
-            entries.push_back (FileEntry::fromFile (temp.write ("f" + juce::String (i) + ".txt", juce::String::repeatedString ("x", 100 * (i + 1)))));
+            entries.push_back (FileScanner::makeEntry (temp.write ("f" + juce::String (i) + ".txt", juce::String::repeatedString ("x", 100 * (i + 1)))));
 
         std::vector<double> fractions;
         juce::StringArray seen;
@@ -586,7 +586,7 @@ private:
         std::vector<FileEntry> more;
 
         for (int i = 0; i < 4; ++i)
-            more.push_back (FileEntry::fromFile (temp.write ("g" + juce::String (i) + ".txt", "y")));
+            more.push_back (FileScanner::makeEntry (temp.write ("g" + juce::String (i) + ".txt", "y")));
 
         const auto dest = temp.root.getChildFile ("dest");
         dest.createDirectory();

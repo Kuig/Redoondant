@@ -15,8 +15,7 @@ namespace
     AnalysisResult filterScan (const ScanContext& context, const FileScanner::Options& options,
                                const Predicate& accept, const Ordering& order)
     {
-        auto entries = FileScanner::scan (context, options);
-        entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e) { return ! accept (e); }), entries.end());
+        auto entries = FileScanner::scanAndFilter (context, options, accept);
         std::sort (entries.begin(), entries.end(), order);
         return AnalysisResult::flat (std::move (entries));
     }
@@ -24,8 +23,8 @@ namespace
     const FileScanner::Options filesOnlyScan { false };
     const FileScanner::Options fullScan {};
 
-    const Ordering largestFirst = [] (const FileEntry& a, const FileEntry& b) { return a.size > b.size; };
-    const Ordering byName       = [] (const FileEntry& a, const FileEntry& b) { return a.name().compareNatural (b.name()) < 0; };
+    const Ordering largestFirst = Orderings::largestFirst;
+    const Ordering byName       = Orderings::byName;
 
     //==============================================================================
     class LargeElements final : public Criterion
@@ -33,7 +32,7 @@ namespace
     public:
         LargeElements()
             : Criterion ({ "largeFiles", "Large elements", "Files (and optionally folders) larger than the given size, largest first.",
-                           false, false, false, true },
+                           Trait::showsFolders },
                         { DefaultSelection::none, Column::size, false }) {}
 
         ParameterSet createParameters() const override
@@ -63,27 +62,27 @@ namespace
 
         ParameterSet createParameters() const override
         {
-            auto kind = Parameter::choice ("dateKind", {}, { "File created over", "File modified over", "Content created over" }, 1);
+            auto kind = Parameter::choice ("dateKind", {}, DateKinds::names (true, " over"), (int) DateKind::modified);
             kind.editorWidth = 170;
             return { kind, Parameter::number ("days", {}, 800, "days ago") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
-            const auto kind = (DateKind) parameters.getChoice ("dateKind");
+            const auto kind = parameters.getEnum<DateKind> ("dateKind");
             const auto cutoff = juce::Time::getCurrentTime() - juce::RelativeTime::days (parameters.getNumber ("days"));
 
-            auto entries = FileScanner::filesOnly (FileScanner::scan (context, filesOnlyScan));
+            auto entries = FileScanner::scanFiles (context);
 
             if (kind == DateKind::content)
                 ContentDate::fill (entries, context);
 
             // Files without the date (content kind) are unknown, not old.
-            entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e)
+            entries = FileScanner::keepIf (std::move (entries), [&] (const FileEntry& e)
             {
                 const auto date = dateOf (e, kind);
-                return date.toMilliseconds() == 0 || date >= cutoff;
-            }), entries.end());
+                return date.toMilliseconds() != 0 && date < cutoff;
+            });
 
             std::sort (entries.begin(), entries.end(), [kind] (const FileEntry& a, const FileEntry& b) { return dateOf (a, kind) < dateOf (b, kind); });
             return AnalysisResult::flat (std::move (entries));
@@ -97,29 +96,30 @@ namespace
         EmptyItems()
             : Criterion ({ "empty", "Empty files & folders",
                            "Zero-byte files, and folders that contain no files (only empty sub-folders, if any).",
-                           false, false, false, true },
+                           Trait::showsFolders },
                         { DefaultSelection::all }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {
-            auto result = filterScan (context, fullScan,
-                                      [] (const FileEntry& e) { return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown : e.size == 0; },
-                                      byName);
+            auto items = FileScanner::scanAndFilter (context, fullScan, [] (const FileEntry& e)
+            {
+                return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown : e.size == 0;
+            });
 
             // Only list the outermost empty folder of a chain of empty folders.
-            auto& items = result.groups.front().items;
             std::set<juce::String> emptyFolders;
 
             for (const auto& e : items)
                 if (e.isDirectory)
                     emptyFolders.insert (e.file.getFullPathName());
 
-            items.erase (std::remove_if (items.begin(), items.end(), [&] (const FileEntry& e)
+            items = FileScanner::keepIf (std::move (items), [&] (const FileEntry& e)
             {
-                return emptyFolders.count (e.file.getParentDirectory().getFullPathName()) > 0;
-            }), items.end());
+                return emptyFolders.count (e.file.getParentDirectory().getFullPathName()) == 0;
+            });
 
-            return result;
+            std::sort (items.begin(), items.end(), Orderings::byName);
+            return AnalysisResult::flat (std::move (items));
         }
     };
 
@@ -181,7 +181,7 @@ namespace
             : Criterion ({ "manual", "Manual inspection",
                            "Every file and folder, sortable by any column (files and folders are mixed) "
                            "and filterable by name, type, date and size.",
-                           false, true, false, true }) {}
+                           Trait::exhaustive | Trait::showsFolders }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {

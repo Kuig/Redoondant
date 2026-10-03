@@ -253,7 +253,7 @@ juce::String HistogramView::getTooltip()
 
     juce::String tip;
     tip << bin.label << "\n";
-    tip << Format::count ((size_t) total.count, "item") << " (" << share (total.count, allItems) << "), "
+    tip << Format::count (total.count, "item") << " (" << share (total.count, allItems) << "), "
         << sizeText (total.bytes) << " (" << share (total.bytes, allBytes) << ")";
 
     if (total.count > 0)

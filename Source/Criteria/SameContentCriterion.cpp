@@ -89,8 +89,9 @@ namespace
             : Criterion ({ "sameContent", "Similar metadata",
                            "Media and documents with matching metadata (artist, title, album; date taken, camera; title, author) "
                            "but a different format, such as FLAC and MP3 or DOCX and PDF. By default the largest file of each group is kept.",
-                           true },
-                        { DefaultSelection::followsSort, Column::size, false }),              readMetadata (source != nullptr ? std::move (source) : Criteria::MetadataSource (MetadataReader::read)) {}
+                           Trait::grouped },
+                        { DefaultSelection::followsSort, Column::size, false }),
+              readMetadata (source != nullptr ? std::move (source) : Criteria::MetadataSource (MetadataReader::read)) {}
 
         ParameterSet createParameters() const override
         {
@@ -103,11 +104,10 @@ namespace
             const int minFields = juce::jmax (1, (int) parameters.getNumber ("minFields"));
             const double tolerance = juce::jmax (0.0, parameters.getNumber ("tolerance"));
 
-            auto files = FileScanner::filesOnly (FileScanner::scan (context, { false }));
-            files.erase (std::remove_if (files.begin(), files.end(), [] (const FileEntry& e)
+            auto files = FileScanner::keepIf (FileScanner::scanFiles (context), [] (const FileEntry& e)
             {
-                return identityFields().count (FileCategories::of (e)) == 0;
-            }), files.end());
+                return identityFields().count (FileCategories::of (e)) != 0;
+            });
 
             std::map<juce::String, Identity> identities;     // By full path.
             std::vector<FileEntry> candidates;
@@ -128,19 +128,13 @@ namespace
 
             for (auto& sameMetadata : Grouping::groupBy (std::move (candidates), [&] (const FileEntry& e) { return identityOf (e).signature; }))
             {
-                for (auto& group : Grouping::clusterByGap (std::move (sameMetadata),
-                                                           [&] (const FileEntry& e) { return identityOf (e).duration; },
-                                                           tolerance))
-                {
-                    const auto extensions = Grouping::extensionsOf (group);
+                auto clusters = Grouping::clusterByGap (std::move (sameMetadata),
+                                                        [&] (const FileEntry& e) { return identityOf (e).duration; },
+                                                        tolerance);
 
-                    if (extensions.size() < 2)
-                        continue;
-
-                    result.groups.push_back ({ identityOf (group.front()).values.joinIntoString (" - ")
-                                                 + "  (" + extensions.joinIntoString (", ") + ")",
-                                               std::move (group) });
-                }
+                for (auto& group : Grouping::keepMixedFormats (std::move (clusters), [&] (const std::vector<FileEntry>& g)
+                                                               { return identityOf (g.front()).values.joinIntoString (" - "); }))
+                    result.groups.push_back (std::move (group));
             }
 
             return result;

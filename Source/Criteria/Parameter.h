@@ -106,6 +106,15 @@ private:
     }
 };
 
+/** Counts the lookups of an unknown parameter id (a typo in a criterion): in release builds jassertfalse does
+    nothing and the lookup silently returns a default, so the tests check that this stays at zero.
+*/
+inline std::atomic<int>& unknownParameterLookups()
+{
+    static std::atomic<int> count { 0 };
+    return count;
+}
+
 /** The parameters of a criterion, with typed accessors used by analyses. */
 class ParameterSet
 {
@@ -118,11 +127,9 @@ public:
 
     const juce::var& operator[] (const juce::String& id) const
     {
-        for (const auto& p : items)
-            if (p.id == id)
-                return p.value;
+        if (const auto* p = find (id))
+            return p->value;
 
-        jassertfalse;   // Unknown parameter id
         static const juce::var none;
         return none;
     }
@@ -132,25 +139,30 @@ public:
     int          getChoice (const juce::String& id) const  { return (*this)[id]; }
     juce::String getText   (const juce::String& id) const  { return (*this)[id].toString(); }
 
+    /** A choice parameter as an enum whose values are the choice indices (clamped to the existing choices). */
+    template <typename Enum>
+    Enum getEnum (const juce::String& id) const
+    {
+        const auto* p = find (id);
+        const auto last = p != nullptr ? juce::jmax (0, p->choices.size() - 1) : 0;
+        return static_cast<Enum> (juce::jlimit (0, last, getChoice (id)));
+    }
+
     /** The ticked indices of a multiChoice parameter (empty = no restriction). */
     juce::Array<int> getSelection (const juce::String& id) const
     {
-        for (const auto& p : items)
-            if (p.id == id)
-                return p.selectedIndices();
+        if (const auto* p = find (id))
+            return p->selectedIndices();
 
-        jassertfalse;   // Unknown parameter id
         return {};
     }
 
     /** False only for parameters with an enable check box that is unchecked. */
     bool isEnabled (const juce::String& id) const
     {
-        for (const auto& p : items)
-            if (p.id == id)
-                return ! p.hasToggle || p.enabled;
+        if (const auto* p = find (id))
+            return ! p->hasToggle || p->enabled;
 
-        jassertfalse;   // Unknown parameter id
         return false;
     }
 
@@ -164,5 +176,16 @@ public:
     }
 
 private:
+    const Parameter* find (const juce::String& id) const
+    {
+        for (const auto& p : items)
+            if (p.id == id)
+                return &p;
+
+        jassertfalse;   // Unknown parameter id
+        ++unknownParameterLookups();
+        return nullptr;
+    }
+
     std::vector<Parameter> items;
 };

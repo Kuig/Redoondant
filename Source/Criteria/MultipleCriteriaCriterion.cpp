@@ -3,15 +3,12 @@
 #include "../Core/Format.h"
 #include "../Core/Grouping.h"
 #include "../Core/MessageThread.h"
+#include "ParameterChoices.h"
 #include <map>
 
 namespace
 {
-    // Choice indices of the parameters (first = default).
-    enum Source     { existingResults, runAllCriteria };
-    enum Marked     { checkedItems, listedItems };
-    enum View       { filesAndFolders, foldersOnly };
-    enum FolderMode { topFolders, mostlyCandidate };
+    using namespace ParameterChoices;
 
     /** Which criteria mark each path (directly, not through a parent folder). */
     struct Marks
@@ -56,7 +53,7 @@ namespace
             : Criterion ({ "overlaps", "Multiple criteria",
                            "Items marked by several criteria (a folder's mark covers its content), from the lists already "
                            "analyzed or by running all criteria again. \"Folders only\" lists the folders with most candidates.",
-                           true, false, true, true }),
+                           Trait::grouped | Trait::recursiveByDefault | Trait::showsFolders }),
               peers (std::move (source)) {}
 
         ParameterSet createParameters() const override
@@ -67,11 +64,11 @@ namespace
             auto source = Parameter::choice ("source", "Data", { "Existing results", "Run all criteria" });
             source.editorWidth = 150;
 
-            auto view = Parameter::choice ("view", "Show", { "Files & folders", "Folders only" }, foldersOnly);
+            auto view = Parameter::choice ("view", "Show", { "Files & folders", "Folders only" }, (int) OverlapView::foldersOnly);
             view.editorWidth = 130;
 
             return { source,
-                     Parameter::choice ("marked", "Counts as marked", { "Checked", "Listed" }, listedItems),
+                     Parameter::choice ("marked", "Counts as marked", { "Checked", "Listed" }, (int) OverlapMarked::listedItems),
                      Parameter::number ("minCriteria", "Marked by at least", 1, "criteria"),
                      view,
                      folderMode,
@@ -84,7 +81,7 @@ namespace
             const auto marks = collectMarks (context, parameters);
             const auto minCriteria = juce::jmax (1, (int) parameters.getNumber ("minCriteria"));
 
-            if (parameters.getChoice ("view") == foldersOnly)
+            if (parameters.getEnum<OverlapView> ("view") == OverlapView::foldersOnly)
                 return listFolders (context, parameters, marks, minCriteria);
 
             return listItems (context, marks, minCriteria);
@@ -95,8 +92,8 @@ namespace
 
         Marks collectMarks (const ScanContext& context, const ParameterSet& parameters) const
         {
-            const bool rerun = parameters.getChoice ("source") == runAllCriteria;
-            const bool listedCounts = parameters.getChoice ("marked") == listedItems;
+            const bool rerun = parameters.getEnum<OverlapSource> ("source") == OverlapSource::runAllCriteria;
+            const bool listedCounts = parameters.getEnum<OverlapMarked> ("marked") == OverlapMarked::listedItems;
             const auto peerList = peers != nullptr ? callOnMessageThread ([this] { return peers(); })
                                                    : std::vector<PeerCriterion>();
             Marks marks;
@@ -211,7 +208,7 @@ namespace
 
             std::vector<std::pair<FileEntry, Tally>> selected;
 
-            if (parameters.getChoice ("folderMode") == topFolders)
+            if (parameters.getEnum<OverlapFolderMode> ("folderMode") == OverlapFolderMode::topFolders)
             {
                 const auto minFiles = juce::jmax (1, (int) parameters.getNumber ("minFiles"));
 
@@ -255,7 +252,7 @@ namespace
 
             for (auto& [folder, tally] : selected)
                 result.groups.push_back ({ folder.file.getRelativePathFrom (root) + "/  (" + juce::String (tally.markedFiles) + " of "
-                                             + Format::count ((size_t) tally.files, "file") + " marked, "
+                                             + Format::count (tally.files, "file") + " marked, "
                                              + Format::size (tally.markedBytes) + " of " + Format::size (tally.bytes) + ")",
                                            { folder } });
 

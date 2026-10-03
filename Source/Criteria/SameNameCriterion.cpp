@@ -12,7 +12,7 @@ namespace
             : Criterion ({ "sameName", "Same name, different extension",
                            "Files with the same name but a different extension, such as video.mp4 and video.mkv, "
                            "or thesis.docx and thesis.pdf. By default nothing is checked.",
-                           true }) {}
+                           Trait::grouped }) {}
 
         ParameterSet createParameters() const override
         {
@@ -25,7 +25,7 @@ namespace
             const bool acrossFolders = parameters.getBool ("acrossFolders");
             const bool sameKind = parameters.getBool ("sameKind");
 
-            auto sameName = Grouping::groupBy (FileScanner::filesOnly (FileScanner::scan (context, { false })), [=] (const FileEntry& e)
+            auto sameName = Grouping::groupBy (FileScanner::scanFiles (context), [=] (const FileEntry& e)
             {
                 return (acrossFolders ? juce::String() : e.file.getParentDirectory().getFullPathName())
                        + "|" + e.file.getFileNameWithoutExtension().toLowerCase()
@@ -33,18 +33,8 @@ namespace
             });
 
             AnalysisResult result;
-
-            for (auto& group : sameName)
-            {
-                const auto extensions = Grouping::extensionsOf (group);
-
-                if (extensions.size() < 2)
-                    continue;
-
-                result.groups.push_back ({ group.front().file.getFileNameWithoutExtension() + "  (" + extensions.joinIntoString (", ") + ")",
-                                           std::move (group) });
-            }
-
+            result.groups = Grouping::keepMixedFormats (std::move (sameName), [] (const std::vector<FileEntry>& group)
+                                                        { return group.front().file.getFileNameWithoutExtension(); });
             return result;
         }
     };

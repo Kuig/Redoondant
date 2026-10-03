@@ -15,18 +15,18 @@ namespace
                            "Files and folders grouped by creation or modification date, or by the date written in the content's metadata "
                            "(photo taken, document created...; folders and files without one are left out). "
                            "A new group starts whenever the gap from the previous item exceeds the given time. Newest groups first.",
-                           true, true, false, true }) {}
+                           Trait::grouped | Trait::exhaustive | Trait::showsFolders }) {}
 
         ParameterSet createParameters() const override
         {
-            return { Parameter::choice ("date", "Date", { "File created", "File modified", "Content created" }, 0),
+            return { Parameter::choice ("date", "Date", DateKinds::names (true), (int) DateKind::created),
                      Parameter::number ("gap", "Max. gap", 0.5, "hours"),
                      Parameter::number ("minItems", "Min. group size", 2, "items") };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
-            const auto kind = (DateKind) parameters.getChoice ("date");
+            const auto kind = parameters.getEnum<DateKind> ("date");
             const auto timeOf = [kind] (const FileEntry& e) { return dateOf (e, kind); };
             const auto minItems = (size_t) juce::jmax (1, (int) parameters.getNumber ("minItems"));
 
@@ -35,8 +35,7 @@ namespace
             if (kind == DateKind::content)
             {
                 ContentDate::fill (entries, context);
-                entries.erase (std::remove_if (entries.begin(), entries.end(), [] (const FileEntry& e) { return e.contentCreated.toMilliseconds() == 0; }),
-                               entries.end());
+                entries = FileScanner::keepIf (std::move (entries), [] (const FileEntry& e) { return e.contentCreated.toMilliseconds() != 0; });
             }
 
             auto clusters = Grouping::clusterByTimeGap (std::move (entries), timeOf,
@@ -45,13 +44,8 @@ namespace
 
             for (auto it = clusters.rbegin(); it != clusters.rend(); ++it)
             {
-                juce::int64 total = 0;
-
-                for (const auto& e : *it)
-                    total += e.size;
-
                 result.groups.push_back ({ Format::dateRange (timeOf (it->front()), timeOf (it->back()))
-                                             + "  (" + Format::count (it->size(), "item") + ", " + Format::size (total) + ")",
+                                             + "  (" + Format::count (it->size(), "item") + ", " + Format::size (totalSize (*it)) + ")",
                                            std::move (*it) });
             }
 

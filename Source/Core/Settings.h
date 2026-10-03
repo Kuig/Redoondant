@@ -18,6 +18,7 @@ public:
         return properties->getValue (key (name), fallback);
     }
 
+    int    getInt    (const juce::String& name, int fallback = 0) const    { return properties->getIntValue (key (name), fallback); }
     bool   getBool   (const juce::String& name, bool fallback) const   { return properties->getBoolValue (key (name), fallback); }
     double getDouble (const juce::String& name, double fallback) const { return properties->getDoubleValue (key (name), fallback); }
 

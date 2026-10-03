@@ -1,6 +1,6 @@
 #pragma once
 
-#include "FileEntry.h"
+#include "AnalysisResult.h"
 #include <map>
 
 /** Generic helpers used by criteria to split entries into groups. */
@@ -36,6 +36,26 @@ namespace Grouping
             extensions.addIfNotAlreadyThere (item.file.getFileExtension().toLowerCase());
 
         return extensions;
+    }
+
+    /** Turns groups of the same item into result groups, keeping only those that exist in at least two
+        different formats (extensions). The title is `nameOf (group)` followed by the extensions, e.g.
+        "Song  (.flac, .mp3)".
+    */
+    template <typename NameFunction>
+    std::vector<ResultGroup> keepMixedFormats (Groups groups, NameFunction&& nameOf)
+    {
+        std::vector<ResultGroup> result;
+
+        for (auto& group : groups)
+        {
+            const auto extensions = extensionsOf (group);
+
+            if (extensions.size() >= 2)
+                result.push_back ({ nameOf (group) + "  (" + extensions.joinIntoString (", ") + ")", std::move (group) });
+        }
+
+        return result;
     }
 
     /** Number of leading characters shared by two strings, ignoring case. */

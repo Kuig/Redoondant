@@ -10,7 +10,7 @@ namespace
             : Criterion ({ "junkFolders", "Junk folders",
                            "Folders that can usually be regenerated, such as build outputs and caches. "
                            "Names are matched ignoring case; enable Recursive to find them inside projects.",
-                           false, false, true, true },
+                           Trait::recursiveByDefault | Trait::showsFolders },
                         { DefaultSelection::all }) {}
 
         ParameterSet createParameters() const override
@@ -27,9 +27,8 @@ namespace
             FileScanner::Options options;
             options.shouldDescend = [&] (const FileEntry& e) { return ! isJunk (e); };
 
-            auto entries = FileScanner::scan (context, options);
-            entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e) { return ! isJunk (e); }), entries.end());
-            std::sort (entries.begin(), entries.end(), [] (const FileEntry& a, const FileEntry& b) { return a.size > b.size; });
+            auto entries = FileScanner::scanAndFilter (context, options, isJunk);
+            std::sort (entries.begin(), entries.end(), Orderings::largestFirst);
 
             return AnalysisResult::flat (std::move (entries));
         }

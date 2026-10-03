@@ -74,7 +74,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     };
 
     groupOrderBox.addItemList (groupOrderNames(), 1);
-    groupOrderBox.setSelectedItemIndex (juce::jlimit (0, groupOrderNames().size() - 1, settings.get ("groupOrder").getIntValue()), juce::dontSendNotification);
+    groupOrderBox.setSelectedItemIndex (juce::jlimit (0, groupOrderNames().size() - 1, settings.getInt ("groupOrder")), juce::dontSendNotification);
     groupOrderBox.setTooltip ("How the groups are ordered (the column headers sort the items inside each group)");
     groupOrderBox.onChange = [this]
     {
@@ -170,7 +170,7 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
     filterBar->setRoot (root);
     model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
     model.setResult (std::move (result), root, criterion.getInfo().grouped);
-    checks = ResultsModel::Checks::defaults;
+    checks = BulkCheck::defaults;
     table.refresh();
     status.setText ("Analyzed \"" + root.getFileName() + "\"" + (recursiveToggle.getToggleState() ? " recursively" : "")
                       + " at " + juce::Time::getCurrentTime().formatted ("%H:%M"),

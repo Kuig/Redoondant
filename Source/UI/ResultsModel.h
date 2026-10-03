@@ -89,8 +89,7 @@ public:
     const AnalysisResult& getResult() const noexcept    { return result; }
 
     /** Bulk check states for the visible entries. */
-    using Checks = ::Checks;
-    void applyChecks (Checks checks);
+    void applyChecks (BulkCheck checks);
 
     /** Checks exactly the entries (missing ones excepted) for which `shouldCheck` is true. */
     void checkWhere (const std::function<bool (const FileEntry&)>& shouldCheck);

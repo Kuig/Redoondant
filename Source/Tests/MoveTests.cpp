@@ -33,7 +33,7 @@ public:
             temp.write ("dest/a.txt", "already here");
             const auto dest = temp.root.getChildFile ("dest");
 
-            const auto report = Removal::toFolder ({ FileEntry::fromFile (file), FileEntry::fromFile (sub) }, dest);
+            const auto report = Removal::toFolder ({ FileScanner::makeEntry (file), FileScanner::makeEntry (sub) }, dest);
 
             expectEquals (report.processed, 2);
             expect (report.failures.isEmpty());
@@ -52,7 +52,7 @@ public:
             const auto dest = temp.root.getChildFile ("dest");
             dest.createDirectory();
 
-            const auto report = Removal::toFolder ({ FileEntry::fromFile (tree), FileEntry::fromFile (inner) }, dest);
+            const auto report = Removal::toFolder ({ FileScanner::makeEntry (tree), FileScanner::makeEntry (inner) }, dest);
             expectEquals (report.processed, 1);
             expect (report.failures.isEmpty());
             expect (dest.getChildFile ("tree/x.txt").existsAsFile());
@@ -65,17 +65,17 @@ public:
             const auto tree = inner.getParentDirectory();
             const auto already = temp.write ("src/keep.txt", "k");
 
-            auto report = Removal::toFolder ({ FileEntry::fromFile (tree) }, tree.getChildFile ("sub"));
+            auto report = Removal::toFolder ({ FileScanner::makeEntry (tree) }, tree.getChildFile ("sub"));
             expectEquals (report.processed, 0);     // The destination doesn't exist yet.
             expectEquals (report.failures.size(), 1);
 
             tree.getChildFile ("sub").createDirectory();
-            report = Removal::toFolder ({ FileEntry::fromFile (tree) }, tree.getChildFile ("sub"));
+            report = Removal::toFolder ({ FileScanner::makeEntry (tree) }, tree.getChildFile ("sub"));
             expectEquals (report.processed, 0);
             expectEquals (report.failures.size(), 1);
             expect (inner.existsAsFile());
 
-            report = Removal::toFolder ({ FileEntry::fromFile (already) }, already.getParentDirectory());
+            report = Removal::toFolder ({ FileScanner::makeEntry (already) }, already.getParentDirectory());
             expectEquals (report.processed, 0);
             expect (report.failures.isEmpty());
             expect (already.existsAsFile());
@@ -155,7 +155,7 @@ public:
         {
             TempFolder temp;
             const auto gone = temp.root.getChildFile ("never-there.txt");
-            FileEntry entry = FileEntry::fromFile (temp.write ("a.txt", "a"));
+            FileEntry entry = FileScanner::makeEntry (temp.write ("a.txt", "a"));
             entry.file = gone;
 
             const auto report = Removal::deletePermanently ({ entry });

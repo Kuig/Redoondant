@@ -101,13 +101,6 @@ namespace
         }
     };
 
-    std::vector<FileEntry> keepIf (std::vector<FileEntry> entries, bool wantDirectories)
-    {
-        entries.erase (std::remove_if (entries.begin(), entries.end(),
-                                       [=] (const FileEntry& e) { return e.isDirectory != wantDirectories; }),
-                       entries.end());
-        return entries;
-    }
 }
 
 std::vector<FileEntry> FileScanner::scan (const ScanContext& context, const Options& options)
@@ -120,10 +113,27 @@ std::vector<FileEntry> FileScanner::scanTree (const juce::File& folder, const Sc
     return Walker (context, options, true).run (folder);
 }
 
-std::vector<FileEntry> FileScanner::filesOnly (std::vector<FileEntry> entries)    { return keepIf (std::move (entries), false); }
-std::vector<FileEntry> FileScanner::foldersOnly (std::vector<FileEntry> entries)  { return keepIf (std::move (entries), true); }
+std::vector<FileEntry> FileScanner::filesOnly (std::vector<FileEntry> entries)
+{
+    return keepIf (std::move (entries), [] (const FileEntry& e) { return ! e.isDirectory; });
+}
 
-FileEntry FileEntry::fromFile (const juce::File& file)
+std::vector<FileEntry> FileScanner::foldersOnly (std::vector<FileEntry> entries)
+{
+    return keepIf (std::move (entries), [] (const FileEntry& e) { return e.isDirectory; });
+}
+
+std::vector<FileEntry> FileScanner::scanFiles (const ScanContext& context)
+{
+    return filesOnly (scan (context, Options { false }));
+}
+
+std::vector<FileEntry> FileScanner::scanFilesTree (const juce::File& folder, const ScanContext& context)
+{
+    return filesOnly (scanTree (folder, context, Options { false }));
+}
+
+FileEntry FileScanner::makeEntry (const juce::File& file)
 {
     FileEntry entry;
     entry.file = file;

@@ -17,7 +17,7 @@ ParameterSet FilterBar::createParameters()
 
     ages.addArray (Histogram::Buckets::dateNames());
 
-    auto kind = Parameter::choice ("dateKind", {}, { "Created", "Modified", "Content created" }, (int) DateKind::modified);   // The order of DateKind.
+    auto kind = Parameter::choice ("dateKind", {}, DateKinds::names (false), (int) DateKind::modified);
     kind.editorWidth = 130;
 
     auto age = Parameter::choice ("age", {}, ages);
@@ -48,7 +48,7 @@ FilterBar::FilterBar (SettingsScope settings)
 
 bool FilterBar::usesContentDate() const
 {
-    return (DateKind) parameters.getChoice ("dateKind") == DateKind::content && parameters.getChoice ("age") > 0;
+    return parameters.getEnum<DateKind> ("dateKind") == DateKind::content && parameters.getChoice ("age") > 0;
 }
 
 ResultsModel::Filter FilterBar::createFilter() const
@@ -62,7 +62,7 @@ ResultsModel::Filter FilterBar::createFilter() const
     for (const int index : parameters.getSelection ("type"))
         types.push_back (FileCategories::all()[(size_t) index]);
 
-    const auto kind = (DateKind) juce::jlimit (0, 2, parameters.getChoice ("dateKind"));
+    const auto kind = parameters.getEnum<DateKind> ("dateKind");
     const int dateBucket = parameters.getChoice ("age") - 1;        // -1: any date.
     const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * bytesPerMB);
     const auto maxBytes = (juce::int64) (parameters.getNumber ("maxSize") * bytesPerMB);

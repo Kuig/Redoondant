@@ -143,7 +143,7 @@ private:
             const auto inner = temp.write ("tree/x.txt", "x");
             const auto tree = inner.getParentDirectory();
 
-            auto report = Removal::deletePermanently ({ FileEntry::fromFile (tree), FileEntry::fromFile (inner) });
+            auto report = Removal::deletePermanently ({ FileScanner::makeEntry (tree), FileScanner::makeEntry (inner) });
             expectEquals (report.processed, 1);
             expect (! tree.exists());
 

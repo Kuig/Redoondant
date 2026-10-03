@@ -15,8 +15,10 @@ namespace Format
                  : date (from) + " - " + date (to);
     }
 
-    inline juce::String count (size_t n, const juce::String& noun)
+    template <typename Integer>
+    juce::String count (Integer n, const juce::String& noun)
     {
+        static_assert (std::is_integral_v<Integer>, "count() takes a whole number");
         return juce::String ((juce::int64) n) + " " + noun + (n == 1 ? "" : "s");
     }
 }

@@ -13,7 +13,7 @@ namespace
                            "Files in the same folder, with the same extension, whose names start the same way but end "
                            "differently (e.g. report.pdf, report (1).pdf, report_final.pdf). "
                            "By default the most recently modified file of each group is kept.",
-                           true },
+                           Trait::grouped },
                         { DefaultSelection::followsSort, Column::modified, false }) {}
 
         ParameterSet createParameters() const override
@@ -27,7 +27,7 @@ namespace
             const auto minRoot = juce::jmax (1, (int) parameters.getNumber ("minRoot"));
             const auto minRatio = juce::jlimit (0.0, 1.0, parameters.getNumber ("minRatio") / 100.0);
 
-            auto files = FileScanner::filesOnly (FileScanner::scan (context, { false }));
+            auto files = FileScanner::scanFiles (context);
 
             auto sameFolderAndType = Grouping::groupBy (std::move (files), [] (const FileEntry& e)
             {

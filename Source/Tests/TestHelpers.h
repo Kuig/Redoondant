@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Core/FileScanner.h"
 #include "../Criteria/Criterion.h"
 #include "../UI/ResultsModel.h"
 

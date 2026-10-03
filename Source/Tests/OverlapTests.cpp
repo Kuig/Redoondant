@@ -2,7 +2,10 @@
 
 #include "TestHelpers.h"
 #include "../Criteria/AllCriteria.h"
+#include "../Criteria/ParameterChoices.h"
 #include "../UI/ResultsModel.h"
+
+using namespace ParameterChoices;
 
 namespace
 {
@@ -11,7 +14,7 @@ namespace
     {
     public:
         FakeCriterion (const juce::String& name, std::vector<FileEntry> list, bool exhaustive = false)
-            : Criterion ({ name.toLowerCase(), name, {}, false, exhaustive }), items (std::move (list)) {}
+            : Criterion ({ name.toLowerCase(), name, {}, exhaustive ? Trait::exhaustive : Trait::none }), items (std::move (list)) {}
 
         AnalysisResult analyse (const ScanContext&, const ParameterSet&) const override   { return AnalysisResult::flat (items); }
 
@@ -20,7 +23,7 @@ namespace
 
     FileEntry mark (const juce::File& file, bool checked)
     {
-        auto e = FileEntry::fromFile (file);
+        auto e = FileScanner::makeEntry (file);
         e.selected = checked;
         return e;
     }
@@ -50,15 +53,15 @@ public:
             model.setResult (AnalysisResult::flat ({ mark (temp.write ("a.txt", "a"), true), mark (temp.write ("b.txt", "b"), false) }),
                              temp.root, false);
 
-            model.applyChecks (ResultsModel::Checks::all);
+            model.applyChecks (BulkCheck::all);
             expectEquals ((int) model.getCheckedEntries().size(), 2);
-            model.applyChecks (ResultsModel::Checks::none);
+            model.applyChecks (BulkCheck::none);
             expectEquals ((int) model.getCheckedEntries().size(), 0);
-            model.applyChecks (ResultsModel::Checks::defaults);
+            model.applyChecks (BulkCheck::defaults);
             expectEquals ((int) model.getCheckedEntries().size(), 1);
 
             model.setFilter ([] (const FileEntry& e) { return e.name() == "b.txt"; });
-            model.applyChecks (ResultsModel::Checks::all);   // Only visible items change.
+            model.applyChecks (BulkCheck::all);   // Only visible items change.
             model.setFilter ({});
             expectEquals ((int) model.getCheckedEntries().size(), 2);
         }
@@ -92,8 +95,8 @@ public:
         {
             return run (*criterion, temp.root, false, [&] (ParameterSet& p)
             {
-                setParameter (p, "marked", 0);
-                setParameter (p, "view", 0);
+                setParameter (p, "marked", (int) OverlapMarked::checkedItems);
+                setParameter (p, "view", (int) OverlapView::filesAndFolders);
                 setParameter (p, "minCriteria", 2);
                 setParameter (p, "minShare", 80);
 
@@ -112,14 +115,14 @@ public:
 
         beginTest ("Listed items, exhaustive criteria ignored");
         {
-            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "marked", 1); });
+            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "marked", (int) OverlapMarked::listedItems); });
             expectEquals ((int) allItems (result).size(), 3);          // x, y, z (Gamma ignored)
             expect (! allItems (result)[0].selected);
         }
 
         beginTest ("Run all criteria");
         {
-            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "source", 1); });
+            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "source", (int) OverlapSource::runAllCriteria); });
             expectEquals ((int) allItems (result).size(), 3);          // Each peer's default selection (all) decides what is checked: x, y, z.
         }
 
@@ -132,17 +135,17 @@ public:
 
         beginTest ("Folders only: top folders by count");
         {
-            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "view", 1); });
+            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "view", (int) OverlapView::foldersOnly); });
             expectEquals ((int) result.groups.size(), 1);
             expectEquals (result.groups[0].items[0].name(), juce::String ("a"));
         }
 
         beginTest ("Folders only: mostly-candidate folders");
         {
-            auto result = analyse ([] (ParameterSet& p) { setParameter (p, "view", 1); setParameter (p, "folderMode", 1); setParameter (p, "minShare", 60); });
+            auto result = analyse ([] (ParameterSet& p) { setParameter (p, "view", (int) OverlapView::foldersOnly); setParameter (p, "folderMode", (int) OverlapFolderMode::mostlyCandidate); setParameter (p, "minShare", 60); });
             expectEquals ((int) result.groups.size(), 1);  // a: 2 of 3 files
 
-            result = analyse ([] (ParameterSet& p) { setParameter (p, "view", 1); setParameter (p, "folderMode", 1); setParameter (p, "minShare", 80); });
+            result = analyse ([] (ParameterSet& p) { setParameter (p, "view", (int) OverlapView::foldersOnly); setParameter (p, "folderMode", (int) OverlapFolderMode::mostlyCandidate); setParameter (p, "minShare", 80); });
             expect (result.groups.empty());
         }
     }

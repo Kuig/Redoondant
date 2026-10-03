@@ -6,7 +6,9 @@ namespace
     constexpr int folderBarHeight = 40;
     constexpr int toolEntryHeight = 34;
     const juce::String projectUrl ("https://github.com/Kuig/Redoondant");
-    const juce::String cleanupId ("tool.cache");      // Stored as the "criterion" setting when the tool is the last page.
+    const juce::String cleanupPageKey ("page");           // Set to this value when the Cache Cleaner is the last page shown:
+    const juce::String cleanupPageValue ("cache");        // "criterion" keeps the last criterion page.
+    const juce::String legacyCleanupId ("tool.cache");    // Older versions stored the tool in the "criterion" setting.
 
     juce::File defaultFolder()
     {
@@ -153,7 +155,7 @@ MainComponent::MainComponent (Settings& appSettings)
         if (criteria[i]->getInfo().id == settings.get ("criterion"))
             selected = (int) i;
 
-    if (settings.get ("criterion") == cleanupId)
+    if (settings.get (cleanupPageKey) == cleanupPageValue || settings.get ("criterion") == legacyCleanupId)
         showCleanupPage();
     else
         criteriaList.selectRow (selected);
@@ -235,13 +237,14 @@ void MainComponent::showPage (int index)
         return;
 
     settings.set ("criterion", criteria[(size_t) index]->getInfo().id);
+    settings.remove (cleanupPageKey);
     cacheEntry.setSelected (false);
     setCurrentPage (pages[(size_t) index].get());
 }
 
 void MainComponent::showCleanupPage()
 {
-    settings.set ("criterion", cleanupId);
+    settings.set (cleanupPageKey, cleanupPageValue);
     criteriaList.deselectAllRows();
     cacheEntry.setSelected (true);
     setCurrentPage (cleanupPage.get());

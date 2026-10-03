@@ -11,7 +11,7 @@ namespace
     {
         std::map<juce::String, FileEntry> files;
 
-        for (auto& entry : FileScanner::filesOnly (FileScanner::scanTree (folder, context, { false })))
+        for (auto& entry : FileScanner::scanFilesTree (folder, context))
         {
             const auto key = entry.file.getRelativePathFrom (folder).replaceCharacter ('\\', '/').toLowerCase();
             files.emplace (key, std::move (entry));
@@ -95,7 +95,7 @@ namespace
             : Criterion ({ "archives", "Archives & extracted folders",
                            "Archives (zip, 7z, rar, tar, tar.gz/bz2/xz/zst, cab, iso) and a folder with exactly the same content, "
                            "by default only if the folder is named like the archive. By default the folder is checked.",
-                           true, false, false, true },
+                           Trait::grouped | Trait::showsFolders },
                         { DefaultSelection::folders }) {}
 
         ParameterSet createParameters() const override
@@ -146,9 +146,7 @@ namespace
                 std::vector<FileEntry> items { archive };
 
                 for (auto& extracted : matches)
-                {
                     items.push_back (std::move (extracted));
-                }
 
                 result.groups.push_back ({ title, std::move (items) });
             }

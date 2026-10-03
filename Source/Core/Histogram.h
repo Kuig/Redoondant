@@ -15,6 +15,9 @@ namespace Histogram
     const juce::StringArray& propertyNames();
     inline juce::String nameOf (Property p)     { return propertyNames()[(int) p]; }
 
+    /** The property at a position of propertyNames() (clamped to the existing ones). */
+    inline Property propertyAt (int index)      { return (Property) juce::jlimit (0, propertyNames().size() - 1, index); }
+
     /** The date a date property looks at; the other properties have none. */
     std::optional<DateKind> dateKindOf (Property property);
 

@@ -14,15 +14,32 @@
 class Criterion
 {
 public:
+    /** Properties of a criterion, combined with `|`. */
+    enum class Trait : unsigned
+    {
+        none = 0,
+        grouped = 1,                ///< Results are shown as separated groups.
+        exhaustive = 2,             ///< Lists (almost) everything, so being listed means nothing by itself.
+        recursiveByDefault = 4,
+        showsFolders = 8            ///< Folders can be listed (so "folders only" / "files only" make sense).
+    };
+
+    friend constexpr Trait operator| (Trait a, Trait b)    { return static_cast<Trait> (static_cast<unsigned> (a) | static_cast<unsigned> (b)); }
+
     struct Info
     {
+        Info (juce::String idToUse, juce::String nameToUse, juce::String descriptionToUse, Trait traits = Trait::none)
+            : id (std::move (idToUse)), name (std::move (nameToUse)), description (std::move (descriptionToUse)),
+              grouped (has (traits, Trait::grouped)), exhaustive (has (traits, Trait::exhaustive)),
+              recursiveByDefault (has (traits, Trait::recursiveByDefault)), showsFolders (has (traits, Trait::showsFolders)) {}
+
         juce::String id;            ///< Stable key, used for settings.
         juce::String name;
         juce::String description;
-        bool grouped = false;       ///< Results are shown as separated groups.
-        bool exhaustive = false;    ///< Lists (almost) everything, so being listed means nothing by itself.
-        bool recursiveByDefault = false;
-        bool showsFolders = false;  ///< Folders can be listed (so "folders only" / "files only" make sense).
+        bool grouped, exhaustive, recursiveByDefault, showsFolders;     ///< See Trait.
+
+    private:
+        static bool has (Trait all, Trait one)  { return (static_cast<unsigned> (all) & static_cast<unsigned> (one)) != 0; }
     };
 
     /** What the criterion suggests for the check boxes and the sort: the user can change both. */

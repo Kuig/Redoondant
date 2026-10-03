@@ -207,6 +207,53 @@ public:
     }
 };
 
+//==============================================================================
+class RegistryTests final : public juce::UnitTest
+{
+public:
+    RegistryTests() : UnitTest ("Criteria registry", "Redoondant") {}
+
+    void runTest() override
+    {
+        const auto criteria = Criteria::createAll ({});
+
+        beginTest ("Every criterion has a unique id and a name");
+        {
+            juce::StringArray ids;
+
+            for (const auto& criterion : criteria)
+            {
+                const auto& info = criterion->getInfo();
+                expect (info.id.isNotEmpty() && info.name.isNotEmpty() && info.description.isNotEmpty(), info.id);
+                expect (! ids.contains (info.id), "Duplicate id " + info.id);
+                ids.add (info.id);
+            }
+
+            expectEquals (ids.size(), 14);
+        }
+
+        beginTest ("Criteria only read the parameters they declare");
+        {
+            TempFolder temp;
+            temp.write ("a.txt", "same");
+            temp.write ("a copy.txt", "same");
+            temp.write ("sub/a.mp3", "x");
+            temp.write ("sub/a.flac", "y");
+            temp.write ("empty.txt", {});
+            temp.write ("setup.exe", "z");
+
+            const auto before = unknownParameterLookups().load();
+
+            for (const auto& criterion : criteria)
+                for (const bool recursive : { false, true })
+                    run (*criterion, temp.root, recursive);
+
+            expectEquals (unknownParameterLookups().load(), before);
+        }
+    }
+};
+
 static GroupingTests groupingTests;
+static RegistryTests registryTests;
 static TrashTests trashTests;
 static CriteriaTests criteriaTests;

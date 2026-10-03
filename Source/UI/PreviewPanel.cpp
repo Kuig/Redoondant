@@ -231,11 +231,11 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     addAndMakeVisible (metadata);
 
     propertyBox.addItemList (Histogram::propertyNames(), 1);
-    propertyBox.setSelectedItemIndex (juce::jlimit (0, Histogram::propertyNames().size() - 1, histogramSettings.get ("property", "1").getIntValue()),
+    propertyBox.setSelectedItemIndex (juce::jlimit (0, Histogram::propertyNames().size() - 1, histogramSettings.getInt ("property", 1)),
                                       juce::dontSendNotification);
     propertyBox.setTooltip ("The property to sum up while nothing is selected");
     metricBox.addItemList ({ "Number of items", "Total size" }, 1);
-    metricBox.setSelectedItemIndex (histogramSettings.get ("metric").getIntValue() == 1 ? 1 : 0, juce::dontSendNotification);
+    metricBox.setSelectedItemIndex (histogramSettings.getInt ("metric") == 1 ? 1 : 0, juce::dontSendNotification);
     metricBox.setTooltip ("What the length of the bars shows");
     propertyBox.onChange = metricBox.onChange = [this]
     {
@@ -248,7 +248,7 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     histogram.onBinClicked = [this] (int index)
     {
         if (onHistogramBin != nullptr && juce::isPositiveAndBelow (index, (int) bins.size()))
-            onHistogramBin ((Property) propertyBox.getSelectedItemIndex(), bins[(size_t) index]);
+            onHistogramBin (Histogram::propertyAt (propertyBox.getSelectedItemIndex()), bins[(size_t) index]);
     };
 
     for (auto* component : std::initializer_list<juce::Component*> { &propertyBox, &metricBox, &histogram })
@@ -297,7 +297,7 @@ void PreviewPanel::refreshHistogramNow()
 
     const auto root = histogramRoot != nullptr ? histogramRoot() : juce::File();
     const auto metric = metricBox.getSelectedItemIndex() == 1 ? Metric::size : Metric::count;
-    bins = Histogram::compute (histogramInput(), (Property) propertyBox.getSelectedItemIndex(), metric, root, juce::Time::getCurrentTime());
+    bins = Histogram::compute (histogramInput(), Histogram::propertyAt (propertyBox.getSelectedItemIndex()), metric, root, juce::Time::getCurrentTime());
     histogram.setBins (bins, metric);
 }
 
