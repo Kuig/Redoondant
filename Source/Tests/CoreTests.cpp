@@ -137,6 +137,37 @@ public:
             expectEquals ((int) result.groups[0].items.size(), 2);
         }
 
+#if JUCE_WINDOWS
+        beginTest ("Empty items: folders that are only links are not empty");
+        {
+            TempFolder temp;
+            temp.write ("target/data.txt", "important");
+            temp.root.getChildFile ("holder/inner").createDirectory();
+            temp.root.getChildFile ("truly empty").createDirectory();
+            const auto link = temp.root.getChildFile ("holder/inner/link");
+
+            juce::ChildProcess mklink;
+            const auto command = "cmd /c mklink /J \"" + link.getFullPathName() + "\" \"" + temp.root.getChildFile ("target").getFullPathName() + "\"";
+
+            if (mklink.start (command) && mklink.waitForProcessToFinish (10000) && link.isSymbolicLink())
+            {
+                const auto result = run (*Criteria::createEmptyItems(), temp.root, true);
+                juce::StringArray names;
+
+                for (const auto& item : result.groups[0].items)
+                    names.add (item.name());
+
+                expectEquals (names.joinIntoString ("|"), juce::String ("truly empty"));
+            }
+            else
+            {
+                logMessage ("Could not create a junction: this check was skipped.");
+            }
+
+            link.deleteFile();
+        }
+#endif
+
         beginTest ("Archives: zip matching its extracted folder");
         {
             TempFolder temp;

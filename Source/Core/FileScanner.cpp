@@ -1,4 +1,5 @@
 #include "FileScanner.h"
+#include <filesystem>
 
 namespace
 {
@@ -12,6 +13,7 @@ namespace
     {
         juce::int64 size = 0;
         int fileCount = 0;
+        bool contentUnknown = false;    // Something in there couldn't be listed (or is a link that isn't followed).
     };
 
     class Walker
@@ -36,6 +38,7 @@ namespace
         Totals walk (const juce::File& folder, bool emitChildren)
         {
             Totals totals;
+            bool anyItem = false;
 
             for (const auto& item : juce::RangedDirectoryIterator (folder, false, "*",
                                                                     juce::File::findFilesAndDirectories,
@@ -48,6 +51,7 @@ namespace
                     context.progress (-1.0, "Scanning... " + juce::String (visited) + " items");
 
                 const auto file = item.getFile();
+                anyItem = true;
 
                 if (isIgnored (file))
                     continue;
@@ -60,6 +64,9 @@ namespace
                 entry.modified = item.getModificationTime();
                 entry.created = item.getCreationTime();
 
+                if (entry.isDirectory && file.isSymbolicLink())
+                    entry.contentUnknown = true;        // Not followed: what it leads to isn't counted.
+
                 if (entry.isDirectory && ! file.isSymbolicLink())
                 {
                     const bool emitGrandChildren = emitChildren && recursive
@@ -70,14 +77,24 @@ namespace
                         const auto sub = walk (file, emitGrandChildren);
                         entry.size = sub.size;
                         entry.fileCount = sub.fileCount;
+                        entry.contentUnknown = sub.contentUnknown;
                     }
                 }
 
                 totals.size += entry.size;
                 totals.fileCount += entry.fileCount;
+                totals.contentUnknown = totals.contentUnknown || entry.contentUnknown;
 
                 if (emitChildren)
                     results.push_back (std::move (entry));
+            }
+
+            // The iterator reports nothing for a folder it may not read: tell "empty" from "unreadable".
+            if (! anyItem && ! context.isCancelled())
+            {
+                std::error_code error;
+                std::filesystem::directory_iterator probe (std::filesystem::path (folder.getFullPathName().toWideCharPointer()), error);
+                totals.contentUnknown = totals.contentUnknown || (bool) error;
             }
 
             return totals;

@@ -103,7 +103,13 @@ void CleanupPage::loadFolders()
 
     const auto add = [this] (const juce::String& stored)
     {
-        Folder folder { stored, juce::File (EmptyFolders::expand (stored)), false };
+        // A %VARIABLE% that doesn't exist would leave a relative path, i.e. a folder of the current directory.
+        const auto expanded = EmptyFolders::expand (stored);
+
+        if (! juce::File::isAbsolutePath (expanded) || EmptyFolders::isTooBroad (juce::File (expanded)))
+            return;
+
+        Folder folder { stored, juce::File (expanded), false };
 
         for (const auto& d : EmptyFolders::defaults())
             if (d.path == stored)

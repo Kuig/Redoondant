@@ -64,6 +64,7 @@ private:
 
         expectEquals (EmptyFolders::expand ("%LOCALAPPDATA%\\x"), juce::SystemStats::getEnvironmentVariable ("LOCALAPPDATA", {}) + "\\x");
         expectEquals (EmptyFolders::expand ("%NO_SUCH_VARIABLE_%\\x"), juce::String ("%NO_SUCH_VARIABLE_%\\x"));
+        expect (! juce::File::isAbsolutePath (EmptyFolders::expand ("%NO_SUCH_VARIABLE_%\\Cache")));     // Such entries are skipped, not read as relative paths.
         expectEquals (EmptyFolders::expand ("50% of %"), juce::String ("50% of %"));
 
         const auto local = juce::SystemStats::getEnvironmentVariable ("LOCALAPPDATA", {});
@@ -86,6 +87,19 @@ private:
         expect (EmptyFolders::isTooBroad (juce::File (juce::SystemStats::getEnvironmentVariable ("APPDATA", {}))));
         expect (EmptyFolders::isTooBroad (juce::File (juce::SystemStats::getEnvironmentVariable ("APPDATA", {})).getParentDirectory()));
         expect (! EmptyFolders::isTooBroad (juce::File::getSpecialLocation (juce::File::tempDirectory)));
+
+        // The user's own folders and system binaries are protected together with everything inside them.
+        expect (EmptyFolders::isTooBroad (juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("Anything")));
+        expect (EmptyFolders::isTooBroad (juce::File::getSpecialLocation (juce::File::userDesktopDirectory).getChildFile ("a").getChildFile ("b")));
+
+        if (const auto windir = juce::SystemStats::getEnvironmentVariable ("WINDIR", {}); windir.isNotEmpty())
+        {
+            expect (EmptyFolders::isTooBroad (juce::File (windir).getChildFile ("System32").getChildFile ("drivers")));
+            expect (! EmptyFolders::isTooBroad (juce::File (windir).getChildFile ("Temp")));
+        }
+
+        if (const auto programFiles = juce::SystemStats::getEnvironmentVariable ("ProgramFiles", {}); programFiles.isNotEmpty())
+            expect (EmptyFolders::isTooBroad (juce::File (programFiles).getChildFile ("Some App").getChildFile ("cache")));
     }
 
     void testEmptying()

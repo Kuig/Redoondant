@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
+- *Empty files & folders* no longer lists (and checks) a folder that only looks empty because it holds a junction or symbolic link, or because it could not be read.
+- The Cache Cleaner refuses System32, Program Files, the user's Documents/Desktop/Pictures/Music/Videos, OneDrive and anything inside them, not only the folders that contain them; entries of the saved list that point to such folders or contain an undefined `%VARIABLE%` are skipped.
 - **Move to Trash** no longer deletes for good what Windows can't recycle: items on network shares, removable drives or drives with the Recycle Bin turned off are left untouched and listed (the confirmation says how many), and an item Windows refuses to recycle is reported instead of deleted.
 - Moving a folder to another drive no longer follows junctions or symbolic links (a folder containing any is left untouched), checks the copy against the original, and reports "copied, but the original could not be removed completely" instead of a plain failure when a file is in use.
 - Items already gone when an action runs are counted apart instead of inflating "moved/freed"; nested paths are recognised whatever their case; a moved `.gitignore` becomes `.gitignore (2)`.

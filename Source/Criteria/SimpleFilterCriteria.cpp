@@ -103,7 +103,7 @@ namespace
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {
             auto result = filterScan (context, fullScan,
-                                      [] (const FileEntry& e) { return e.isDirectory ? e.fileCount == 0 : e.size == 0; },
+                                      [] (const FileEntry& e) { return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown : e.size == 0; },
                                       byName);
 
             // Only list the outermost empty folder of a chain of empty folders.

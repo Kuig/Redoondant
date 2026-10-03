@@ -28,6 +28,26 @@ namespace
         folders.push_back (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getParentDirectory());    // C:\Users
         return folders;
     }
+
+    /** Folders that are never cache, nor anything inside them: system binaries, installed programs, the user's own documents. */
+    std::vector<juce::File> untouchableTrees()
+    {
+        std::vector<juce::File> trees;
+
+        if (const auto windir = variable ("WINDIR"); windir.isNotEmpty())
+            for (const char* name : { "System32", "SysWOW64", "WinSxS" })
+                trees.push_back (juce::File (windir).getChildFile (name));
+
+        for (const char* name : { "ProgramFiles", "ProgramFiles(x86)", "OneDrive", "OneDriveConsumer", "OneDriveCommercial" })
+            if (const auto value = variable (name); value.isNotEmpty())
+                trees.emplace_back (value);
+
+        for (const auto location : { juce::File::userDocumentsDirectory, juce::File::userDesktopDirectory, juce::File::userPicturesDirectory,
+                                     juce::File::userMusicDirectory, juce::File::userMoviesDirectory })
+            trees.push_back (juce::File::getSpecialLocation (location));
+
+        return trees;
+    }
 }
 
 const std::vector<EmptyFolders::Default>& EmptyFolders::defaults()
@@ -133,6 +153,10 @@ bool EmptyFolders::isTooBroad (const juce::File& folder)
 
     for (const auto& p : protectedFolders())
         if (p == folder || p.isAChildOf (folder))
+            return true;
+
+    for (const auto& tree : untouchableTrees())
+        if (tree == folder || tree.isAChildOf (folder) || folder.isAChildOf (tree))
             return true;
 
     return false;

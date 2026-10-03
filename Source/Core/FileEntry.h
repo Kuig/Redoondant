@@ -9,6 +9,7 @@ struct FileEntry
     bool isDirectory = false;
     juce::int64 size = 0;       ///< For folders: total size of their content (when computed).
     int fileCount = 0;          ///< For folders: number of files they contain, recursively.
+    bool contentUnknown = false;    ///< For folders: a link (junction, symbolic link) or something inside could not be listed, so size and fileCount may be too low.
     juce::Time modified;
     juce::Time created;
     juce::Time contentCreated;  ///< Oldest date written in the file's metadata (see ContentDate); unknown (0) until read.
