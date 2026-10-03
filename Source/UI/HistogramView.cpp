@@ -3,9 +3,10 @@
 
 namespace
 {
-    constexpr int maxRowHeight = 30;
     constexpr int legendHeight = 22;
-    constexpr int valueWidth = 120;
+    constexpr int labelHeight = 32;         // Two lines of 12 pt.
+    constexpr int valueHeight = 16;
+    constexpr int barGap = 4;
     constexpr int gap = 8;
 
     // Same hue for "all" and "visible" (they differ in brightness); the checked ones have their own.
@@ -27,22 +28,23 @@ void HistogramView::setBins (std::vector<Histogram::Bin> newBins, Metric newMetr
     repaint();
 }
 
-juce::Rectangle<int> HistogramView::barsArea() const
+juce::Rectangle<int> HistogramView::plotArea() const
 {
     return getLocalBounds().withTrimmedBottom (legendHeight);
 }
 
-juce::Rectangle<int> HistogramView::rowBounds (int index) const
+/** A bar with its label below and its value above. */
+juce::Rectangle<int> HistogramView::columnBounds (int index) const
 {
-    const auto area = barsArea();
-    const int rowHeight = bins.empty() ? maxRowHeight : juce::jmin (maxRowHeight, area.getHeight() / (int) bins.size());
-    return { area.getX(), area.getY() + index * rowHeight, area.getWidth(), rowHeight };
+    const auto area = plotArea();
+    const int width = bins.empty() ? area.getWidth() : area.getWidth() / (int) bins.size();
+    return { area.getX() + index * width, area.getY(), width, area.getHeight() };
 }
 
 int HistogramView::binAt (juce::Point<int> position) const
 {
     for (int i = 0; i < (int) bins.size(); ++i)
-        if (rowBounds (i).contains (position))
+        if (columnBounds (i).contains (position))
             return i;
 
     return -1;
@@ -56,7 +58,6 @@ juce::String HistogramView::valueText (const Histogram::Stats& stats) const
 void HistogramView::paint (juce::Graphics& g)
 {
     const auto text = findColour (juce::ListBox::textColourId);
-    g.setFont (juce::FontOptions (14.0f));
 
     juce::int64 most = 0;
 
@@ -66,39 +67,38 @@ void HistogramView::paint (juce::Graphics& g)
     if (most == 0)
     {
         g.setColour (text.withAlpha (0.6f));
+        g.setFont (juce::FontOptions (14.0f));
         g.drawText ("Nothing to show", getLocalBounds(), juce::Justification::centred);
         return;
     }
 
-    const int labelWidth = juce::jlimit (90, 220, getWidth() * 35 / 100);
-
     for (int i = 0; i < (int) bins.size(); ++i)
     {
         const auto& bin = bins[(size_t) i];
-        const auto row = rowBounds (i);
+        auto column = columnBounds (i);
 
         if (i == hovered)
         {
             g.setColour (text.withAlpha (0.08f));
-            g.fillRect (row);
+            g.fillRect (column);
         }
 
-        auto cells = row.reduced (2, 3);
+        // Long labels wrap onto two lines and are cut after that; the hint has the whole label.
         g.setColour (text.withAlpha (bin.total.count > 0 ? 1.0f : 0.5f));
-        g.drawText (bin.label, cells.removeFromLeft (labelWidth), juce::Justification::centredLeft, true);
-        cells.removeFromLeft (gap);
+        g.setFont (juce::FontOptions (12.0f));
+        g.drawFittedText (bin.label, column.removeFromBottom (labelHeight).reduced (2, 0), juce::Justification::centredTop, 2, 0.9f);
 
-        auto value = cells.removeFromRight (valueWidth);
-        const int fullWidth = cells.getWidth() - gap;
+        auto bars = column.withTrimmedTop (valueHeight).reduced (barGap, 0);
+        const int fullHeight = bars.getHeight();
 
         const auto draw = [&] (const Histogram::Stats& stats, juce::Colour colour)
         {
-            const int w = (int) std::ceil ((double) fullWidth * (double) Histogram::valueOf (stats, metric) / (double) most);
+            const int h = (int) std::ceil ((double) fullHeight * (double) Histogram::valueOf (stats, metric) / (double) most);
 
-            if (w > 0)
+            if (h > 0)
             {
                 g.setColour (colour);
-                g.fillRect (cells.withWidth (w));
+                g.fillRect (juce::Rectangle<int> (bars.getX(), bars.getBottom() - h, bars.getWidth(), h));
             }
         };
 
@@ -106,9 +106,12 @@ void HistogramView::paint (juce::Graphics& g)
         draw (bin.filtered, visibleColour);
         draw (bin.checked, checkedColour);
 
+        // The value of what is shown, above the highest layer.
+        const int top = bars.getBottom() - (int) std::ceil ((double) fullHeight * (double) Histogram::valueOf (bin.total, metric) / (double) most);
         g.setColour (text);
-        g.drawText (valueText (bin.filtered) + (bin.filtered.count != bin.total.count ? " / " + valueText (bin.total) : juce::String()),
-                    value, juce::Justification::centredRight, true);
+        g.setFont (juce::FontOptions (11.0f));
+        g.drawFittedText (valueText (bin.filtered), juce::Rectangle<int> (column.getX(), top - valueHeight, column.getWidth(), valueHeight),
+                          juce::Justification::centredBottom, 1, 0.7f);
     }
 
     // Legend.

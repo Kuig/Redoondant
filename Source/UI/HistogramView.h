@@ -2,7 +2,7 @@
 
 #include "../Core/Histogram.h"
 
-/** Horizontal bars for a list of Histogram::Bin, in three layers: all the entries (dim), the visible ones (brighter)
+/** Vertical bars (the classes along the x axis, the frequency up) for a list of Histogram::Bin, in three layers: all the entries (dim), the visible ones (brighter)
     and the checked ones (another hue). Hovering a bar shows its statistics, clicking it reports its index.
 */
 class HistogramView final : public juce::Component,
@@ -30,8 +30,8 @@ private:
     int hovered = -1;
 
     int binAt (juce::Point<int> position) const;
-    juce::Rectangle<int> rowBounds (int index) const;
-    juce::Rectangle<int> barsArea() const;
+    juce::Rectangle<int> columnBounds (int index) const;
+    juce::Rectangle<int> plotArea() const;
     juce::String valueText (const Histogram::Stats& stats) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HistogramView)
