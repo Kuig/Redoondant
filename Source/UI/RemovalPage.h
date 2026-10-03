@@ -4,6 +4,7 @@
 #include "../Core/Removal.h"
 #include "../Core/DefaultSelection.h"
 #include "../Core/Histogram.h"
+#include "LatestOnlyWorker.h"
 #include "ResultsTable.h"
 
 /** A page that lists items with check boxes and acts on the checked ones: the results table and the
@@ -92,8 +93,7 @@ private:
     DefaultSelection initialSelection = DefaultSelection::none;
     juce::TextButton moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
     std::unique_ptr<juce::FileChooser> chooser;
-    juce::ThreadPool dateLoader { 1 };
-    std::atomic<int> dateRequest { 0 };
+    LatestOnlyWorker dateLoader { true };
     int datesPending = 0;
 
     class RemovalJob;

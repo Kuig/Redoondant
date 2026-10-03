@@ -4,6 +4,7 @@
 #include "../Metadata/Metadata.h"
 #include "../Core/Histogram.h"
 #include "AudioPlayer.h"
+#include "LatestOnlyWorker.h"
 #include "HistogramView.h"
 #include "TextPreview.h"
 
@@ -62,8 +63,7 @@ private:
     bool histogramMode = false;
     AudioPlayer audio;
     Content content = Content::none;
-    int generation = 0;                     ///< Identifies the latest request; older results are dropped.
-    juce::ThreadPool loader { 1 };
+    LatestOnlyWorker loader { true };       ///< Prepares the preview of the latest selection only.
 
     class Tile;
     std::vector<std::unique_ptr<Tile>> tiles;       ///< The previews of a multiple selection.

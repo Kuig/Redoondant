@@ -262,7 +262,7 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
 
 PreviewPanel::~PreviewPanel()
 {
-    loader.removeAllJobs (true, 5000);
+    loader.shutdown (5000);     // The job reads `formats`, which must outlive it.
 }
 
 void PreviewPanel::setHistogramMode (bool shouldShow)
@@ -303,8 +303,7 @@ void PreviewPanel::refreshHistogramNow()
 
 void PreviewPanel::show (std::vector<FileEntry> entries)
 {
-    const int request = ++generation;
-    loader.removeAllJobs (false, 0);    // Drop queued requests; a running one finishes and is ignored.
+    loader.cancel();    // Queued requests are dropped; a running one finishes and is ignored.
 
     audio.unload();
     entries.erase (std::remove_if (entries.begin(), entries.end(), [] (const FileEntry& e) { return ! e.file.exists(); }), entries.end());
@@ -327,28 +326,29 @@ void PreviewPanel::show (std::vector<FileEntry> entries)
     title.setText (single ? entries.front().name() + "  (loading...)" : juce::String (entries.size() + (size_t) notShown) + " items selected  (loading...)",
                    juce::dontSendNotification);
 
-    loader.addJob ([safeThis = juce::Component::SafePointer<PreviewPanel> (this), &formats = formats, request, single, notShown, items = std::move (entries)]
+    loader.submit ([this, &formats = formats, single, notShown, items = std::move (entries)] (const LatestOnlyWorker::Job& job)
     {
-        const ScopedComInit com;
         std::vector<Data> all;
 
         for (const auto& item : items)
-            all.push_back (load (item, formats, single));
-
-        juce::MessageManager::callAsync ([safeThis, request, single, notShown, all = std::move (all)]() mutable
         {
-            if (safeThis == nullptr || safeThis->generation != request)
+            if (! job.isCurrent())
                 return;
 
+            all.push_back (load (item, formats, single));
+        }
+
+        job.deliver ([this, single, notShown, all = std::move (all)]() mutable
+        {
             if (single)
             {
-                safeThis->title.setText (all.front().name, juce::dontSendNotification);
-                safeThis->display (std::move (all.front()));
+                title.setText (all.front().name, juce::dontSendNotification);
+                display (std::move (all.front()));
             }
             else
             {
-                safeThis->title.setText (juce::String ((int) all.size() + notShown) + " items selected", juce::dontSendNotification);
-                safeThis->displayMany (std::move (all), notShown);
+                title.setText (juce::String ((int) all.size() + notShown) + " items selected", juce::dontSendNotification);
+                displayMany (std::move (all), notShown);
             }
         });
     });

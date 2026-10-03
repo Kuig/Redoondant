@@ -72,7 +72,7 @@ CleanupPage::CleanupPage (SettingsScope s)
 
 CleanupPage::~CleanupPage()
 {
-    measurer.removeAllJobs (true, 5000);
+    measurer.shutdown (5000);
 }
 
 void CleanupPage::resized()
@@ -212,9 +212,6 @@ void CleanupPage::resetToDefaults()
 
 void CleanupPage::refresh()
 {
-    const int request = ++generation;
-    measurer.removeAllJobs (false, 0);      // A running measurement finishes and is ignored.
-
     status.setText ("Measuring sizes...", juce::dontSendNotification);
 
     std::vector<juce::File> files;
@@ -222,18 +219,20 @@ void CleanupPage::refresh()
     for (const auto& folder : folders)
         files.push_back (folder.file);
 
-    measurer.addJob ([safeThis = juce::Component::SafePointer<CleanupPage> (this), request, files = std::move (files)]
+    // A new measurement makes a running one stale: its result is ignored.
+    measurer.submit ([this, files = std::move (files)] (const LatestOnlyWorker::Job& job)
     {
         std::vector<FileEntry> entries;
 
         for (const auto& file : files)
-            entries.push_back (measure (file));
-
-        juce::MessageManager::callAsync ([safeThis, request, entries = std::move (entries)]() mutable
         {
-            if (safeThis != nullptr && safeThis->generation == request)
-                safeThis->showMeasured (std::move (entries));
-        });
+            if (! job.isCurrent())
+                return;
+
+            entries.push_back (measure (file));
+        }
+
+        job.deliver ([this, entries = std::move (entries)]() mutable { showMeasured (std::move (entries)); });
     });
 }
 

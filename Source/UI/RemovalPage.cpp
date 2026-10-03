@@ -63,11 +63,7 @@ RemovalPage::RemovalPage (SettingsScope s)
     updateSummary();
 }
 
-RemovalPage::~RemovalPage()
-{
-    ++dateRequest;
-    dateLoader.removeAllJobs (true, 10000);
-}
+RemovalPage::~RemovalPage() = default;
 
 void RemovalPage::setupDefaultSelection (std::vector<DefaultSelection> available, DefaultSelection initial)
 {
@@ -105,8 +101,7 @@ void RemovalPage::selectDefault (DefaultSelection selection)
 
 void RemovalPage::discardResults()
 {
-    ++dateRequest;                          // A running date reader is abandoned.
-    dateLoader.removeAllJobs (false, 0);
+    dateLoader.cancel();                    // A running date reader is abandoned.
     datesPending = 0;
     model.clear();
     checks = BulkCheck::defaults;
@@ -119,11 +114,19 @@ void RemovalPage::discardResults()
 
 void RemovalPage::loadContentDates (bool restart)
 {
-    if (! table.isColumnVisible (Column::contentCreated) || (datesPending > 0 && ! restart))
-        return;
+    if (restart)        // The list changed: a running read is stale whether or not the column is shown.
+    {
+        dateLoader.cancel();
 
-    const int request = ++dateRequest;
-    dateLoader.removeAllJobs (false, 0);
+        if (datesPending > 0)
+        {
+            datesPending = 0;
+            updateSummary();
+        }
+    }
+
+    if (! table.isColumnVisible (Column::contentCreated) || datesPending > 0)
+        return;
 
     auto files = model.filesNeedingContentDate();
     datesPending = (int) files.size();
@@ -132,33 +135,30 @@ void RemovalPage::loadContentDates (bool restart)
     if (files.empty())
         return;
 
-    dateLoader.addJob ([owner = this, safeThis = juce::Component::SafePointer<RemovalPage> (this), request, files = std::move (files)]
+    dateLoader.submit ([this, files = std::move (files)] (const LatestOnlyWorker::Job& job)
     {
-        const ScopedComInit com;
         std::vector<std::pair<juce::File, juce::Time>> batch;
         auto lastFlush = juce::Time::getMillisecondCounter();
 
-        const auto flush = [&batch, &lastFlush, safeThis, request]
+        const auto flush = [&]
         {
             auto sent = std::move (batch);
             batch.clear();
             lastFlush = juce::Time::getMillisecondCounter();
 
-            juce::MessageManager::callAsync ([safeThis, request, sent]
+            // Only runs while this read is the latest, so the page is alive.
+            job.deliver ([this, sent = std::move (sent)]
             {
-                if (safeThis == nullptr || safeThis->dateRequest != request)
-                    return;
-
-                safeThis->model.setContentDates (sent);
-                safeThis->datesPending -= (int) sent.size();
-                safeThis->table.refresh();
-                safeThis->updateSummary();
+                model.setContentDates (sent);
+                datesPending -= (int) sent.size();
+                table.refresh();
+                updateSummary();
             });
         };
 
         for (const auto& file : files)
         {
-            if (owner->dateRequest != request)     // The destructor waits for this job, so the page is alive.
+            if (! job.isCurrent())
                 return;
 
             batch.emplace_back (file, ContentDate::of (file));
@@ -288,17 +288,23 @@ public:
 
     void run() override
     {
-        const ScopedComInit com;
-
-        if (expander != nullptr)
-            items = expander (std::move (items));
-
-        report = action (std::move (items), [this] (double fraction, const juce::String& item)
+        // The action reports each item's failure itself; this only stops an exception from ending the program.
+        try
         {
-            setProgress (fraction);
-            setStatusMessage (item);
-            return ! threadShouldExit();
-        });
+            const ScopedComInit com;
+
+            if (expander != nullptr)
+                items = expander (std::move (items));
+
+            report = action (std::move (items), [this] (double fraction, const juce::String& item)
+            {
+                setProgress (fraction);
+                setStatusMessage (item);
+                return ! threadShouldExit();
+            });
+        }
+        catch (const std::exception& e)     { report.failures.add (juce::String ("Unexpected error: ") + e.what()); }
+        catch (...)                         { report.failures.add ("Unexpected error"); }
     }
 
     void threadComplete (bool) override

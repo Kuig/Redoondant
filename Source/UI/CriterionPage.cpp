@@ -31,13 +31,22 @@ public:
 
     void run() override
     {
-        const ScopedComInit com;    // Some criteria read Windows metadata.
-        result = criterion.analyse (context, parameters);
+        // An exception (out of memory on a huge tree, a failing codec...) must not take the whole program down.
+        try
+        {
+            const ScopedComInit com;    // Some criteria read Windows metadata.
+            result = criterion.analyse (context, parameters);
+        }
+        catch (const std::exception& e)     { error = e.what(); }
+        catch (...)                         { error = "unknown error"; }
     }
 
     void threadComplete (bool cancelled) override
     {
-        if (owner != nullptr && ! cancelled)
+        if (error.isNotEmpty())
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Analysis failed",
+                                                    "The analysis stopped because of an error: " + error);
+        else if (owner != nullptr && ! cancelled)
             owner->showResult (std::move (result), context.root);
 
         delete this;
@@ -49,6 +58,7 @@ private:
     const ParameterSet parameters;      // Snapshot: the UI may not change it during the analysis.
     ScanContext context;
     AnalysisResult result;
+    juce::String error;
 };
 
 //==============================================================================

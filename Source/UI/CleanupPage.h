@@ -32,8 +32,7 @@ private:
 
     std::vector<Folder> folders;
     std::set<juce::String> checkedPaths;    ///< Full paths of the checked folders.
-    int generation = 0;
-    juce::ThreadPool measurer { 1 };
+    LatestOnlyWorker measurer;
 
     void loadFolders();
     void saveFolders();

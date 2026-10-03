@@ -93,7 +93,14 @@ namespace
                 continue;
             }
 
-            const auto result = act (entry);
+            ItemResult result;
+
+            try
+            {
+                result = act (entry);
+            }
+            catch (const std::exception& e)     { result = {}; result.message = e.what(); }
+            catch (...)                         { result = {}; result.message = "unexpected error"; }
 
             const auto described = entry.file.getFullPathName() + (result.message.isEmpty() ? juce::String() : "  (" + result.message + ")");
 

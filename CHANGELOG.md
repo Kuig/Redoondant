@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
+- An error (for example out of memory) inside an analysis or a removal no longer closes the program: the analysis reports it, and a removal lists the item as failed.
+- Reading content dates, measuring the Cache Cleaner folders and building previews can no longer touch a closed page, and hiding the *Content created* column after a new analysis no longer leaves a stale date reader running.
 - *Empty files & folders* no longer lists (and checks) a folder that only looks empty because it holds a junction or symbolic link, or because it could not be read.
 - The Cache Cleaner refuses System32, Program Files, the user's Documents/Desktop/Pictures/Music/Videos, OneDrive and anything inside them, not only the folders that contain them; entries of the saved list that point to such folders or contain an undefined `%VARIABLE%` are skipped.
 - **Move to Trash** no longer deletes for good what Windows can't recycle: items on network shares, removable drives or drives with the Recycle Bin turned off are left untouched and listed (the confirmation says how many), and an item Windows refuses to recycle is reported instead of deleted.
