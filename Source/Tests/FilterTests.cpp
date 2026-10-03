@@ -412,6 +412,9 @@ private:
     {
         beginTest ("Filter bar: several types, and names to exclude");
 
+        for (const char* fileName : { "a.m", "paper.tex", "refs.BIB" })
+            expect (FileCategories::of (juce::File (fileName), false) == FileCategory::text, fileName);
+
         TempFolder temp;
         juce::PropertiesFile::Options options;
         options.filenameSuffix = ".settings";

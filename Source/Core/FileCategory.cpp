@@ -20,7 +20,7 @@ namespace
         { FileCategory::archive,    "Archives",    "zip rar 7z tar gz tgz bz2 tbz2 xz txz zst cab" },
         { FileCategory::executable, "Executables", "exe msi msix appx dmg pkg iso bat cmd ps1 jar apk" },
         { FileCategory::text,       "Text & code", "txt md log csv tsv json xml html htm css js ts ini cfg yaml yml "
-                                                   "c cpp h hpp cs java py rb go rs sh jucer sln vcxproj cmake" },
+                                                   "c cpp h hpp cs java py rb go rs sh jucer sln vcxproj cmake m tex bib" },
         { FileCategory::other,      "Other",       "" },
     };
 }
