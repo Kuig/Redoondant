@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Filters: *in folder*, *exclude if path contains* (words separated by `;`, matched against the folders and not the name; shown only when Recursive is on), and the kind of date to filter by (modified, created or content created).
 
 ### Changed
+- *Multiple criteria* is now two pages, *Multiple criteria: items* and *Multiple criteria: folders* (the old "Show" choice), each with only the settings it uses. The settings saved for the old page that still exist (data, counts as marked, minimum criteria, minimum files and share) are kept for the items page and lost for the folders page.
 - The date filter uses the same buckets as the histogram (today, 1-7 days, 7-30 days, 30 days - 1 year, 1-2 years, more than 2 years ago,
   unknown date) instead of cumulative ranges.
 - Clicking the only selected item again deselects it, which brings the histogram back.

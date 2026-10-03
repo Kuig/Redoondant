@@ -27,8 +27,11 @@ namespace Criteria
     /** @param source   where metadata comes from (default: MetadataReader::read); tests inject fakes. */
     std::unique_ptr<Criterion> createSameContent (MetadataSource source = {});
 
-    /** Combines the other criteria, which analyse() receives as peers (see Criterion::analyse). */
-    std::unique_ptr<Criterion> createMultipleCriteria();
+    /** The criteria that combine the other ones, which analyse() receives as peers (see Criterion::analyse):
+        the items marked by several criteria, and the folders with most candidates.
+    */
+    std::unique_ptr<Criterion> createMultipleCriteriaItems();
+    std::unique_ptr<Criterion> createMultipleCriteriaFolders();
 
     /** All criteria, in the order shown in the sidebar. */
     std::vector<std::unique_ptr<Criterion>> createAll();

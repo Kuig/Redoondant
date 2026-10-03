@@ -9,6 +9,5 @@ namespace ParameterChoices
 
     enum class OverlapSource     { existingResults, runAllCriteria };
     enum class OverlapMarked     { checkedItems, listedItems };
-    enum class OverlapView       { filesAndFolders, foldersOnly };
     enum class OverlapFolderMode { topFolders, mostlyCandidate };
 }

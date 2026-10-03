@@ -101,14 +101,15 @@ public:
             return list;
         };
 
-        const auto criterion = Criteria::createMultipleCriteria();
-        // Tests start from: checked items, files & folders, at least 2 criteria.
-        const auto analyse = [&] (std::function<void (ParameterSet&)> tweak)
+        const auto itemsCriterion = Criteria::createMultipleCriteriaItems();
+        const auto foldersCriterion = Criteria::createMultipleCriteriaFolders();
+
+        // Tests start from: checked items, at least 2 criteria.
+        const auto analyseWith = [&] (const Criterion& criterion, std::function<void (ParameterSet&)> tweak)
         {
-            return run (*criterion, temp.root, false, [&] (ParameterSet& p)
+            return run (criterion, temp.root, false, [&] (ParameterSet& p)
             {
                 setParameter (p, "marked", (int) OverlapMarked::checkedItems);
-                setParameter (p, "view", (int) OverlapView::filesAndFolders);
                 setParameter (p, "minCriteria", 2);
                 setParameter (p, "minShare", 80);
 
@@ -116,6 +117,9 @@ public:
                     tweak (p);
             }, peers());     // The peers are taken at the time of each analysis, as the page does.
         };
+
+        const auto analyse = [&] (std::function<void (ParameterSet&)> tweak) { return analyseWith (*itemsCriterion, std::move (tweak)); };
+        const auto analyseFolders = [&] (std::function<void (ParameterSet&)> tweak) { return analyseWith (*foldersCriterion, std::move (tweak)); };
 
         beginTest ("Checked items, folder marks cover their content");
         {
@@ -147,17 +151,17 @@ public:
 
         beginTest ("Folders only: top folders by count");
         {
-            const auto result = analyse ([] (ParameterSet& p) { setParameter (p, "view", (int) OverlapView::foldersOnly); });
+            const auto result = analyseFolders ({});
             expectEquals ((int) result.groups.size(), 1);
             expectEquals (result.groups[0].items[0].name(), juce::String ("a"));
         }
 
         beginTest ("Folders only: mostly-candidate folders");
         {
-            auto result = analyse ([] (ParameterSet& p) { setParameter (p, "view", (int) OverlapView::foldersOnly); setParameter (p, "folderMode", (int) OverlapFolderMode::mostlyCandidate); setParameter (p, "minShare", 60); });
+            auto result = analyseFolders ([] (ParameterSet& p) { setParameter (p, "folderMode", (int) OverlapFolderMode::mostlyCandidate); setParameter (p, "minShare", 60); });
             expectEquals ((int) result.groups.size(), 1);  // a: 2 of 3 files
 
-            result = analyse ([] (ParameterSet& p) { setParameter (p, "view", (int) OverlapView::foldersOnly); setParameter (p, "folderMode", (int) OverlapFolderMode::mostlyCandidate); setParameter (p, "minShare", 80); });
+            result = analyseFolders ([] (ParameterSet& p) { setParameter (p, "folderMode", (int) OverlapFolderMode::mostlyCandidate); setParameter (p, "minShare", 80); });
             expect (result.groups.empty());
         }
     }
