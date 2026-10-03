@@ -262,6 +262,9 @@ void ResultsTable::paintCell (juce::Graphics& g, int row, int columnId, int widt
 
 void ResultsTable::cellClicked (int row, int columnId, const juce::MouseEvent& e)
 {
+    // A click on a row that was not selected selects it just before this call, which tells the two cases apart.
+    const bool selectedByThisClick = std::exchange (selectionChangedSinceClick, false);
+
     if (e.mods.isPopupMenu())
     {
         showContextMenu (row, e.getScreenPosition());
@@ -273,11 +276,10 @@ void ResultsTable::cellClicked (int row, int columnId, const juce::MouseEvent& e
     if (r != nullptr && (columnId == (int) Column::check || r->isHeader()))
         toggle (row);
 
-    // Clicking the only selected item again deselects it (the list would keep it selected): the click is the mouse-up
-    // of a row that was already selected at mouse-down, and nothing else changed the selection since.
-    if (r != nullptr && ! r->isHeader() && columnId != (int) Column::check
+    // Clicking the only selected item again deselects it (the list would keep it selected).
+    if (r != nullptr && ! r->isHeader() && columnId != (int) Column::check && ! selectedByThisClick
          && ! e.mods.isAnyModifierKeyDown() && e.getNumberOfClicks() == 1
-         && lastSelectionChange < e.mouseDownTime && table.getNumSelectedRows() == 1 && table.isRowSelected (row))
+         && table.getNumSelectedRows() == 1 && table.isRowSelected (row))
         table.deselectAllRows();
 }
 
@@ -296,7 +298,7 @@ void ResultsTable::sortOrderChanged (int columnId, bool isForwards)
 void ResultsTable::selectedRowsChanged (int lastRowSelected)
 {
     juce::ignoreUnused (lastRowSelected);
-    lastSelectionChange = juce::Time::getCurrentTime();
+    selectionChangedSinceClick = true;
 
     if (onSelectionChanged == nullptr)
         return;
