@@ -1,44 +1,33 @@
 #include "RemovalPage.h"
+#include "../Core/FileScanner.h"
 #include "../Core/Format.h"
-#include "../Core/MoveToFolder.h"
 #include "../Core/Removal.h"
-#include "../Metadata/ContentDate.h"
-#include "../Platform/ComInit.h"
 #include "../Platform/ShellContextMenu.h"
 
 namespace
 {
     constexpr int rowHeight = 26;
     constexpr int gap = 8;
-    constexpr size_t maxDateBatch = 1000;       // Content dates handed to the UI thread at a time...
-    constexpr juce::uint32 dateBatchMs = 500;   // ...or after this long.
-
-    /** Text with paths that message boxes can wrap: invisible break opportunities (zero-width spaces) after each separator. */
-    juce::String wrappable (const juce::String& text)
-    {
-        const juce::String zeroWidthSpace (juce::CharPointer_UTF8 ("\xe2\x80\x8b"));
-        return text.replace ("\\", "\\" + zeroWidthSpace).replace ("/", "/" + zeroWidthSpace);
-    }
 }
 
 juce::String RemovalPage::wrappable (const juce::File& path)
 {
-    return ::wrappable (path.getFullPathName());
+    return Format::wrappable (path.getFullPathName());
 }
 
 RemovalPage::RemovalPage (SettingsScope s)
     : settings (s)
 {
-    trashButton.onClick = [this] { moveCheckedToTrash(); };
-    moveButton.onClick = [this] { moveCheckedToFolder(); };
-    deleteButton.onClick = [this] { deleteChecked(); };
+    trashButton.onClick = [this] { removal.moveToTrash(); };
+    moveButton.onClick = [this] { removal.moveToFolder(); };
+    deleteButton.onClick = [this] { removal.deletePermanently(); };
     table.onHeaderCheckClicked = [this] { cycleChecks(); };
 
     table.restoreLayoutState (settings.get ("table"));
     table.onLayoutChanged = [this]
     {
         settings.set ("table", table.getLayoutState());
-        loadContentDates (false);       // The column may have just been shown or sorted.
+        tableLayoutChanged();
     };
     table.onCheckedChanged = [this] { updateSummary(); };
     table.onContextMenu = [this] (const juce::Array<juce::File>& files, juce::Point<int> position)
@@ -46,11 +35,7 @@ RemovalPage::RemovalPage (SettingsScope s)
         if (ShellContextMenu::show (files, position, *this))
             forgetMissing (files);
     };
-    table.onSelectionChanged = [this] (std::vector<FileEntry> entries)
-    {
-        if (onSelectionChanged != nullptr)
-            onSelectionChanged (std::move (entries));
-    };
+    table.onSelectionChanged = [this] (std::vector<FileEntry> entries) { notifySelection (std::move (entries)); };
 
     for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &moveButton, &trashButton, &deleteButton })
         addAndMakeVisible (component);
@@ -64,6 +49,12 @@ RemovalPage::RemovalPage (SettingsScope s)
 }
 
 RemovalPage::~RemovalPage() = default;
+
+void RemovalPage::notifySelection (std::vector<FileEntry> entries)
+{
+    if (onSelectionChanged != nullptr)
+        onSelectionChanged (std::move (entries));
+}
 
 void RemovalPage::setupDefaultSelection (std::vector<DefaultSelection> available, DefaultSelection initial)
 {
@@ -101,75 +92,11 @@ void RemovalPage::selectDefault (DefaultSelection selection)
 
 void RemovalPage::discardResults()
 {
-    dateLoader.cancel();                    // A running date reader is abandoned.
-    datesPending = 0;
     model.clear();
     checks = BulkCheck::defaults;
     table.refresh();
     updateSummary();
-
-    if (onSelectionChanged != nullptr)
-        onSelectionChanged ({});
-}
-
-void RemovalPage::loadContentDates (bool restart)
-{
-    if (restart)        // The list changed: a running read is stale whether or not the column is shown.
-    {
-        dateLoader.cancel();
-
-        if (datesPending > 0)
-        {
-            datesPending = 0;
-            updateSummary();
-        }
-    }
-
-    if (! table.isColumnVisible (Column::contentCreated) || datesPending > 0)
-        return;
-
-    auto files = model.filesNeedingContentDate();
-    datesPending = (int) files.size();
-    updateSummary();
-
-    if (files.empty())
-        return;
-
-    dateLoader.submit ([this, files = std::move (files)] (const LatestOnlyWorker::Job& job)
-    {
-        std::vector<std::pair<juce::File, juce::Time>> batch;
-        auto lastFlush = juce::Time::getMillisecondCounter();
-
-        const auto flush = [&]
-        {
-            auto sent = std::move (batch);
-            batch.clear();
-            lastFlush = juce::Time::getMillisecondCounter();
-
-            // Only runs while this read is the latest, so the page is alive.
-            job.deliver ([this, sent = std::move (sent)]
-            {
-                model.setContentDates (sent);
-                datesPending -= (int) sent.size();
-                table.refresh();
-                updateSummary();
-            });
-        };
-
-        for (const auto& file : files)
-        {
-            if (! job.isCurrent())
-                return;
-
-            batch.emplace_back (file, ContentDate::of (file));
-
-            // Each batch costs the UI thread a pass over the whole list: send many at once, but still show progress.
-            if (batch.size() >= maxDateBatch || juce::Time::getMillisecondCounter() - lastFlush >= dateBatchMs)
-                flush();
-        }
-
-        flush();
-    });
+    notifySelection ({});
 }
 
 void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
@@ -219,183 +146,13 @@ void RemovalPage::itemsGone (const juce::Array<juce::File>& files)
 void RemovalPage::confirm (juce::MessageBoxIconType icon, const juce::String& boxTitle, const juce::String& question,
                            const juce::String& okText, std::function<void()> action)
 {
-    juce::AlertWindow::showAsync (juce::MessageBoxOptions()
-                                      .withIconType (icon)
-                                      .withTitle (boxTitle)
-                                      .withMessage (question)
-                                      .withButton (okText)
-                                      .withButton ("Cancel")
-                                      .withAssociatedComponent (this),
-                                  [safeThis = juce::Component::SafePointer<RemovalPage> (this), action = std::move (action)] (int button)
-                                  {
-                                      // With two buttons JUCE reports 1 for the first (OK) and 0 for the second (Cancel).
-                                      constexpr int okResult = 1;
-
-                                      if (button == okResult && safeThis != nullptr)
-                                          action();
-                                  });
+    RemovalActions::confirm (*this, icon, boxTitle, question, okText, std::move (action));
 }
 
-void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done)
+void RemovalPage::removeFromList (const juce::Array<juce::File>& files)
 {
-    itemsGone (report.files);
-
-    if (onSelectionChanged != nullptr)
-        onSelectionChanged ({});
-
-    auto message = Format::count (report.processed, "item") + " " + done;
-
-    if (report.alreadyGone > 0)
-        message << "\n" << Format::count (report.alreadyGone, "item") << " didn't exist any more.";
-
-    if (report.cancelled)
-        message << "\n\nStopped before the end: the remaining items were left untouched.";
-
-    if (! report.failures.isEmpty())
-    {
-        message << "\n\n" << Format::count (report.failures.size(), "item")
-                << " could not be removed:\n" << ::wrappable (report.failures.joinIntoString ("\n"));
-
-        if (const auto advice = failureAdvice(); advice.isNotEmpty())
-            message << "\n\n" << advice;
-    }
-
-    if (! report.leftBehind.isEmpty())
-        message << "\n\n" << Format::count (report.leftBehind.size(), "item")
-                << " copied to the destination, but the original could not be removed completely (a file may be in use). "
-                   "Both copies exist:\n" << ::wrappable (report.leftBehind.joinIntoString ("\n"));
-
-    juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() && report.leftBehind.isEmpty() ? juce::MessageBoxIconType::InfoIcon
-                                                                                                     : juce::MessageBoxIconType::WarningIcon,
-                                            boxTitle, message);
-}
-
-/** Runs a removal action on a background thread behind a cancellable progress window.
-    Deletes itself when done; the outcome is only reported if the page still exists.
-*/
-class RemovalPage::RemovalJob final : public juce::ThreadWithProgressWindow
-{
-public:
-    RemovalJob (RemovalPage& page, const juce::String& windowTitle, std::vector<FileEntry> checked,
-                std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expand, Action act,
-                juce::String reportTitle, std::function<juce::String (const RemovalReport&)> describe)
-        : ThreadWithProgressWindow (windowTitle, true, true, 10000, {}, &page),
-          owner (&page), items (std::move (checked)), expander (std::move (expand)), action (std::move (act)),
-          boxTitle (std::move (reportTitle)), done (std::move (describe))
-    {
-        setProgress (-1.0);
-    }
-
-    void run() override
-    {
-        // The action reports each item's failure itself; this only stops an exception from ending the program.
-        try
-        {
-            const ScopedComInit com;
-
-            if (expander != nullptr)
-                items = expander (std::move (items));
-
-            report = action (std::move (items), [this] (double fraction, const juce::String& item)
-            {
-                setProgress (fraction);
-                setStatusMessage (item);
-                return ! threadShouldExit();
-            });
-        }
-        catch (const std::exception& e)     { report.failures.add (juce::String ("Unexpected error: ") + e.what()); }
-        catch (...)                         { report.failures.add ("Unexpected error"); }
-    }
-
-    void threadComplete (bool) override
-    {
-        if (owner != nullptr)
-            owner->finishRemoval (report, boxTitle, done (report));
-
-        delete this;
-    }
-
-private:
-    juce::Component::SafePointer<RemovalPage> owner;
-    std::vector<FileEntry> items;
-    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expander;
-    Action action;
-    juce::String boxTitle;
-    std::function<juce::String (const RemovalReport&)> done;
-    RemovalReport report;
-};
-
-void RemovalPage::runRemoval (const juce::String& windowTitle, Action action, const juce::String& boxTitle,
-                              std::function<juce::String (const RemovalReport&)> done)
-{
-    (new RemovalJob (*this, windowTitle, model.getCheckedEntries(), removalExpander(), std::move (action), boxTitle, std::move (done)))->launchThread();
-}
-
-void RemovalPage::moveCheckedToTrash()
-{
-    // A warning alert: trashing is the more drastic action of the two.
-    auto question = "Move " + describeChecked() + " to the Recycle Bin?";
-
-    if (const auto without = Removal::countWithoutRecycleBin (model.getCheckedEntries()); without > 0)
-        question << "\n\nLeft untouched, because their drive has no usable Recycle Bin (network, removable or turned off): "
-                 << juce::String (without) << ".";
-
-    confirm (juce::MessageBoxIconType::WarningIcon, "Move to Trash", question, "Move to Trash",
-             [this]
-             {
-                 runRemoval ("Moving to the Recycle Bin", [] (std::vector<FileEntry> items, const Removal::Progress& progress)
-                             { return Removal::toTrash (std::move (items), progress); },
-                             "Move to Trash",
-                             [] (const RemovalReport& r) { return "moved to the Recycle Bin.\n" + Format::size (r.bytes) + " freed."; });
-             });
-}
-
-void RemovalPage::deleteChecked()
-{
-    confirm (juce::MessageBoxIconType::WarningIcon, "Delete permanently",
-             "Permanently delete " + describeChecked() + "?\n\nThey bypass the Recycle Bin and can't be restored.", "Delete permanently",
-             [this]
-             {
-                 runRemoval ("Deleting", [] (std::vector<FileEntry> items, const Removal::Progress& progress)
-                             { return Removal::deletePermanently (std::move (items), progress); },
-                             "Delete permanently",
-                             [] (const RemovalReport& r) { return "deleted permanently.\n" + Format::size (r.bytes) + " freed."; });
-             });
-}
-
-void RemovalPage::moveCheckedToFolder()
-{
-    const juce::File last (settings.get ("moveTarget"));
-
-    chooser = std::make_unique<juce::FileChooser> ("Move the checked items to...",
-                                                    last.isDirectory() ? last : (getRootFolder != nullptr ? getRootFolder() : juce::File()));
-
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-                          [safeThis = juce::Component::SafePointer<RemovalPage> (this)] (const juce::FileChooser& fc)
-                          {
-                              const auto destination = fc.getResult();
-
-                              if (safeThis == nullptr || destination == juce::File())
-                                  return;
-
-                              // An info box rather than a warning: moving keeps the files, unlike the Recycle Bin.
-                              safeThis->confirm (juce::MessageBoxIconType::InfoIcon, "Move to folder",
-                                                 "Move " + safeThis->describeChecked() + " to\n" + wrappable (destination) + " ?",
-                                                 "Move",
-                                                 [safeThis, destination]
-                                                 {
-                                                     safeThis->settings.set ("moveTarget", destination.getFullPathName());
-
-                                                     safeThis->runRemoval ("Moving to folder",
-                                                                           [destination] (std::vector<FileEntry> items, const Removal::Progress& progress)
-                                                                           { return Removal::toFolder (std::move (items), destination, progress); },
-                                                                           "Move to folder",
-                                                                           [destination] (const RemovalReport& r)
-                                                                           {
-                                                                               return "moved to " + wrappable (destination) + ".\n" + Format::size (r.bytes) + " moved.";
-                                                                           });
-                                                 });
-                          });
+    itemsGone (files);
+    notifySelection ({});
 }
 
 void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
@@ -406,13 +163,8 @@ void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
         if (! file.exists())
             missing.add (file);
 
-    if (missing.isEmpty())
-        return;
-
-    itemsGone (missing);
-
-    if (onSelectionChanged != nullptr)
-        onSelectionChanged ({});
+    if (! missing.isEmpty())
+        removeFromList (missing);
 }
 
 void RemovalPage::cycleChecks()
@@ -428,11 +180,10 @@ Histogram::Input RemovalPage::getHistogramInput() const
 {
     const auto listed = [] (std::vector<FileEntry> entries)
     {
-        entries.erase (std::remove_if (entries.begin(), entries.end(), [] (const FileEntry& e) { return e.missing; }), entries.end());
-        return entries;
+        return FileScanner::keepIf (std::move (entries), [] (const FileEntry& e) { return ! e.missing; });
     };
 
-    return { listed (model.getAllEntries()), listed (model.getVisibleEntries()), model.getCheckedEntries() };
+    return { listed (model.getAllEntries()), listed (model.getVisibleEntries()), model.getCheckedEntries(), model.getRoot() };
 }
 
 void RemovalPage::updateSummary()
@@ -442,8 +193,8 @@ void RemovalPage::updateSummary()
     const auto checked = Removal::withoutNested (model.getCheckedEntries());
     auto text = summaryText (checked.size(), totalSize (checked));
 
-    if (datesPending > 0)
-        text << "   (reading dates: " << datesPending << " left)";
+    if (const auto note = progressNote(); note.isNotEmpty())
+        text << "   (" << note << ")";
 
     summary.setText (text, juce::dontSendNotification);
 

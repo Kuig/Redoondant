@@ -53,7 +53,7 @@ private:
     std::vector<std::unique_ptr<Criterion>> criteria;
     std::vector<std::unique_ptr<CriterionPage>> pages;
     std::unique_ptr<CleanupPage> cleanupPage;
-    juce::Component* currentPage = nullptr;
+    RemovalPage* currentPage = nullptr;
     juce::File analysedFolder;          ///< The folder the pages were last reset for.
 
     juce::Label folderLabel { {}, "Folder:" };
@@ -95,7 +95,9 @@ private:
     void confirmResetSettings();
     void showPage (int index);
     void showCleanupPage();
-    void setCurrentPage (juce::Component* page);
+    void setCurrentPage (RemovalPage* page);
+    void wirePage (RemovalPage& page);     ///< Connects a page to the folder bar and the preview.
+    void commitFolderText();                ///< The folder text was edited: use it if it is a folder, else restore the previous one.
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

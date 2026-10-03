@@ -151,6 +151,25 @@ public:
             }
         }
 
+        beginTest ("Items changed since the analysis are left untouched");
+        {
+            TempFolder temp;
+            const auto file = temp.write ("a.txt", "as analysed");
+            const auto entry = FileScanner::makeEntry (file);
+
+            file.replaceWithText ("edited afterwards, longer");
+            file.setLastModificationTime (entry.modified + juce::RelativeTime::seconds (60));
+
+            const auto report = Removal::deletePermanently ({ entry });
+            expectEquals (report.processed, 0);
+            expectEquals (report.failures.size(), 1);
+            expect (file.existsAsFile());
+
+            // The same entry, refreshed, is acted on.
+            expectEquals (Removal::deletePermanently ({ FileScanner::makeEntry (file) }).processed, 1);
+            expect (! file.exists());
+        }
+
         beginTest ("Items that are already gone are counted apart");
         {
             TempFolder temp;

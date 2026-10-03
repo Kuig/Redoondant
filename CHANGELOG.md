@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
+- Items modified after the analysis (a duplicate that was edited, a folder that got new files) are left untouched by Move to Trash, Move to folder and
+  Delete permanently, and listed as "changed since the analysis".
+- Move to Trash and Delete permanently warn when every item of some group is checked, so nothing of that group would be kept.
+- Typing a folder that doesn't exist in the folder bar restores the previous folder instead of discarding the results of every criterion.
 - An error (for example out of memory) inside an analysis or a removal no longer closes the program: the analysis reports it, and a removal lists the item as failed.
 - Reading content dates, measuring the Cache Cleaner folders and building previews can no longer touch a closed page, and hiding the *Content created* column after a new analysis no longer leaves a stale date reader running.
 - *Empty files & folders* no longer lists (and checks) a folder that only looks empty because it holds a junction or symbolic link, or because it could not be read.

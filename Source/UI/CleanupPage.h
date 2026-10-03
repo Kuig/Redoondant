@@ -1,5 +1,6 @@
 #pragma once
 
+#include "LatestOnlyWorker.h"
 #include "RemovalPage.h"
 #include <set>
 

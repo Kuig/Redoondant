@@ -70,6 +70,7 @@ namespace Histogram
     struct Input
     {
         std::vector<FileEntry> all, visible, checked;   ///< checked is a subset of visible, visible of all.
+        juce::File root;                                ///< The analysed folder (for the Folder property); none if there is no list.
     };
 
     /** The bars for `property`. Date and size bars are always the same; types are those present; folders are the

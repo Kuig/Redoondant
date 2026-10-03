@@ -4,12 +4,12 @@
 #include "../Core/Removal.h"
 #include "../Core/DefaultSelection.h"
 #include "../Core/Histogram.h"
-#include "LatestOnlyWorker.h"
+#include "RemovalActions.h"
 #include "ResultsTable.h"
 
 /** A page that lists items with check boxes and acts on the checked ones: the results table and the
-    footer (check cycling button, summary, Move to folder / Move to Trash / Delete permanently),
-    with the confirmation and report boxes. Derived pages decide what is listed and what "the checked
+    footer (check cycling button, summary, Move to folder / Move to Trash / Delete permanently).
+    The actions themselves are RemovalActions. Derived pages decide what is listed and what "the checked
     items" means for the actions.
 */
 class RemovalPage : public juce::Component
@@ -26,7 +26,6 @@ public:
 
     /** What the histogram sums up: every entry, the visible ones (filters) and the checked ones. */
     Histogram::Input getHistogramInput() const;
-    juce::File getHistogramRoot() const         { return model.getRoot(); }
 
     /** A bar of the histogram was clicked: set the filters, if the page has any. */
     virtual void applyHistogramBin (Property, const Histogram::Bin&) {}
@@ -34,10 +33,6 @@ public:
 protected:
     explicit RemovalPage (SettingsScope settings);
     ~RemovalPage() override;
-
-    /** Reads the content dates of the listed files in the background (when their column is visible) and fills them in.
-        With `restart`, a running read is abandoned (the list changed); otherwise it is left to finish. */
-    void loadContentDates (bool restart);
 
     SettingsScope settings;
     ResultsModel model;
@@ -61,6 +56,9 @@ protected:
     /** Refreshes the summary line and the buttons' state. */
     void updateSummary();
 
+    /** Tells the preview what is highlighted (nothing: an empty list). */
+    void notifySelection (std::vector<FileEntry> entries);
+
     /** Turns the checked entries into the items the actions operate on, e.g. a folder into its content.
         Runs on the worker thread, so it must be self-contained (not capture the page); empty = use the checked entries as they are.
     */
@@ -68,6 +66,9 @@ protected:
 
     /** "12 items (340 MB)": what the check boxes currently select, as the actions see it. */
     virtual juce::String describeChecked() const;
+
+    /** Groups in which every item is checked: the confirmations warn that nothing of them would be kept. */
+    virtual int groupsWithoutKeptItem() const                   { return 0; }
 
     /** Called with the files that are no longer where they were (moved, deleted): update the list. */
     virtual void itemsGone (const juce::Array<juce::File>& files);
@@ -77,6 +78,12 @@ protected:
 
     /** Called whenever the check states may have changed (before the summary is refreshed). */
     virtual void checksChanged() {}
+
+    /** The table's columns were shown, hidden, moved or sorted (the layout is already saved). */
+    virtual void tableLayoutChanged() {}
+
+    /** Appended to the summary line, e.g. the progress of a background read; empty for none. */
+    virtual juce::String progressNote() const                   { return {}; }
 
     /** The summary line; the default lists what is checked. */
     virtual juce::String summaryText (size_t checkedCount, juce::int64 checkedBytes) const;
@@ -88,31 +95,36 @@ protected:
     static juce::String wrappable (const juce::File& path);
 
 private:
+    /** Lets RemovalActions ask this page (and its overrides) what it needs. */
+    class ActionsHost final : public RemovalActions::Host
+    {
+    public:
+        explicit ActionsHost (RemovalPage& p) : page (p) {}
+
+        std::vector<FileEntry> checkedEntries() const override                                          { return page.model.getCheckedEntries(); }
+        std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expander() const override         { return page.removalExpander(); }
+        juce::String describeChecked() const override                                                   { return page.describeChecked(); }
+        int groupsWithoutKeptItem() const override                                                      { return page.groupsWithoutKeptItem(); }
+        juce::String failureAdvice() const override                                                     { return page.failureAdvice(); }
+        void itemsGone (const juce::Array<juce::File>& files) override                                  { page.removeFromList (files); }
+        juce::File startFolder() const override                                                         { return page.getRootFolder != nullptr ? page.getRootFolder() : juce::File(); }
+
+    private:
+        RemovalPage& page;
+    };
+
     juce::Label summary;
     juce::ComboBox selectionBox;
     DefaultSelection initialSelection = DefaultSelection::none;
     juce::TextButton moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
-    std::unique_ptr<juce::FileChooser> chooser;
-    LatestOnlyWorker dateLoader { true };
-    int datesPending = 0;
+    ActionsHost actionsHost { *this };
+    RemovalActions removal { *this, actionsHost, settings };
 
-    class RemovalJob;
-    using Action = std::function<RemovalReport (std::vector<FileEntry>, const Removal::Progress&)>;
-
-    /** Runs an action on the checked items on a worker thread behind a progress window (with Cancel),
-        then reports the outcome. `done` describes what was achieved, e.g. "moved to the Recycle Bin.".
-    */
-    void runRemoval (const juce::String& windowTitle, Action action, const juce::String& boxTitle,
-                     std::function<juce::String (const RemovalReport&)> done);
-
-    void moveCheckedToTrash();
-    void moveCheckedToFolder();
-    void deleteChecked();
     void cycleChecks();
     void selectDefault (DefaultSelection selection);
 
-    /** Updates the list and tells the user what happened. */
-    void finishRemoval (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done);
+    /** Drops the files from the list (itemsGone) and clears the preview. */
+    void removeFromList (const juce::Array<juce::File>& files);
 
     /** Drops the files that no longer exist (e.g. deleted from the context menu) from the list. */
     void forgetMissing (const juce::Array<juce::File>& files);

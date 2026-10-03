@@ -105,12 +105,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     resetButton.onClick = [this] { resetToDefaults(); };
 
     filterBar = std::make_unique<FilterBar> (settings.child ("filter"));
-    filterBar->onChange = [this]
-    {
-        model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
-        table.refresh();
-        updateSummary();
-    };
+    filterBar->onChange = [this] { applyFilter(); };
     addAndMakeVisible (*filterBar);
     updatePathFilter();
 
@@ -187,7 +182,19 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
                     juce::dontSendNotification);
     status.setTooltip (root.getFullPathName());
     updateSummary();
-    loadContentDates (true);
+    dates.load (true);
+}
+
+void CriterionPage::applyFilter()
+{
+    model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
+    table.refresh();
+    updateSummary();
+}
+
+juce::String CriterionPage::progressNote() const
+{
+    return dates.pending() > 0 ? "reading dates: " + juce::String (dates.pending()) + " left" : juce::String();
 }
 
 void CriterionPage::updatePathFilter()
@@ -196,9 +203,7 @@ void CriterionPage::updatePathFilter()
         return;
 
     filterBar->setRecursive (recursiveToggle.getToggleState());
-    model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
-    table.refresh();
-    updateSummary();
+    applyFilter();
     resized();
 }
 
@@ -221,6 +226,7 @@ void CriterionPage::resetToDefaults()
 
 void CriterionPage::forgetResults()
 {
+    dates.cancel();
     discardResults();
     status.setText ({}, juce::dontSendNotification);
     status.setTooltip ({});

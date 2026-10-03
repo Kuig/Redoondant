@@ -115,6 +115,8 @@
         <FILE id="3Ot1OG" name="AudioPlayer.h" compile="0" resource="0" file="Source/UI/AudioPlayer.h"/>
         <FILE id="W2rj7m" name="CleanupPage.cpp" compile="1" resource="0" file="Source/UI/CleanupPage.cpp"/>
         <FILE id="pN4YUG" name="CleanupPage.h" compile="0" resource="0" file="Source/UI/CleanupPage.h"/>
+        <FILE id="CDLoad1" name="ContentDateLoader.cpp" compile="1" resource="0" file="Source/UI/ContentDateLoader.cpp"/>
+        <FILE id="CDLoad2" name="ContentDateLoader.h" compile="0" resource="0" file="Source/UI/ContentDateLoader.h"/>
         <FILE id="MmjxWk" name="CriterionPage.cpp" compile="1" resource="0"
               file="Source/UI/CriterionPage.cpp"/>
         <FILE id="I9X7H6" name="CriterionPage.h" compile="0" resource="0" file="Source/UI/CriterionPage.h"/>
@@ -133,6 +135,8 @@
               file="Source/UI/PreviewPanel.cpp"/>
         <FILE id="E8JkqH" name="PreviewPanel.h" compile="0" resource="0" file="Source/UI/PreviewPanel.h"/>
         <FILE id="ojM9JQ" name="RemovalPage.cpp" compile="1" resource="0" file="Source/UI/RemovalPage.cpp"/>
+        <FILE id="RmAct01" name="RemovalActions.cpp" compile="1" resource="0" file="Source/UI/RemovalActions.cpp"/>
+        <FILE id="RmAct02" name="RemovalActions.h" compile="0" resource="0" file="Source/UI/RemovalActions.h"/>
         <FILE id="yrUWqE" name="RemovalPage.h" compile="0" resource="0" file="Source/UI/RemovalPage.h"/>
         <FILE id="3MB9n7" name="ResultsModel.cpp" compile="1" resource="0"
               file="Source/UI/ResultsModel.cpp"/>

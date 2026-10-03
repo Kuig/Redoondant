@@ -77,8 +77,9 @@ Source/
   Pdf/        PdfDocument: PDFium wrapper (metadata, page rendering)
   Platform/   Windows services: COM init, shell thumbnails, Property System metadata
   Criteria/   Criterion base class, Parameter declarations, one file per criterion
-  UI/         RemovalPage (checked items + Move/Trash/Delete actions), CriterionPage and CleanupPage
-              (Cache Cleaner) built on it, ResultsModel/ResultsTable, ParametersPanel, FilterBar,
+  UI/         RemovalPage (checked items; its Move/Trash/Delete actions are RemovalActions), CriterionPage and
+              CleanupPage (Cache Cleaner) built on it, ContentDateLoader, LatestOnlyWorker (background jobs whose
+              results only matter while they are the latest), ResultsModel/ResultsTable, ParametersPanel, FilterBar,
               PreviewPanel, TextPreview, AudioPlayer
   Tests/      juce::UnitTest suites
 ```

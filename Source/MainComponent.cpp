@@ -94,24 +94,17 @@ MainComponent::MainComponent (Settings& appSettings)
     for (const auto& criterion : criteria)
     {
         auto page = std::make_unique<CriterionPage> (*criterion, settings.child (criterion->getInfo().id));
-        page->getRootFolder = [this] { return getRootFolder(); };
-        page->onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
-        page->onListChanged = [this, p = page.get()] { if (currentPage == p) preview.refreshHistogram(); };
-        addChildComponent (*page);
+        wirePage (*page);
         pages.push_back (std::move (page));
     }
 
     cleanupPage = std::make_unique<CleanupPage> (settings.child ("cleanup"));
-    cleanupPage->onListChanged = [this] { if (currentPage == cleanupPage.get()) preview.refreshHistogram(); };
-    cleanupPage->onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
-    addChildComponent (*cleanupPage);
-    const auto currentRemovalPage = [this] { return dynamic_cast<RemovalPage*> (currentPage); };
-    preview.histogramInput = [currentRemovalPage] { auto* page = currentRemovalPage(); return page != nullptr ? page->getHistogramInput() : Histogram::Input(); };
-    preview.histogramRoot = [currentRemovalPage] { auto* page = currentRemovalPage(); return page != nullptr ? page->getHistogramRoot() : juce::File(); };
-    preview.onHistogramBin = [currentRemovalPage] (Property property, const Histogram::Bin& bin)
+    wirePage (*cleanupPage);
+    preview.histogramInput = [this] { return currentPage != nullptr ? currentPage->getHistogramInput() : Histogram::Input(); };
+    preview.onHistogramBin = [this] (Property property, const Histogram::Bin& bin)
     {
-        if (auto* page = currentRemovalPage())
-            page->applyHistogramBin (property, bin);
+        if (currentPage != nullptr)
+            currentPage->applyHistogramBin (property, bin);
     };
 
     cacheEntry.setTitle ("Cache Cleaner");
@@ -119,7 +112,7 @@ MainComponent::MainComponent (Settings& appSettings)
 
     const juce::File savedFolder (settings.get ("folder"));
     setRootFolder (savedFolder.isDirectory() ? savedFolder : defaultFolder());
-    folderEditor.onReturnKey = [this] { setRootFolder (juce::File (folderEditor.getText().trim())); };
+    folderEditor.onReturnKey = [this] { commitFolderText(); };
     folderEditor.onFocusLost = folderEditor.onReturnKey;
     browseButton.onClick = [this] { browseForFolder(); };
 
@@ -181,6 +174,25 @@ std::vector<PeerCriterion> MainComponent::describePeers() const
 juce::File MainComponent::getRootFolder() const
 {
     return juce::File (folderEditor.getText().trim());
+}
+
+void MainComponent::wirePage (RemovalPage& page)
+{
+    page.getRootFolder = [this] { return getRootFolder(); };
+    page.onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
+    page.onListChanged = [this, &page] { if (currentPage == &page) preview.refreshHistogram(); };
+    addChildComponent (page);
+}
+
+void MainComponent::commitFolderText()
+{
+    // A refuso or a path that doesn't exist must not discard the results of every page: keep the folder in use.
+    const juce::File typed (folderEditor.getText().trim());
+
+    if (typed.isDirectory())
+        setRootFolder (typed);
+    else
+        folderEditor.setText (analysedFolder.getFullPathName(), false);
 }
 
 void MainComponent::setRootFolder (const juce::File& folder)
@@ -250,7 +262,7 @@ void MainComponent::showCleanupPage()
     setCurrentPage (cleanupPage.get());
 }
 
-void MainComponent::setCurrentPage (juce::Component* page)
+void MainComponent::setCurrentPage (RemovalPage* page)
 {
     for (auto& p : pages)
         p->setVisible (p.get() == page);

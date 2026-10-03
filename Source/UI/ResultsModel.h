@@ -91,6 +91,9 @@ public:
     /** Bulk check states for the visible entries. */
     void applyChecks (BulkCheck checks);
 
+    /** Groups of two or more items in which every item is checked (so nothing of them would be kept). */
+    int countGroupsFullyChecked() const;
+
     /** Checks exactly the entries (missing ones excepted) for which `shouldCheck` is true. */
     void checkWhere (const std::function<bool (const FileEntry&)>& shouldCheck);
 

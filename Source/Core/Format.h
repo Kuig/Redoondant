@@ -15,6 +15,13 @@ namespace Format
                  : date (from) + " - " + date (to);
     }
 
+    /** Text with paths that message boxes can wrap: invisible break opportunities (zero-width spaces) after each separator. */
+    inline juce::String wrappable (const juce::String& text)
+    {
+        const juce::String zeroWidthSpace (juce::CharPointer_UTF8 ("\xe2\x80\x8b"));
+        return text.replace ("\\", "\\" + zeroWidthSpace).replace ("/", "/" + zeroWidthSpace);
+    }
+
     template <typename Integer>
     juce::String count (Integer n, const juce::String& noun)
     {

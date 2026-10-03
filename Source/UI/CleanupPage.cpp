@@ -56,9 +56,7 @@ CleanupPage::CleanupPage (SettingsScope s)
 
     table.onSelectionChanged = [this] (std::vector<FileEntry> entries)
     {
-        if (onSelectionChanged != nullptr)
-            onSelectionChanged (std::move (entries));
-
+        notifySelection (std::move (entries));
         updateButtons();
     };
 

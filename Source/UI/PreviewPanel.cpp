@@ -295,9 +295,9 @@ void PreviewPanel::refreshHistogramNow()
     if (! histogramMode || histogramInput == nullptr)
         return;
 
-    const auto root = histogramRoot != nullptr ? histogramRoot() : juce::File();
     const auto metric = metricBox.getSelectedItemIndex() == 1 ? Metric::size : Metric::count;
-    bins = Histogram::compute (histogramInput(), Histogram::propertyAt (propertyBox.getSelectedItemIndex()), metric, root, juce::Time::getCurrentTime());
+    const auto input = histogramInput();
+    bins = Histogram::compute (input, Histogram::propertyAt (propertyBox.getSelectedItemIndex()), metric, input.root, juce::Time::getCurrentTime());
     histogram.setBins (bins, metric);
 }
 

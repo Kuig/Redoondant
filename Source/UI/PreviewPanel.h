@@ -28,7 +28,6 @@ public:
         and receive the click on a bar (to set filters); set them before the first show().
     */
     std::function<Histogram::Input()> histogramInput;
-    std::function<juce::File()> histogramRoot;
     std::function<void (Property, const Histogram::Bin&)> onHistogramBin;
 
     /** Recomputes the histogram soon (the list, the filters or the checks changed); changes in quick succession count as one. */

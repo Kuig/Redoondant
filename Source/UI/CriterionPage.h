@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Criteria/Peers.h"
+#include "ContentDateLoader.h"
 #include "FilterBar.h"
 #include "ParametersPanel.h"
 #include "RemovalPage.h"
@@ -39,8 +40,14 @@ private:
     std::unique_ptr<FilterBar> filterBar;
     juce::ComboBox groupOrderBox;
     int separatorY = 0;        ///< Where the line between the analysis controls and the filters is drawn.
+    ContentDateLoader dates { model, table, [this] { updateSummary(); } };
+
+    void tableLayoutChanged() override                  { dates.load (false); }     // The column may have just been shown or sorted.
+    juce::String progressNote() const override;
+    int groupsWithoutKeptItem() const override          { return criterion.getInfo().grouped ? model.countGroupsFullyChecked() : 0; }
 
     void analyse();
+    void applyFilter();             ///< The filter bar changed: refilter the list.
     void showResult (AnalysisResult result, const juce::File& root);
     void resetToDefaults();
     void applyDefaultSort();

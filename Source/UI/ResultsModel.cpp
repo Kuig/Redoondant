@@ -146,19 +146,37 @@ juce::String ResultsModel::getCellText (const FileEntry& entry, Column column, c
     return {};
 }
 
+namespace
+{
+    /** What the entries of a list show as one check box: the visible ones that exist can be checked, missing ones don't count. */
+    struct CheckTally
+    {
+        size_t total = 0, checked = 0;
+
+        void add (const FileEntry& e)
+        {
+            if (! e.missing)
+            {
+                ++total;
+                checked += e.selected ? 1 : 0;
+            }
+        }
+
+        CheckState state() const    { return checked == 0 ? CheckState::none : (checked == total ? CheckState::all : CheckState::some); }
+    };
+
+    /** Applies a bulk check state to an entry: all, none, or what the criterion proposed. */
+    void applyBulkCheck (FileEntry& item, BulkCheck phase)
+    {
+        item.selected = ! item.missing && (phase == BulkCheck::all || (phase == BulkCheck::defaults && item.selectedByDefault));
+    }
+}
+
 CheckState ResultsModel::getGroupState (int group) const
 {
-    size_t total = 0, checked = 0;
-    forEachVisible (group, [&] (const FileEntry& e)
-    {
-        if (! e.missing)    // Missing entries can't be checked: they don't count.
-        {
-            ++total;
-            checked += e.selected ? 1 : 0;
-        }
-    });
-
-    return checked == 0 ? CheckState::none : (checked == total ? CheckState::all : CheckState::some);
+    CheckTally tally;
+    forEachVisible (group, [&] (const FileEntry& e) { tally.add (e); });
+    return tally.state();
 }
 
 void ResultsModel::toggle (int row)
@@ -185,24 +203,28 @@ void ResultsModel::cycleGroup (int group)
 
     for (auto& item : g.items)
         if (isVisible (item))
-            item.selected = ! item.missing && (g.phase == BulkCheck::all || (g.phase == BulkCheck::defaults && item.selectedByDefault));
+            applyBulkCheck (item, g.phase);
 }
 
 CheckState ResultsModel::getOverallState() const
 {
-    size_t total = 0, checked = 0;
+    CheckTally tally;
 
     for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const FileEntry& e)
-        {
-            if (! e.missing)
-            {
-                ++total;
-                checked += e.selected ? 1 : 0;
-            }
-        });
+        forEachVisible (g, [&] (const FileEntry& e) { tally.add (e); });
 
-    return checked == 0 ? CheckState::none : (checked == total ? CheckState::all : CheckState::some);
+    return tally.state();
+}
+
+int ResultsModel::countGroupsFullyChecked() const
+{
+    int count = 0;
+
+    for (const auto& group : result.groups)
+        if (group.items.size() >= 2 && std::all_of (group.items.begin(), group.items.end(), [] (const FileEntry& e) { return e.selected; }))
+            ++count;
+
+    return count;
 }
 
 size_t ResultsModel::getVisibleCount() const
@@ -285,7 +307,7 @@ void ResultsModel::applyChecks (BulkCheck checks)
 
         for (auto& item : group.items)
             if (isVisible (item))
-                item.selected = ! item.missing && (checks == BulkCheck::all || (checks == BulkCheck::defaults && item.selectedByDefault));
+                applyBulkCheck (item, checks);
     }
 }
 

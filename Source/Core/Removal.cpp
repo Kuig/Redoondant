@@ -59,6 +59,18 @@ namespace
         juce::String message;       // What to say after the path, for failed and leftBehind.
     };
 
+    /** True if the file was modified since the analysis listed it: it may no longer be what the user reviewed
+        (a duplicate that was edited, a folder that got new files). Entries without a recorded date can't be compared.
+    */
+    bool changedSinceAnalysis (const FileEntry& entry)
+    {
+        if (entry.modified.toMilliseconds() <= 0)
+            return false;
+
+        return entry.file.getLastModificationTime() != entry.modified
+                || (! entry.isDirectory && entry.file.getSize() != entry.size);
+    }
+
     /** Runs `act` on each item (after withoutNested) with progress and cancellation, and fills the report.
         Items that don't exist any more are counted apart: they are gone from the list but not "removed" by us.
     */
@@ -90,6 +102,12 @@ namespace
             {
                 ++report.alreadyGone;
                 report.files.add (entry.file);
+                continue;
+            }
+
+            if (changedSinceAnalysis (entry))
+            {
+                report.failures.add (entry.file.getFullPathName() + "  (changed since the analysis: left untouched)");
                 continue;
             }
 
