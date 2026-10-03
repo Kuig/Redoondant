@@ -11,7 +11,8 @@
     archive listing, audio player) and its metadata. Content is loaded on a background thread;
     only the latest request is displayed.
 */
-class PreviewPanel final : public juce::Component
+class PreviewPanel final : public juce::Component,
+                           private juce::Timer
 {
 public:
     explicit PreviewPanel (SettingsScope settings);
@@ -29,7 +30,7 @@ public:
     std::function<juce::File()> histogramRoot;
     std::function<void (Property, const Histogram::Bin&)> onHistogramBin;
 
-    /** Recomputes the histogram (the list, the filters or the checks changed). */
+    /** Recomputes the histogram soon (the list, the filters or the checks changed); changes in quick succession count as one. */
     void refreshHistogram();
 
     void paint (juce::Graphics&) override;
@@ -72,6 +73,8 @@ private:
     void displayMany (std::vector<Data> all, int notShown);
     void showDetails (const Metadata& details);
     void setHistogramMode (bool shouldShow);
+    void refreshHistogramNow();
+    void timerCallback() override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreviewPanel)
 };

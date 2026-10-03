@@ -9,6 +9,8 @@ namespace
 {
     constexpr int rowHeight = 26;
     constexpr int gap = 8;
+    constexpr size_t maxDateBatch = 1000;       // Content dates handed to the UI thread at a time...
+    constexpr juce::uint32 dateBatchMs = 500;   // ...or after this long.
 
     /** Text with paths that message boxes can wrap: invisible break opportunities (zero-width spaces) after each separator. */
     juce::String wrappable (const juce::String& text)
@@ -134,11 +136,13 @@ void RemovalPage::loadContentDates (bool restart)
     {
         const ScopedComInit com;
         std::vector<std::pair<juce::File, juce::Time>> batch;
+        auto lastFlush = juce::Time::getMillisecondCounter();
 
-        const auto flush = [&batch, safeThis, request]
+        const auto flush = [&batch, &lastFlush, safeThis, request]
         {
             auto sent = std::move (batch);
             batch.clear();
+            lastFlush = juce::Time::getMillisecondCounter();
 
             juce::MessageManager::callAsync ([safeThis, request, sent]
             {
@@ -159,7 +163,8 @@ void RemovalPage::loadContentDates (bool restart)
 
             batch.emplace_back (file, ContentDate::of (file));
 
-            if (batch.size() >= 25)
+            // Each batch costs the UI thread a pass over the whole list: send many at once, but still show progress.
+            if (batch.size() >= maxDateBatch || juce::Time::getMillisecondCounter() - lastFlush >= dateBatchMs)
                 flush();
         }
 

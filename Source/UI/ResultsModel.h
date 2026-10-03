@@ -34,7 +34,8 @@ public:
     using Filter = std::function<bool (const FileEntry&)>;
 
     void setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped);
-    void setFilter (Filter newFilter);
+    /** `usesContentDate`: the filter looks at the content created date, so the rows must be filtered again when dates arrive. */
+    void setFilter (Filter newFilter, bool usesContentDate = false);
 
     /** Forgets the result (e.g. the analysed folder changed): back to the state before the first analysis. */
     void clear();
@@ -105,6 +106,7 @@ private:
     bool grouped = false;
     bool analysed = false;
     Filter filter;
+    bool filterUsesContentDate = false;
     std::optional<DefaultSelection> defaultSelection;
     GroupOrder groupOrder = GroupOrder::analysis;
     Column sortColumn = Column::check;      // Column::check = keep the analysis order.

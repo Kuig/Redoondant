@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
+- The window froze for a long time on big lists while the content dates were being read: they now reach the screen in larger batches,
+  the histogram is refreshed at most every quarter of a second and the folder filters are cheaper.
 - Changing the folder to analyze now discards the results of every criterion; they used to stay on screen
   although they described the previous folder.
 

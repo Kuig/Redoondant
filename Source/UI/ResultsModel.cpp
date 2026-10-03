@@ -62,9 +62,10 @@ void ResultsModel::clear()
     rows.clear();
 }
 
-void ResultsModel::setFilter (Filter newFilter)
+void ResultsModel::setFilter (Filter newFilter, bool usesContentDate)
 {
     filter = std::move (newFilter);
+    filterUsesContentDate = usesContentDate;
     updateViewDependentDefaults();
     rebuildRows();
 }
@@ -288,7 +289,7 @@ void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce
             if (const auto found = byPath.find (item.file.getFullPathName()); found != byPath.end())
                 item.contentCreated = found->second;
 
-    if (sortColumn == Column::contentCreated || filter != nullptr)     // The new dates can change the order and what the filters let through.
+    if (sortColumn == Column::contentCreated || filterUsesContentDate)     // The new dates can change the order and what the filter lets through.
     {
         applySort();
         updateViewDependentDefaults();

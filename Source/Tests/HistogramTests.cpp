@@ -13,6 +13,7 @@ public:
         testBuckets();
         testBars();
         testFolders();
+        testFolderOf();
     }
 
 private:
@@ -100,6 +101,35 @@ private:
 
         const auto types = Histogram::compute (input, Property::type, Metric::size, {}, now);
         expectEquals ((int) types.size(), 3);                       // Text, image, audio: only the types present.
+    }
+
+    void testFolderOf()
+    {
+        beginTest ("Folder of an entry, relative to the analysed folder");
+
+        const auto root = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("histogram");
+        const auto reference = [&] (const juce::File& file, const juce::File& base)
+        {
+            const auto parent = file.getParentDirectory();
+            return base == juce::File() ? parent.getFullPathName() : (parent == base ? juce::String() : parent.getRelativePathFrom (base));
+        };
+
+        for (const auto& path : { "a.txt", "sub/b.txt", "sub/deeper/c.txt", "sub with space/d.txt" })
+        {
+            FileEntry e;
+            e.file = root.getChildFile (path);
+            expectEquals (Histogram::folderOf (e, root), reference (e.file, root));
+            expectEquals (Histogram::folderOf (e, {}), reference (e.file, {}));
+        }
+
+        FileEntry atRoot;
+        atRoot.file = root.getChildFile ("x");
+        expectEquals (Histogram::folderOf (atRoot, root), juce::String());
+        expectEquals (Histogram::folderOf (atRoot, root.getChildFile ("sub")), reference (atRoot.file, root.getChildFile ("sub")));      // Outside the root.
+
+        FileEntry onDrive;
+        onDrive.file = juce::File ("C:\\file.txt");
+        expectEquals (Histogram::folderOf (onDrive, {}), reference (onDrive.file, {}));
     }
 
     void testFolders()

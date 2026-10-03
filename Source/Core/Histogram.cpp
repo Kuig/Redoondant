@@ -75,12 +75,29 @@ Histogram::Buckets::SizeRange Histogram::Buckets::sizeRange (int bucket)
 
 juce::String Histogram::folderOf (const FileEntry& entry, const juce::File& root)
 {
-    const auto parent = entry.file.getParentDirectory();
+    const auto separator = juce::File::getSeparatorChar();
+    const auto& path = entry.file.getFullPathName();
+    const int cut = path.lastIndexOfChar (separator);
+
+    if (cut < 0)
+        return {};
+
+    const auto parent = path.substring (0, cut);
 
     if (root == juce::File())
-        return parent.getFullPathName();
+        return parent;
 
-    return parent == root ? juce::String() : parent.getRelativePathFrom (root);
+    const auto& rootPath = root.getFullPathName();
+
+    if (parent.equalsIgnoreCase (rootPath))
+        return {};
+
+    const int rootLength = rootPath.length() + (rootPath.endsWithChar (separator) ? 0 : 1);
+
+    if (parent.length() > rootLength && parent.startsWithIgnoreCase (rootPath) && parent[rootLength - 1] == separator)
+        return parent.substring (rootLength);
+
+    return parent.isEmpty() ? juce::String() : entry.file.getParentDirectory().getRelativePathFrom (root);     // Outside the root (rare).
 }
 
 void Histogram::Stats::add (const FileEntry& entry)

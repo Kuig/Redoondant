@@ -17,6 +17,7 @@ namespace
     constexpr int renderPixels = 800;
     constexpr int iconPixels = 128;
     constexpr int maxTiles = 12;
+    constexpr int histogramDelayMs = 250;       // Longest wait before the histogram follows a change of the list.
     const juce::String pathKey ("Base.Path");
 
     void setUpReadOnly (juce::TextEditor& editor)
@@ -240,7 +241,7 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     {
         histogramSettings.set ("property", propertyBox.getSelectedItemIndex());
         histogramSettings.set ("metric", metricBox.getSelectedItemIndex());
-        refreshHistogram();
+        refreshHistogramNow();
     };
     histogram.setLogScale (histogramSettings.getBool ("log", false));
     histogram.onLogChanged = [this] (bool log) { histogramSettings.set ("log", log); };
@@ -277,6 +278,20 @@ void PreviewPanel::setHistogramMode (bool shouldShow)
 
 void PreviewPanel::refreshHistogram()
 {
+    if (histogramMode && ! isTimerRunning())
+        startTimer (histogramDelayMs);
+}
+
+void PreviewPanel::timerCallback()
+{
+    stopTimer();
+    refreshHistogramNow();
+}
+
+void PreviewPanel::refreshHistogramNow()
+{
+    stopTimer();
+
     if (! histogramMode || histogramInput == nullptr)
         return;
 
@@ -299,7 +314,7 @@ void PreviewPanel::show (std::vector<FileEntry> entries)
         title.setText ("No selection", juce::dontSendNotification);
         display ({});
         setHistogramMode (true);
-        refreshHistogram();
+        refreshHistogramNow();
         return;
     }
 

@@ -46,6 +46,11 @@ FilterBar::FilterBar (SettingsScope settings)
     addAndMakeVisible (panel);
 }
 
+bool FilterBar::usesContentDate() const
+{
+    return (DateKind) parameters.getChoice ("dateKind") == DateKind::content && parameters.getChoice ("age") > 0;
+}
+
 ResultsModel::Filter FilterBar::createFilter() const
 {
     const auto name = parameters.getText ("name").trim();

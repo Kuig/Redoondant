@@ -27,6 +27,9 @@ public:
     /** Sets the filters so that only the entries of a histogram bar are shown (again: takes them off). */
     void applyBin (Property property, const Histogram::Bin& bin);
 
+    /** Whether the filter looks at the content created date (which is read in the background). */
+    bool usesContentDate() const;
+
     /** A predicate reflecting the current filter values. */
     ResultsModel::Filter createFilter() const;
 

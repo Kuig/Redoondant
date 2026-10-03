@@ -97,7 +97,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     filterBar = std::make_unique<FilterBar> (settings.child ("filter"));
     filterBar->onChange = [this]
     {
-        model.setFilter (filterBar->createFilter());
+        model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
         table.refresh();
         updateSummary();
     };
@@ -168,7 +168,7 @@ void CriterionPage::analyse()
 void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
 {
     filterBar->setRoot (root);
-    model.setFilter (filterBar->createFilter());
+    model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
     model.setResult (std::move (result), root, criterion.getInfo().grouped);
     checks = ResultsModel::Checks::defaults;
     table.refresh();
@@ -186,7 +186,7 @@ void CriterionPage::updatePathFilter()
         return;
 
     filterBar->setRecursive (recursiveToggle.getToggleState());
-    model.setFilter (filterBar->createFilter());
+    model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
     table.refresh();
     updateSummary();
     resized();
