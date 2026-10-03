@@ -26,12 +26,12 @@ ParameterSet FilterBar::createParameters()
     return { Parameter::text ("name", "Name contains", {}, 120),
              Parameter::text ("notName", "and not", {}, 120),
              Parameter::text ("folder", "in folder", {}, 120),
-             Parameter::text ("excludePath", "exclude if path contains (;)", {}, 160),
              Parameter::multiChoice ("type", {}, "All types", types),
              kind,
              age,
              Parameter::number ("minSize", "Size from", 0, "MB"),
-             Parameter::number ("maxSize", "to", 0, "MB (0 = any)") };
+             Parameter::number ("maxSize", "to", 0, "MB (0 = any)"),
+             Parameter::text ("excludePath", "exclude if path contains (;)", {}, 160) };       // Last: it comes and goes with Recursive, and nothing moves.
 }
 
 FilterBar::FilterBar (SettingsScope settings)
