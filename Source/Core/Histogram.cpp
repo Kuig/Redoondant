@@ -27,8 +27,7 @@ std::optional<DateKind> Histogram::dateKindOf (Property property)
 
 const juce::StringArray& Histogram::Buckets::dateNames()
 {
-    static const juce::StringArray names { "Today", "1-7 days ago", "7-30 days ago", "30 days - 1 year ago", "1-2 years ago",
-                                           "More than 2 years ago", "Unknown date" };
+    static const juce::StringArray names { "Today", "1-7d", "7-30d", "30d-1y", "1-2y", ">2y", "Unknown date" };
     return names;
 }
 

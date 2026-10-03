@@ -20,6 +20,40 @@ namespace
     }
 }
 
+HistogramView::HistogramView()
+{
+    logButton.setTooltip ("Logarithmic scale for the height of the bars");
+    logButton.onClick = [this]
+    {
+        repaint();
+
+        if (onLogChanged != nullptr)
+            onLogChanged (logButton.getToggleState());
+    };
+    addAndMakeVisible (logButton);
+}
+
+void HistogramView::setLogScale (bool shouldBeLog)
+{
+    logButton.setToggleState (shouldBeLog, juce::dontSendNotification);
+    repaint();
+}
+
+void HistogramView::resized()
+{
+    auto legend = getLocalBounds().removeFromBottom (legendHeight);
+    logButton.setBounds (legend.removeFromRight (56));
+}
+
+double HistogramView::heightFraction (juce::int64 value, juce::int64 most) const
+{
+    if (value <= 0 || most <= 0)
+        return 0.0;
+
+    return logButton.getToggleState() ? std::log10 (1.0 + (double) value) / std::log10 (1.0 + (double) most)
+                                      : (double) value / (double) most;
+}
+
 void HistogramView::setBins (std::vector<Histogram::Bin> newBins, Metric newMetric)
 {
     bins = std::move (newBins);
@@ -72,6 +106,30 @@ void HistogramView::paint (juce::Graphics& g)
         return;
     }
 
+    const auto plot = plotArea();
+    const int baseline = plot.getBottom() - labelHeight;
+    const int fullHeight = baseline - (plot.getY() + valueHeight);
+    const auto yOf = [&] (juce::int64 value) { return baseline - (int) std::ceil ((double) fullHeight * heightFraction (value, most)); };
+
+    // Light horizontal grid: even steps on a linear scale, decades (powers of 1024 for sizes) on a logarithmic one.
+    g.setColour (text.withAlpha (0.12f));
+
+    if (logButton.getToggleState())
+    {
+        const double step = metric == Metric::count ? 10.0 : 1024.0;
+
+        for (double tick = metric == Metric::count ? 1.0 : 1024.0; tick <= (double) most; tick *= step)
+            g.drawHorizontalLine (yOf ((juce::int64) tick), (float) plot.getX(), (float) plot.getRight());
+    }
+    else
+    {
+        for (int k = 1; k <= 4; ++k)
+            g.drawHorizontalLine (yOf (most * k / 4), (float) plot.getX(), (float) plot.getRight());
+    }
+
+    g.setColour (text.withAlpha (0.35f));
+    g.drawHorizontalLine (baseline, (float) plot.getX(), (float) plot.getRight());
+
     for (int i = 0; i < (int) bins.size(); ++i)
     {
         const auto& bin = bins[(size_t) i];
@@ -88,17 +146,16 @@ void HistogramView::paint (juce::Graphics& g)
         g.setFont (juce::FontOptions (12.0f));
         g.drawFittedText (bin.label, column.removeFromBottom (labelHeight).reduced (2, 0), juce::Justification::centredTop, 2, 0.9f);
 
-        auto bars = column.withTrimmedTop (valueHeight).reduced (barGap, 0);
-        const int fullHeight = bars.getHeight();
+        const auto bars = column.reduced (barGap, 0);
 
         const auto draw = [&] (const Histogram::Stats& stats, juce::Colour colour)
         {
-            const int h = (int) std::ceil ((double) fullHeight * (double) Histogram::valueOf (stats, metric) / (double) most);
+            const int top = yOf (Histogram::valueOf (stats, metric));
 
-            if (h > 0)
+            if (top < baseline)
             {
                 g.setColour (colour);
-                g.fillRect (juce::Rectangle<int> (bars.getX(), bars.getBottom() - h, bars.getWidth(), h));
+                g.fillRect (juce::Rectangle<int> (bars.getX(), top, bars.getWidth(), baseline - top));
             }
         };
 
@@ -106,16 +163,20 @@ void HistogramView::paint (juce::Graphics& g)
         draw (bin.filtered, visibleColour);
         draw (bin.checked, checkedColour);
 
-        // The value of what is shown, above the highest layer.
-        const int top = bars.getBottom() - (int) std::ceil ((double) fullHeight * (double) Histogram::valueOf (bin.total, metric) / (double) most);
-        g.setColour (text);
-        g.setFont (juce::FontOptions (11.0f));
-        g.drawFittedText (valueText (bin.filtered), juce::Rectangle<int> (column.getX(), top - valueHeight, column.getWidth(), valueHeight),
-                          juce::Justification::centredBottom, 1, 0.7f);
+        // The value above the bar: what is shown, and the total when the filters hide some. Nothing for an empty bar.
+        if (bin.total.count > 0)
+        {
+            const auto shown = valueText (bin.filtered), all = valueText (bin.total);
+            g.setColour (text);
+            g.setFont (juce::FontOptions (11.0f));
+            g.drawFittedText (shown == all ? all : shown + "/" + all,
+                              juce::Rectangle<int> (column.getX(), yOf (Histogram::valueOf (bin.total, metric)) - valueHeight, column.getWidth(), valueHeight),
+                              juce::Justification::centredBottom, 1, 0.7f);
+        }
     }
 
-    // Legend.
-    auto legend = getLocalBounds().removeFromBottom (legendHeight).reduced (2, 4);
+    // Legend (the log check box is at its right end).
+    auto legend = getLocalBounds().removeFromBottom (legendHeight).withTrimmedRight (56).reduced (2, 4);
     g.setFont (juce::FontOptions (12.0f));
 
     for (const auto& [colour, name] : { std::pair<juce::Colour, const char*> { allColour, "All" }, { visibleColour, "Shown (filters)" }, { checkedColour, "Checked" } })

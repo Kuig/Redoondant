@@ -242,6 +242,8 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
         histogramSettings.set ("metric", metricBox.getSelectedItemIndex());
         refreshHistogram();
     };
+    histogram.setLogScale (histogramSettings.getBool ("log", false));
+    histogram.onLogChanged = [this] (bool log) { histogramSettings.set ("log", log); };
     histogram.onBinClicked = [this] (int index)
     {
         if (onHistogramBin != nullptr && juce::isPositiveAndBelow (index, (int) bins.size()))

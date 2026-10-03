@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 ### Added
 - Histogram in the preview area while nothing is selected: folder, size, modified, created, content created or type, by number of items
-  or by total size, with three layers (all items, items passing the filters, checked items), statistics on hover and a click
+  or by total size (linear or logarithmic), with three layers (all items, items passing the filters, checked items), statistics on hover and a click
   on a bar that sets the filters to show only its items.
 - Filters: *in folder*, and the kind of date to filter by (modified, created or content created).
 

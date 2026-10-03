@@ -21,7 +21,7 @@ namespace Histogram
     /** Buckets shared by the histogram and the filters, so a bar and the filter it sets always agree. */
     namespace Buckets
     {
-        /** Today, 1-7 days, 7-30 days, 30 days-1 year, 1-2 years, more than 2 years ago, then "unknown date". */
+        /** Today, 1-7d, 7-30d, 30d-1y, 1-2y, >2y (days and years ago), then "unknown date". */
         const juce::StringArray& dateNames();
         constexpr int unknownDate = 6;
 
