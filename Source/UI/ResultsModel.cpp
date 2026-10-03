@@ -1,5 +1,6 @@
 #include "ResultsModel.h"
 #include "../Core/Format.h"
+#include "../Core/Histogram.h"
 #include <limits>
 #include <map>
 #include <set>
@@ -160,12 +161,7 @@ juce::String ResultsModel::getCellText (const FileEntry& entry, Column column, c
             return entry.name();
         case Column::folder:
         {
-            const auto parent = entry.file.getParentDirectory();
-
-            if (root == juce::File())       // No analysed folder: show where the item is.
-                return parent.getFullPathName();
-
-            return parent == root ? juce::String() : parent.getRelativePathFrom (root);
+            return Histogram::folderOf (entry, root);       // No analysed folder: where the item is.
         }
         case Column::size:      return entry.missing ? juce::String ("-") : Format::size (entry.size);
         case Column::modified:  return Format::date (entry.modified);
@@ -282,7 +278,7 @@ void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce
             if (const auto found = byPath.find (item.file.getFullPathName()); found != byPath.end())
                 item.contentCreated = found->second;
 
-    if (sortColumn == Column::contentCreated)
+    if (sortColumn == Column::contentCreated || filter != nullptr)     // The new dates can change the order and what the filters let through.
     {
         applySort();
         updateViewDependentDefaults();

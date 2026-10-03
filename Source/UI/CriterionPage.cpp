@@ -163,6 +163,8 @@ void CriterionPage::analyse()
 
 void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
 {
+    filterBar->setRoot (root);
+    model.setFilter (filterBar->createFilter());
     model.setResult (std::move (result), root, criterion.getInfo().grouped);
     checks = ResultsModel::Checks::defaults;
     table.refresh();

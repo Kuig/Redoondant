@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../Core/Histogram.h"
 #include "ParametersPanel.h"
 #include "ResultsModel.h"
 
@@ -10,6 +11,12 @@ class FilterBar final : public juce::Component
 {
 public:
     explicit FilterBar (SettingsScope settings);
+
+    /** The analysed folder, which the Folder filter is relative to. Call createFilter() again afterwards. */
+    void setRoot (const juce::File& newRoot)    { root = newRoot; }
+
+    /** Sets the filters so that only the entries of a histogram bar are shown (again: takes them off). */
+    void applyBin (Property property, const Histogram::Bin& bin);
 
     /** A predicate reflecting the current filter values. */
     ResultsModel::Filter createFilter() const;
@@ -23,6 +30,7 @@ public:
 private:
     ParameterSet parameters;
     ParametersPanel panel;
+    juce::File root;
 
     static ParameterSet createParameters();
 

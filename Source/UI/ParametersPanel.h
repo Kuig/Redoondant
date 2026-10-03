@@ -15,6 +15,9 @@ public:
 
     void resetToDefaults();
 
+    /** Sets some parameters from outside (e.g. a histogram bar that sets filters), updating editors and settings; one onChange. */
+    void setValues (const std::vector<std::pair<juce::String, juce::var>>& values);
+
     /** Height needed to show all editors at the given width. */
     int getHeightForWidth (int width) const;
 

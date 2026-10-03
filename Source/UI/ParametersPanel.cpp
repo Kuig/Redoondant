@@ -246,6 +246,25 @@ void ParametersPanel::changed (Parameter& parameter, const juce::var& newValue)
         onChange();
 }
 
+void ParametersPanel::setValues (const std::vector<std::pair<juce::String, juce::var>>& values)
+{
+    for (size_t i = 0; i < editors.size(); ++i)
+    {
+        auto& parameter = parameters.all()[i];
+        const auto found = std::find_if (values.begin(), values.end(), [&] (const auto& v) { return v.first == parameter.id; });
+
+        if (found == values.end())
+            continue;
+
+        parameter.value = found->second;
+        settings.set (parameter.id, parameter.value);
+        editors[i]->refresh();
+    }
+
+    if (onChange != nullptr)
+        onChange();
+}
+
 void ParametersPanel::resetToDefaults()
 {
     for (size_t i = 0; i < editors.size(); ++i)
