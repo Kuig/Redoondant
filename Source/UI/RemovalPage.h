@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../Core/Settings.h"
-#include "../Core/Trash.h"
+#include "../Core/Removal.h"
 #include "../Core/DefaultSelection.h"
 #include "../Core/Histogram.h"
 #include "ResultsTable.h"
@@ -97,7 +97,7 @@ private:
     int datesPending = 0;
 
     class RemovalJob;
-    using Action = std::function<RemovalReport (std::vector<FileEntry>, const Trash::Progress&)>;
+    using Action = std::function<RemovalReport (std::vector<FileEntry>, const Removal::Progress&)>;
 
     /** Runs an action on the checked items on a worker thread behind a progress window (with Cancel),
         then reports the outcome. `done` describes what was achieved, e.g. "moved to the Recycle Bin.".

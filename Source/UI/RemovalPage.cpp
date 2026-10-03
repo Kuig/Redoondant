@@ -1,6 +1,7 @@
 #include "RemovalPage.h"
 #include "../Core/Format.h"
 #include "../Core/MoveToFolder.h"
+#include "../Core/Removal.h"
 #include "../Metadata/ContentDate.h"
 #include "../Platform/ComInit.h"
 #include "../Platform/ShellContextMenu.h"
@@ -198,7 +199,7 @@ void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
 juce::String RemovalPage::describeChecked() const
 {
     juce::int64 bytes = 0;
-    const auto checked = Trash::withoutNested (model.getCheckedEntries());
+    const auto checked = Removal::withoutNested (model.getCheckedEntries());
 
     for (const auto& entry : checked)
         bytes += entry.size;
@@ -243,12 +244,15 @@ void RemovalPage::confirm (juce::MessageBoxIconType icon, const juce::String& bo
 
 void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done)
 {
-    itemsGone (report.movedFiles);
+    itemsGone (report.files);
 
     if (onSelectionChanged != nullptr)
         onSelectionChanged ({});
 
-    auto message = Format::count ((size_t) report.moved, "item") + " " + done;
+    auto message = Format::count ((size_t) report.processed, "item") + " " + done;
+
+    if (report.alreadyGone > 0)
+        message << "\n" << Format::count ((size_t) report.alreadyGone, "item") << " didn't exist any more.";
 
     if (report.cancelled)
         message << "\n\nStopped before the end: the remaining items were left untouched.";
@@ -262,8 +266,13 @@ void RemovalPage::finishRemoval (const RemovalReport& report, const juce::String
             message << "\n\n" << advice;
     }
 
-    juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() ? juce::MessageBoxIconType::InfoIcon
-                                                                      : juce::MessageBoxIconType::WarningIcon,
+    if (! report.leftBehind.isEmpty())
+        message << "\n\n" << Format::count ((size_t) report.leftBehind.size(), "item")
+                << " copied to the destination, but the original could not be removed completely (a file may be in use). "
+                   "Both copies exist:\n" << ::wrappable (report.leftBehind.joinIntoString ("\n"));
+
+    juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() && report.leftBehind.isEmpty() ? juce::MessageBoxIconType::InfoIcon
+                                                                                                     : juce::MessageBoxIconType::WarningIcon,
                                             boxTitle, message);
 }
 
@@ -325,14 +334,19 @@ void RemovalPage::runRemoval (const juce::String& windowTitle, Action action, co
 void RemovalPage::moveCheckedToTrash()
 {
     // A warning alert: trashing is the more drastic action of the two.
-    confirm (juce::MessageBoxIconType::WarningIcon, "Move to Trash",
-             "Move " + describeChecked() + " to the Recycle Bin?", "Move to Trash",
+    auto question = "Move " + describeChecked() + " to the Recycle Bin?";
+
+    if (const auto without = Removal::countWithoutRecycleBin (model.getCheckedEntries()); without > 0)
+        question << "\n\nLeft untouched, because their drive has no usable Recycle Bin (network, removable or turned off): "
+                 << juce::String (without) << ".";
+
+    confirm (juce::MessageBoxIconType::WarningIcon, "Move to Trash", question, "Move to Trash",
              [this]
              {
-                 runRemoval ("Moving to the Recycle Bin", [] (std::vector<FileEntry> items, const Trash::Progress& progress)
-                             { return Trash::moveToTrash (std::move (items), progress); },
+                 runRemoval ("Moving to the Recycle Bin", [] (std::vector<FileEntry> items, const Removal::Progress& progress)
+                             { return Removal::toTrash (std::move (items), progress); },
                              "Move to Trash",
-                             [] (const RemovalReport& r) { return "moved to the Recycle Bin.\n" + Format::size (r.bytesMoved) + " freed."; });
+                             [] (const RemovalReport& r) { return "moved to the Recycle Bin.\n" + Format::size (r.bytes) + " freed."; });
              });
 }
 
@@ -342,10 +356,10 @@ void RemovalPage::deleteChecked()
              "Permanently delete " + describeChecked() + "?\n\nThey bypass the Recycle Bin and can't be restored.", "Delete permanently",
              [this]
              {
-                 runRemoval ("Deleting", [] (std::vector<FileEntry> items, const Trash::Progress& progress)
-                             { return Trash::deletePermanently (std::move (items), progress); },
+                 runRemoval ("Deleting", [] (std::vector<FileEntry> items, const Removal::Progress& progress)
+                             { return Removal::deletePermanently (std::move (items), progress); },
                              "Delete permanently",
-                             [] (const RemovalReport& r) { return "deleted permanently.\n" + Format::size (r.bytesMoved) + " freed."; });
+                             [] (const RemovalReport& r) { return "deleted permanently.\n" + Format::size (r.bytes) + " freed."; });
              });
 }
 
@@ -373,12 +387,12 @@ void RemovalPage::moveCheckedToFolder()
                                                      safeThis->settings.set ("moveTarget", destination.getFullPathName());
 
                                                      safeThis->runRemoval ("Moving to folder",
-                                                                           [destination] (std::vector<FileEntry> items, const Trash::Progress& progress)
-                                                                           { return MoveToFolder::run (std::move (items), destination, progress); },
+                                                                           [destination] (std::vector<FileEntry> items, const Removal::Progress& progress)
+                                                                           { return Removal::toFolder (std::move (items), destination, progress); },
                                                                            "Move to folder",
                                                                            [destination] (const RemovalReport& r)
                                                                            {
-                                                                               return "moved to " + wrappable (destination) + ".\n" + Format::size (r.bytesMoved) + " moved.";
+                                                                               return "moved to " + wrappable (destination) + ".\n" + Format::size (r.bytes) + " moved.";
                                                                            });
                                                  });
                           });
@@ -425,7 +439,7 @@ void RemovalPage::updateSummary()
 {
     checksChanged();
 
-    const auto checked = Trash::withoutNested (model.getCheckedEntries());
+    const auto checked = Removal::withoutNested (model.getCheckedEntries());
     juce::int64 bytes = 0;
 
     for (const auto& entry : checked)

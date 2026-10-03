@@ -4,6 +4,7 @@
 #include "../Core/ContentHasher.h"
 #include "../Core/Histogram.h"
 #include "../Core/MoveToFolder.h"
+#include "../Core/Removal.h"
 #include "../Core/Settings.h"
 #include "../Metadata/ContentDate.h"
 #include "../Metadata/MetadataDiff.h"
@@ -567,14 +568,14 @@ private:
         std::vector<double> fractions;
         juce::StringArray seen;
 
-        const auto report = Trash::deletePermanently (entries, [&] (double fraction, const juce::String& itemName)
+        const auto report = Removal::deletePermanently (entries, [&] (double fraction, const juce::String& itemName)
         {
             fractions.push_back (fraction);
             seen.add (itemName);
             return true;
         });
 
-        expectEquals (report.moved, 4);
+        expectEquals (report.processed, 4);
         expect (! report.cancelled);
         expectEquals ((int) fractions.size(), 4);
         expectEquals (fractions.front(), 0.0);
@@ -590,10 +591,10 @@ private:
         const auto dest = temp.root.getChildFile ("dest");
         dest.createDirectory();
         int calls = 0;
-        const auto partial = MoveToFolder::run (more, dest, [&] (double, const juce::String&) { return ++calls <= 2; });
+        const auto partial = Removal::toFolder (more, dest, [&] (double, const juce::String&) { return ++calls <= 2; });
 
         expect (partial.cancelled);
-        expectEquals (partial.moved, 2);
+        expectEquals (partial.processed, 2);
         expectEquals (dest.getNumberOfChildFiles (juce::File::findFiles), 2);
         expectEquals (temp.root.getNumberOfChildFiles (juce::File::findFiles), 2);      // g2, g3 were left where they were.
     }

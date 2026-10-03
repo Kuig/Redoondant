@@ -3,7 +3,8 @@
 #include "TestHelpers.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Grouping.h"
-#include "../Core/Trash.h"
+#include "../Core/Removal.h"
+#include "../Platform/RecycleBin.h"
 #include "../Criteria/AllCriteria.h"
 
 namespace
@@ -71,8 +72,18 @@ public:
             return e;
         };
 
-        const auto kept = Trash::withoutNested ({ make ("a"), make ("a/b.txt"), make ("a/c/d"), make ("a b"), make ("a b"), make ("e.txt") });
+        const auto kept = Removal::withoutNested ({ make ("a"), make ("a/b.txt"), make ("a/c/d"), make ("a b"), make ("a b"), make ("e.txt") });
         expectEquals ((int) kept.size(), 3);
+
+        if (! juce::File::areFileNamesCaseSensitive())
+        {
+            beginTest ("Nested entries are found whatever the case of the path");
+            const auto mixed = Removal::withoutNested ({ make ("Folder"), make ("FOLDER/inner.txt"), make ("folder") });
+            expectEquals ((int) mixed.size(), 1);
+        }
+
+        beginTest ("Recycle Bin support is only claimed for local fixed drives");
+        expect (! RecycleBin::isSupported (juce::File ("\\\\server\\share\\file.txt")));
     }
 };
 

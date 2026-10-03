@@ -40,8 +40,8 @@
         <FILE id="77xzKO" name="MoveToFolder.h" compile="0" resource="0" file="Source/Core/MoveToFolder.h"/>
         <FILE id="MOkIUp" name="ScanContext.h" compile="0" resource="0" file="Source/Core/ScanContext.h"/>
         <FILE id="kDyr7O" name="Settings.h" compile="0" resource="0" file="Source/Core/Settings.h"/>
-        <FILE id="SJoRu1" name="Trash.cpp" compile="1" resource="0" file="Source/Core/Trash.cpp"/>
-        <FILE id="XXdo0c" name="Trash.h" compile="0" resource="0" file="Source/Core/Trash.h"/>
+        <FILE id="SJoRu1" name="Removal.cpp" compile="1" resource="0" file="Source/Core/Removal.cpp"/>
+        <FILE id="XXdo0c" name="Removal.h" compile="0" resource="0" file="Source/Core/Removal.h"/>
       </GROUP>
       <GROUP id="{Zuzren}" name="Criteria">
         <FILE id="68K4Tu" name="AllCriteria.h" compile="0" resource="0" file="Source/Criteria/AllCriteria.h"/>
@@ -89,6 +89,7 @@
         <FILE id="a589DT" name="ComInit.h" compile="0" resource="0" file="Source/Platform/ComInit.h"/>
         <FILE id="ZoQalL" name="ShellContextMenu.h" compile="0" resource="0"
               file="Source/Platform/ShellContextMenu.h"/>
+        <FILE id="RcBin1" name="RecycleBin.h" compile="0" resource="0" file="Source/Platform/RecycleBin.h"/>
         <FILE id="b0oKxQ" name="ShellIcon.h" compile="0" resource="0" file="Source/Platform/ShellIcon.h"/>
         <FILE id="HDLDFV" name="ShellThumbnail.h" compile="0" resource="0"
               file="Source/Platform/ShellThumbnail.h"/>

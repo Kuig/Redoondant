@@ -3,8 +3,8 @@
 #include "TestHelpers.h"
 #include "../Core/EmptyFolders.h"
 #include "../Core/MoveToFolder.h"
+#include "../Core/Removal.h"
 #include "../Core/Settings.h"
-#include "../Core/Trash.h"
 
 class CleanupTests final : public juce::UnitTest
 {
@@ -100,9 +100,9 @@ private:
             const auto contents = EmptyFolders::contentsOf (cache);
             expectEquals ((int) contents.size(), 2);
 
-            const auto report = Trash::deletePermanently (contents);
-            expectEquals (report.moved, 2);
-            expectEquals (report.bytesMoved, (juce::int64) 6);
+            const auto report = Removal::deletePermanently (contents);
+            expectEquals (report.processed, 2);
+            expectEquals (report.bytes, (juce::int64) 6);
             expect (report.failures.isEmpty());
             expect (cache.isDirectory());
             expectEquals (cache.getNumberOfChildFiles (juce::File::findFilesAndDirectories), 0);
@@ -117,8 +117,8 @@ private:
             const auto dest = temp.root.getChildFile ("moved");
             dest.createDirectory();
 
-            const auto report = MoveToFolder::run (EmptyFolders::contentsOf (cache), dest);
-            expectEquals (report.moved, 2);
+            const auto report = Removal::toFolder (EmptyFolders::contentsOf (cache), dest);
+            expectEquals (report.processed, 2);
             expect (cache.isDirectory() && cache.getNumberOfChildFiles (juce::File::findFilesAndDirectories) == 0);
             expect (dest.getChildFile ("sub/b.bin").existsAsFile());
         }
@@ -129,8 +129,8 @@ private:
             const auto inner = temp.write ("tree/x.txt", "x");
             const auto tree = inner.getParentDirectory();
 
-            auto report = Trash::deletePermanently ({ FileEntry::fromFile (tree), FileEntry::fromFile (inner) });
-            expectEquals (report.moved, 1);
+            auto report = Removal::deletePermanently ({ FileEntry::fromFile (tree), FileEntry::fromFile (inner) });
+            expectEquals (report.processed, 1);
             expect (! tree.exists());
 
         }

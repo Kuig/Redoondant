@@ -8,7 +8,11 @@ juce::File MoveToFolder::uniqueTarget (const juce::File& destination, const juce
         return plain;
 
     // "report.pdf" -> "report (2).pdf", "report (3).pdf"... (Explorer-style numbering).
-    const auto extension = juce::File (name).getFileExtension();
+    auto extension = juce::File (name).getFileExtension();
+
+    if (extension.length() == name.length())    // ".gitignore": a name that is only an "extension" has no stem to number.
+        extension = {};
+
     const auto stem = name.dropLastCharacters (extension.length());
 
     for (int number = 2;; ++number)
@@ -20,77 +24,98 @@ juce::File MoveToFolder::uniqueTarget (const juce::File& destination, const juce
     }
 }
 
-bool MoveToFolder::moveItem (const juce::File& source, const juce::File& target, bool forceCopy)
+namespace
 {
-    if (target.exists())
-        return false;   // moveFileTo would delete it.
-
-    if (! forceCopy && source.moveFileTo (target))
-        return true;
-
-    if (! source.isDirectory())
-        return forceCopy && source.copyFileTo (target) && source.deleteFile();
-
-    // Folders can't be renamed across drives: copy, and only then remove the original.
-    if (! source.copyDirectoryTo (target))
+    struct TreeSize
     {
-        target.deleteRecursively();     // Don't leave a partial copy behind.
-        return false;
+        int items = 0;
+        juce::int64 bytes = 0;
+        bool hasLinks = false;
+    };
+
+    TreeSize measure (const juce::File& folder)
+    {
+        TreeSize total;
+
+        for (const auto& entry : juce::RangedDirectoryIterator (folder, false, "*", juce::File::findFilesAndDirectories,
+                                                                juce::File::FollowSymlinks::no))
+        {
+            const auto file = entry.getFile();
+
+            if (file.isSymbolicLink())
+            {
+                total.hasLinks = true;
+                continue;
+            }
+
+            ++total.items;
+
+            if (entry.isDirectory())
+            {
+                const auto inner = measure (file);
+                total.items += inner.items;
+                total.bytes += inner.bytes;
+                total.hasLinks = total.hasLinks || inner.hasLinks;
+            }
+            else
+            {
+                total.bytes += entry.getFileSize();
+            }
+        }
+
+        return total;
     }
 
-    return source.deleteRecursively();
+    /** Copies a folder tree without following links; false if anything could not be copied. */
+    bool copyTree (const juce::File& source, const juce::File& target)
+    {
+        if (! target.createDirectory())
+            return false;
+
+        for (const auto& entry : juce::RangedDirectoryIterator (source, false, "*", juce::File::findFilesAndDirectories,
+                                                                juce::File::FollowSymlinks::no))
+        {
+            const auto file = entry.getFile();
+            const auto copy = target.getChildFile (file.getFileName());
+
+            if (entry.isDirectory() ? ! copyTree (file, copy) : ! file.copyFileTo (copy))
+                return false;
+        }
+
+        return true;
+    }
 }
 
-RemovalReport MoveToFolder::run (std::vector<FileEntry> entries, const juce::File& destination, const Trash::Progress& progress)
+MoveToFolder::Outcome MoveToFolder::moveItem (const juce::File& source, const juce::File& target, bool forceCopy)
 {
-    RemovalReport report;
+    if (target.exists())
+        return Outcome::failed;     // moveFileTo would delete it.
 
-    if (! destination.isDirectory())
+    if (! forceCopy && source.moveFileTo (target))
+        return Outcome::moved;
+
+    if (! source.isDirectory())
     {
-        report.failures.add ("The destination folder doesn't exist: " + destination.getFullPathName());
-        return report;
+        if (! source.copyFileTo (target))
+            return Outcome::failed;
+
+        return source.deleteFile() ? Outcome::moved : Outcome::copiedOriginalKept;
     }
 
-    const auto items = Trash::withoutNested (std::move (entries));
-    juce::int64 totalBytes = 0, doneBytes = 0;
+    // Folders can't be renamed across drives: copy, check the copy, and only then remove the original.
+    const auto before = measure (source);
 
-    for (const auto& entry : items)
-        totalBytes += entry.size;
+    if (before.hasLinks)
+        return Outcome::containsLinks;
 
-    for (size_t i = 0; i < items.size(); ++i)
+    const auto copiedWell = copyTree (source, target);
+    const auto after = copiedWell ? measure (target) : TreeSize();
+
+    if (! copiedWell || after.items != before.items || after.bytes != before.bytes)
     {
-        const auto& entry = items[i];
-        const auto& file = entry.file;
-        const double fraction = totalBytes > 0 ? (double) doneBytes / (double) totalBytes : (double) i / (double) items.size();
-
-        if (progress != nullptr && ! progress (fraction, entry.name()))
-        {
-            report.cancelled = true;
-            break;
-        }
-
-        doneBytes += entry.size;
-
-        if (file.getParentDirectory() == destination)
-            continue;   // Already there.
-
-        if (file == destination || destination.isAChildOf (file))
-        {
-            report.failures.add (file.getFullPathName() + "  (can't be moved into itself)");
-            continue;
-        }
-
-        if (moveItem (file, uniqueTarget (destination, file.getFileName())))
-        {
-            ++report.moved;
-            report.bytesMoved += entry.size;
-            report.movedFiles.add (file);
-        }
-        else
-        {
-            report.failures.add (file.getFullPathName());
-        }
+        target.deleteRecursively();     // Don't leave a partial copy behind.
+        return Outcome::failed;
     }
 
-    return report;
+    return source.deleteRecursively() ? Outcome::moved : Outcome::copiedOriginalKept;
 }

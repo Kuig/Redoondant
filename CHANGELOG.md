@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
+- **Move to Trash** no longer deletes for good what Windows can't recycle: items on network shares, removable drives or drives with the Recycle Bin turned off are left untouched and listed (the confirmation says how many), and an item Windows refuses to recycle is reported instead of deleted.
+- Moving a folder to another drive no longer follows junctions or symbolic links (a folder containing any is left untouched), checks the copy against the original, and reports "copied, but the original could not be removed completely" instead of a plain failure when a file is in use.
+- Items already gone when an action runs are counted apart instead of inflating "moved/freed"; nested paths are recognised whatever their case; a moved `.gitignore` becomes `.gitignore (2)`.
 - The window froze for a long time on big lists while the content dates were being read: they now reach the screen in larger batches,
   the histogram is refreshed at most every quarter of a second and the folder filters are cheaper.
 - Changing the folder to analyze now discards the results of every criterion; they used to stay on screen

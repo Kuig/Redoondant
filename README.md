@@ -71,7 +71,7 @@ System, so what is shown for a format depends on the property handlers/codecs in
 ```
 Source/
   Core/       FileEntry, FileScanner (tree walk with folder sizes), Grouping helpers, DefaultSelection (check strategies),
-              ContentHasher, FileCategory, Trash, MoveToFolder, EmptyFolders, Settings, Format
+              ContentHasher, FileCategory, Removal (Trash/Delete/Move actions), MoveToFolder, EmptyFolders, Settings, Format
   Archives/   ArchiveReader (list / stream entries) implemented with libarchive
   Metadata/   Metadata model, MetadataReader (merges all sources), PE header reader
   Pdf/        PdfDocument: PDFium wrapper (metadata, page rendering)

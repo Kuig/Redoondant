@@ -1,5 +1,5 @@
-/*  Windows-specific services: COM initialisation, shell thumbnails, Explorer context menus
-    and Property System metadata.
+/*  Windows-specific services: COM initialisation, shell thumbnails, Explorer context menus,
+    the Recycle Bin and Property System metadata.
     Other platforms get no-op fallbacks.
 */
 
@@ -23,6 +23,7 @@
 #endif
 
 #include "ComInit.h"
+#include "RecycleBin.h"
 #include "ShellContextMenu.h"
 #include "ShellIcon.h"
 #include "ShellThumbnail.h"
@@ -288,6 +289,62 @@ bool ShellContextMenu::show (const juce::Array<juce::File>& files, juce::Point<i
 }
 
 //==============================================================================
+namespace
+{
+    /** True if the Recycle Bin of the volume is set to delete for good ("Don't move files to the Recycle Bin"). */
+    bool recycleBinTurnedOff (const juce::String& root)
+    {
+        wchar_t volume[64] = {};
+
+        if (! GetVolumeNameForVolumeMountPointW (root.toWideCharPointer(), volume, 64))
+            return false;
+
+        const juce::String name (volume);        // e.g. Volume{GUID} in a volume-name path
+        const auto open = name.indexOfChar ('{'), close = name.indexOfChar ('}');
+
+        if (open < 0 || close < open)
+            return false;
+
+        const juce::String bucket ("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\BitBucket\\");
+        auto setting = juce::WindowsRegistry::getValue (bucket + "Volume\\" + name.substring (open, close + 1) + "\\NukeOnDelete");
+
+        if (setting.isEmpty())
+            setting = juce::WindowsRegistry::getValue (bucket + "NukeOnDelete");
+
+        return setting.getIntValue() != 0;
+    }
+}
+
+bool RecycleBin::isSupported (const juce::File& file)
+{
+    const auto path = file.getFullPathName();
+
+    if (path.length() < 3 || path[1] != ':')     // UNC shares and odd paths: no Recycle Bin.
+        return false;
+
+    const auto root = path.substring (0, 3);
+
+    return GetDriveTypeW (root.toWideCharPointer()) == DRIVE_FIXED && ! recycleBinTurnedOff (root);
+}
+
+bool RecycleBin::move (const juce::File& file)
+{
+    if (! file.exists())
+        return false;
+
+    // SHFileOperation wants a double-null-terminated list. FOF_WANTNUKEWARNING makes it refuse (rather than
+    // silently delete for good) what can't be recycled.
+    std::wstring from (file.getFullPathName().toWideCharPointer());
+    from.push_back (L'\0');
+
+    SHFILEOPSTRUCTW operation {};
+    operation.wFunc = FO_DELETE;
+    operation.pFrom = from.c_str();
+    operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT | FOF_WANTNUKEWARNING;
+
+    return SHFileOperationW (&operation) == 0 && ! operation.fAnyOperationsAborted && ! file.exists();
+}
+
 Metadata MetadataReader::readSystemProperties (const juce::File& file)
 {
     Metadata metadata;
@@ -360,6 +417,8 @@ ScopedComInit::~ScopedComInit() {}
 juce::Image ShellThumbnail::get (const juce::File&, int)                  { return {}; }
 juce::Image ShellIcon::get (const juce::File&, int)                       { return {}; }
 bool ShellContextMenu::show (const juce::Array<juce::File>&, juce::Point<int>, juce::Component&)   { return false; }
+bool RecycleBin::isSupported (const juce::File&)                          { return true; }
+bool RecycleBin::move (const juce::File& file)                            { return file.moveToTrash(); }
 Metadata MetadataReader::readSystemProperties (const juce::File&)         { return {}; }
 
 #endif
