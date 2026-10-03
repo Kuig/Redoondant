@@ -2,7 +2,9 @@
 
 #include "../Core/FileEntry.h"
 #include "../Metadata/Metadata.h"
+#include "../Core/Histogram.h"
 #include "AudioPlayer.h"
+#include "HistogramView.h"
 #include "TextPreview.h"
 
 /** Shows a preview of the highlighted item (image, PDF page, OS thumbnail, text, folder or
@@ -19,6 +21,16 @@ public:
         with only the metadata that differs between them. No entries clears the panel.
     */
     void show (std::vector<FileEntry> entries);
+
+    /** With nothing selected the panel shows a histogram of one property of the listed entries. These supply its data
+        and receive the click on a bar (to set filters); set them before the first show().
+    */
+    std::function<Histogram::Input()> histogramInput;
+    std::function<juce::File()> histogramRoot;
+    std::function<void (Property, const Histogram::Bin&)> onHistogramBin;
+
+    /** Recomputes the histogram (the list, the filters or the checks changed). */
+    void refreshHistogram();
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -42,6 +54,11 @@ private:
     juce::ImageComponent image;
     TextPreview text;
     juce::TextEditor metadata;
+    juce::ComboBox propertyBox, metricBox;
+    HistogramView histogram;
+    std::vector<Histogram::Bin> bins;
+    SettingsScope histogramSettings;
+    bool histogramMode = false;
     AudioPlayer audio;
     Content content = Content::none;
     int generation = 0;                     ///< Identifies the latest request; older results are dropped.
@@ -54,6 +71,7 @@ private:
     void display (Data data);
     void displayMany (std::vector<Data> all, int notShown);
     void showDetails (const Metadata& details);
+    void setHistogramMode (bool shouldShow);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreviewPanel)
 };

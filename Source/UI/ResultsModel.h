@@ -74,6 +74,7 @@ public:
 
     size_t getVisibleCount() const;
     std::vector<FileEntry> getCheckedEntries() const;
+    std::vector<FileEntry> getVisibleEntries() const;
 
     /** Files (not folders) whose content date has not been read yet. */
     std::vector<juce::File> filesNeedingContentDate() const;

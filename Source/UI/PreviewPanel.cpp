@@ -214,7 +214,7 @@ private:
 };
 
 PreviewPanel::PreviewPanel (SettingsScope settings)
-    : audio (settings.child ("audio"))
+    : audio (settings.child ("audio")), histogramSettings (settings.child ("histogram"))
 {
     formats.registerBasicFormats();
 
@@ -229,6 +229,28 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     addChildComponent (audio);
     addAndMakeVisible (metadata);
 
+    propertyBox.addItemList (Histogram::propertyNames(), 1);
+    propertyBox.setSelectedItemIndex (juce::jlimit (0, Histogram::propertyNames().size() - 1, histogramSettings.get ("property", "1").getIntValue()),
+                                      juce::dontSendNotification);
+    propertyBox.setTooltip ("The property to sum up while nothing is selected");
+    metricBox.addItemList ({ "Number of items", "Total size" }, 1);
+    metricBox.setSelectedItemIndex (histogramSettings.get ("metric").getIntValue() == 1 ? 1 : 0, juce::dontSendNotification);
+    metricBox.setTooltip ("What the length of the bars shows");
+    propertyBox.onChange = metricBox.onChange = [this]
+    {
+        histogramSettings.set ("property", propertyBox.getSelectedItemIndex());
+        histogramSettings.set ("metric", metricBox.getSelectedItemIndex());
+        refreshHistogram();
+    };
+    histogram.onBinClicked = [this] (int index)
+    {
+        if (onHistogramBin != nullptr && juce::isPositiveAndBelow (index, (int) bins.size()))
+            onHistogramBin ((Property) propertyBox.getSelectedItemIndex(), bins[(size_t) index]);
+    };
+
+    for (auto* component : std::initializer_list<juce::Component*> { &propertyBox, &metricBox, &histogram })
+        addChildComponent (component);
+
     show ({});
 
     // Opening the audio output can take seconds: start in the background right away.
@@ -238,6 +260,28 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
 PreviewPanel::~PreviewPanel()
 {
     loader.removeAllJobs (true, 5000);
+}
+
+void PreviewPanel::setHistogramMode (bool shouldShow)
+{
+    histogramMode = shouldShow;
+
+    for (auto* component : std::initializer_list<juce::Component*> { &propertyBox, &metricBox, &histogram })
+        component->setVisible (shouldShow);
+
+    metadata.setVisible (! shouldShow);
+    resized();
+}
+
+void PreviewPanel::refreshHistogram()
+{
+    if (! histogramMode || histogramInput == nullptr)
+        return;
+
+    const auto root = histogramRoot != nullptr ? histogramRoot() : juce::File();
+    const auto metric = metricBox.getSelectedItemIndex() == 1 ? Metric::size : Metric::count;
+    bins = Histogram::compute (histogramInput(), (Property) propertyBox.getSelectedItemIndex(), metric, root, juce::Time::getCurrentTime());
+    histogram.setBins (bins, metric);
 }
 
 void PreviewPanel::show (std::vector<FileEntry> entries)
@@ -252,8 +296,12 @@ void PreviewPanel::show (std::vector<FileEntry> entries)
     {
         title.setText ("No selection", juce::dontSendNotification);
         display ({});
+        setHistogramMode (true);
+        refreshHistogram();
         return;
     }
+
+    setHistogramMode (false);
 
     const int notShown = juce::jmax (0, (int) entries.size() - maxTiles);
     entries.resize (std::min (entries.size(), (size_t) maxTiles));
@@ -380,6 +428,17 @@ void PreviewPanel::resized()
     auto area = getLocalBounds().reduced (10);
     title.setBounds (area.removeFromTop (28));
     area.removeFromTop (6);
+
+    if (histogramMode)
+    {
+        auto row = area.removeFromTop (28);
+        propertyBox.setBounds (row.removeFromLeft (row.getWidth() / 2 - 4));
+        row.removeFromLeft (8);
+        metricBox.setBounds (row);
+        area.removeFromTop (8);
+        histogram.setBounds (area);
+        return;
+    }
 
     auto preview = area.removeFromTop (content == Content::audio ? 86 : area.getHeight() * 55 / 100);
 

@@ -254,6 +254,16 @@ std::vector<FileEntry> ResultsModel::getCheckedEntries() const
     return checked;
 }
 
+std::vector<FileEntry> ResultsModel::getVisibleEntries() const
+{
+    std::vector<FileEntry> visible;
+
+    for (int g = 0; g < (int) result.groups.size(); ++g)
+        forEachVisible (g, [&] (const FileEntry& e) { visible.push_back (e); });
+
+    return visible;
+}
+
 std::vector<juce::File> ResultsModel::filesNeedingContentDate() const
 {
     std::vector<juce::File> files;

@@ -21,6 +21,8 @@ public:
     /** Drops the results (they belong to another folder). */
     void forgetResults();
 
+    void applyHistogramBin (Property property, const Histogram::Bin& bin) override   { filterBar->applyBin (property, bin); }
+
     void resized() override;
     void paint (juce::Graphics&) override;
 

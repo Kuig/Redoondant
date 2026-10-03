@@ -4,6 +4,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/0.3.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- Histogram in the preview area while nothing is selected: folder, size, modified, created, content created or type, by number of items
+  or by total size, with three layers (all items, items passing the filters, checked items), statistics on hover and a click
+  on a bar that sets the filters to show only its items.
+- Filters: *in folder*, and the kind of date to filter by (modified, created or content created).
+
+### Changed
+- The date filter uses the same buckets as the histogram (today, 1-7 days, 7-30 days, 30 days - 1 year, 1-2 years, more than 2 years ago,
+  unknown date) instead of cumulative ranges.
 ### Fixed
 - Changing the folder to analyze now discards the results of every criterion; they used to stay on screen
   although they described the previous folder.

@@ -3,6 +3,7 @@
 #include "../Core/Settings.h"
 #include "../Core/Trash.h"
 #include "../Core/DefaultSelection.h"
+#include "../Core/Histogram.h"
 #include "ResultsTable.h"
 
 /** A page that lists items with check boxes and acts on the checked ones: the results table and the
@@ -18,6 +19,16 @@ public:
 
     /** Called with the highlighted entries (none: empty) for the preview. */
     std::function<void (std::vector<FileEntry>)> onSelectionChanged;
+
+    /** Called when the list, the filters or the checks changed (for the histogram of the preview). */
+    std::function<void()> onListChanged;
+
+    /** What the histogram sums up: every entry, the visible ones (filters) and the checked ones. */
+    Histogram::Input getHistogramInput() const;
+    juce::File getHistogramRoot() const         { return model.getRoot(); }
+
+    /** A bar of the histogram was clicked: set the filters, if the page has any. */
+    virtual void applyHistogramBin (Property, const Histogram::Bin&) {}
 
 protected:
     explicit RemovalPage (SettingsScope settings);

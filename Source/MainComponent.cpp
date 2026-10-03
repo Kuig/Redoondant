@@ -94,13 +94,24 @@ MainComponent::MainComponent (Settings& appSettings)
         auto page = std::make_unique<CriterionPage> (*criterion, settings.child (criterion->getInfo().id));
         page->getRootFolder = [this] { return getRootFolder(); };
         page->onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
+        page->onListChanged = [this, p = page.get()] { if (currentPage == p) preview.refreshHistogram(); };
         addChildComponent (*page);
         pages.push_back (std::move (page));
     }
 
     cleanupPage = std::make_unique<CleanupPage> (settings.child ("cleanup"));
+    cleanupPage->onListChanged = [this] { if (currentPage == cleanupPage.get()) preview.refreshHistogram(); };
     cleanupPage->onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
     addChildComponent (*cleanupPage);
+    const auto currentRemovalPage = [this] { return dynamic_cast<RemovalPage*> (currentPage); };
+    preview.histogramInput = [currentRemovalPage] { auto* page = currentRemovalPage(); return page != nullptr ? page->getHistogramInput() : Histogram::Input(); };
+    preview.histogramRoot = [currentRemovalPage] { auto* page = currentRemovalPage(); return page != nullptr ? page->getHistogramRoot() : juce::File(); };
+    preview.onHistogramBin = [currentRemovalPage] (Property property, const Histogram::Bin& bin)
+    {
+        if (auto* page = currentRemovalPage())
+            page->applyHistogramBin (property, bin);
+    };
+
     cacheEntry.setTitle ("Cache Cleaner");
     cacheEntry.onClick = [this] { showCleanupPage(); };
 

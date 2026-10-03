@@ -405,6 +405,17 @@ void RemovalPage::cycleChecks()
     updateSummary();
 }
 
+Histogram::Input RemovalPage::getHistogramInput() const
+{
+    const auto listed = [] (std::vector<FileEntry> entries)
+    {
+        entries.erase (std::remove_if (entries.begin(), entries.end(), [] (const FileEntry& e) { return e.missing; }), entries.end());
+        return entries;
+    };
+
+    return { listed (model.getAllEntries()), listed (model.getVisibleEntries()), model.getCheckedEntries() };
+}
+
 void RemovalPage::updateSummary()
 {
     checksChanged();
@@ -429,4 +440,7 @@ void RemovalPage::updateSummary()
     const auto next = nextChecks (checks);
     table.setHeaderTooltip (juce::String ("Click to cycle the check boxes. Next: ")
                               + (next == Checks::defaults ? "default checks" : (next == Checks::all ? "check all" : "uncheck all")));
+
+    if (onListChanged != nullptr)
+        onListChanged();
 }
