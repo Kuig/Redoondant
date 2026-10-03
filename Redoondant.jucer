@@ -32,6 +32,8 @@
         <FILE id="gyrDO1" name="Format.h" compile="0" resource="0" file="Source/Core/Format.h"/>
         <FILE id="xkxwnQ" name="Grouping.cpp" compile="1" resource="0" file="Source/Core/Grouping.cpp"/>
         <FILE id="rS7RPe" name="Grouping.h" compile="0" resource="0" file="Source/Core/Grouping.h"/>
+        <FILE id="kO7kcP" name="Histogram.cpp" compile="1" resource="0" file="Source/Core/Histogram.cpp"/>
+        <FILE id="SDB1zE" name="Histogram.h" compile="0" resource="0" file="Source/Core/Histogram.h"/>
         <FILE id="SoIR7B" name="MessageThread.h" compile="0" resource="0" file="Source/Core/MessageThread.h"/>
         <FILE id="WwodkB" name="MoveToFolder.cpp" compile="1" resource="0"
               file="Source/Core/MoveToFolder.cpp"/>
@@ -99,6 +101,7 @@
         <FILE id="Fx9Ghc" name="CleanupTests.cpp" compile="1" resource="0" file="Source/Tests/CleanupTests.cpp"/>
         <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
         <FILE id="ul9ZRg" name="FilterTests.cpp" compile="1" resource="0" file="Source/Tests/FilterTests.cpp"/>
+        <FILE id="bfZ943" name="HistogramTests.cpp" compile="1" resource="0" file="Source/Tests/HistogramTests.cpp"/>
         <FILE id="YXgljU" name="MediaTests.cpp" compile="1" resource="0" file="Source/Tests/MediaTests.cpp"/>
         <FILE id="r5fsQk" name="MoveTests.cpp" compile="1" resource="0" file="Source/Tests/MoveTests.cpp"/>
         <FILE id="t04iFg" name="OverlapTests.cpp" compile="1" resource="0"
