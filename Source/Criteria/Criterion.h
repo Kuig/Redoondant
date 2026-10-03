@@ -5,10 +5,12 @@
 #include "../Core/DefaultSelection.h"
 #include "../Core/ScanContext.h"
 
+struct PeerCriterion;
+
 /** A rule that finds deletion candidates in a folder.
 
     Criteria are stateless: analyse() receives a snapshot of the parameter values and runs
-    on a background thread, so it must not touch the UI. To add a new criterion, derive from
+    on a background thread, so it must not touch the UI (criteria that need other criteria get them as data). To add a new criterion, derive from
     this class and register it in CriterionRegistry.cpp; UI and persistence are generated.
 */
 class Criterion
@@ -21,7 +23,8 @@ public:
         grouped = 1,                ///< Results are shown as separated groups.
         exhaustive = 2,             ///< Lists (almost) everything, so being listed means nothing by itself.
         recursiveByDefault = 4,
-        showsFolders = 8            ///< Folders can be listed (so "folders only" / "files only" make sense).
+        showsFolders = 8,           ///< Folders can be listed (so "folders only" / "files only" make sense).
+        usesPeers = 16              ///< Combines the other criteria: analyse() gets them as peers.
     };
 
     friend constexpr Trait operator| (Trait a, Trait b)    { return static_cast<Trait> (static_cast<unsigned> (a) | static_cast<unsigned> (b)); }
@@ -31,12 +34,13 @@ public:
         Info (juce::String idToUse, juce::String nameToUse, juce::String descriptionToUse, Trait traits = Trait::none)
             : id (std::move (idToUse)), name (std::move (nameToUse)), description (std::move (descriptionToUse)),
               grouped (has (traits, Trait::grouped)), exhaustive (has (traits, Trait::exhaustive)),
-              recursiveByDefault (has (traits, Trait::recursiveByDefault)), showsFolders (has (traits, Trait::showsFolders)) {}
+              recursiveByDefault (has (traits, Trait::recursiveByDefault)), showsFolders (has (traits, Trait::showsFolders)),
+              usesPeers (has (traits, Trait::usesPeers)) {}
 
         juce::String id;            ///< Stable key, used for settings.
         juce::String name;
         juce::String description;
-        bool grouped, exhaustive, recursiveByDefault, showsFolders;     ///< See Trait.
+        bool grouped, exhaustive, recursiveByDefault, showsFolders, usesPeers;     ///< See Trait.
 
     private:
         static bool has (Trait all, Trait one)  { return (static_cast<unsigned> (all) & static_cast<unsigned> (one)) != 0; }
@@ -60,6 +64,16 @@ public:
     virtual ParameterSet createParameters() const   { return {}; }
 
     virtual AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const = 0;
+
+    /** Criteria that combine others (Trait::usesPeers) override this: `peers` are the other criteria with their
+        settings and results, as the UI knew them when the analysis started. The default ignores them.
+    */
+    virtual AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters,
+                                    const std::vector<PeerCriterion>& peers) const
+    {
+        juce::ignoreUnused (peers);
+        return analyse (context, parameters);
+    }
 
 private:
     Info info;

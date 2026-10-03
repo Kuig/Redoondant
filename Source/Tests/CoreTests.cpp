@@ -215,7 +215,7 @@ public:
 
     void runTest() override
     {
-        const auto criteria = Criteria::createAll ({});
+        const auto criteria = Criteria::createAll();
 
         beginTest ("Every criterion has a unique id and a name");
         {

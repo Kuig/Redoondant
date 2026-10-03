@@ -16,7 +16,8 @@ class CriterionPage::AnalysisJob final : public juce::ThreadWithProgressWindow
 public:
     AnalysisJob (CriterionPage& page, const juce::File& root)
         : ThreadWithProgressWindow ("Analyzing " + page.criterion.getInfo().name, true, true, 10000, {}, &page),
-          owner (&page), criterion (page.criterion), parameters (page.parameters)
+          owner (&page), criterion (page.criterion), parameters (page.parameters),
+          peers (page.criterion.getInfo().usesPeers && page.getPeers != nullptr ? page.getPeers() : std::vector<PeerCriterion>())
     {
         context.root = root;
         context.recursive = page.recursiveToggle.getToggleState();
@@ -35,7 +36,7 @@ public:
         try
         {
             const ScopedComInit com;    // Some criteria read Windows metadata.
-            result = criterion.analyse (context, parameters);
+            result = criterion.analyse (context, parameters, peers);
         }
         catch (const std::exception& e)     { error = e.what(); }
         catch (...)                         { error = "unknown error"; }
@@ -56,6 +57,7 @@ private:
     juce::Component::SafePointer<CriterionPage> owner;
     const Criterion& criterion;
     const ParameterSet parameters;      // Snapshot: the UI may not change it during the analysis.
+    const std::vector<PeerCriterion> peers;     // Likewise: the other criteria as they were when the analysis started.
     ScanContext context;
     AnalysisResult result;
     juce::String error;

@@ -34,7 +34,6 @@
         <FILE id="rS7RPe" name="Grouping.h" compile="0" resource="0" file="Source/Core/Grouping.h"/>
         <FILE id="kO7kcP" name="Histogram.cpp" compile="1" resource="0" file="Source/Core/Histogram.cpp"/>
         <FILE id="SDB1zE" name="Histogram.h" compile="0" resource="0" file="Source/Core/Histogram.h"/>
-        <FILE id="SoIR7B" name="MessageThread.h" compile="0" resource="0" file="Source/Core/MessageThread.h"/>
         <FILE id="WwodkB" name="MoveToFolder.cpp" compile="1" resource="0"
               file="Source/Core/MoveToFolder.cpp"/>
         <FILE id="77xzKO" name="MoveToFolder.h" compile="0" resource="0" file="Source/Core/MoveToFolder.h"/>

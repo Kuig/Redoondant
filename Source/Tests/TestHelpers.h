@@ -2,6 +2,7 @@
 
 #include "../Core/FileScanner.h"
 #include "../Criteria/Criterion.h"
+#include "../Criteria/Peers.h"
 #include "../UI/ResultsModel.h"
 
 /** Helpers shared by the unit tests. */
@@ -28,7 +29,8 @@ namespace TestHelpers
         the way a page does at start: the criterion's default sort and default selection.
     */
     inline AnalysisResult run (const Criterion& criterion, const juce::File& root, bool recursive = false,
-                               const std::function<void (ParameterSet&)>& tweak = {})
+                               const std::function<void (ParameterSet&)>& tweak = {},
+                               const std::vector<PeerCriterion>& peers = {})
     {
         ScanContext context;
         context.root = root;
@@ -43,7 +45,7 @@ namespace TestHelpers
         const auto& defaults = criterion.getDefaults();
         model.setDefaultSelection (defaults.selection);
         model.sort (defaults.sortColumn, defaults.sortForwards);
-        model.setResult (criterion.analyse (context, parameters), root, criterion.getInfo().grouped);
+        model.setResult (criterion.analyse (context, parameters, peers), root, criterion.getInfo().grouped);
         return model.getResult();
     }
 

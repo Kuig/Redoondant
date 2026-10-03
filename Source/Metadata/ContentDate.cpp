@@ -30,8 +30,11 @@ juce::Time ContentDate::oldestOf (const Metadata& metadata, const juce::File& fi
     return oldest;
 }
 
-juce::Time ContentDate::of (const juce::File& file)
+juce::Time ContentDate::of (const juce::File& file, const MetadataSource& source)
 {
+    if (source != nullptr)
+        return oldestOf (source (file), file);
+
     struct Cached { juce::Time modified, result; };
     static std::mutex lock;
     static std::map<juce::String, Cached> cache;
@@ -53,7 +56,7 @@ juce::Time ContentDate::of (const juce::File& file)
     return result;
 }
 
-void ContentDate::fill (std::vector<FileEntry>& entries, const ScanContext& context)
+void ContentDate::fill (std::vector<FileEntry>& entries, const ScanContext& context, const MetadataSource& source)
 {
     for (size_t i = 0; i < entries.size() && ! context.isCancelled(); ++i)
     {
@@ -63,6 +66,6 @@ void ContentDate::fill (std::vector<FileEntry>& entries, const ScanContext& cont
             continue;
 
         context.progress ((double) i / (double) entries.size(), "Reading dates of " + entry.name() + "...");
-        entry.contentCreated = of (entry.file);
+        entry.contentCreated = of (entry.file, source);
     }
 }

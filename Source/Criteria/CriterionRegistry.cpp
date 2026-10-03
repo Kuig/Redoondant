@@ -1,6 +1,6 @@
 #include "AllCriteria.h"
 
-std::vector<std::unique_ptr<Criterion>> Criteria::createAll (PeerSource peers)
+std::vector<std::unique_ptr<Criterion>> Criteria::createAll()
 {
     std::vector<std::unique_ptr<Criterion>> all;
 
@@ -17,7 +17,7 @@ std::vector<std::unique_ptr<Criterion>> Criteria::createAll (PeerSource peers)
     all.push_back (createInstallersAndJunkFiles());
     all.push_back (createOldFiles());
     all.push_back (createManualInspection());
-    all.push_back (createMultipleCriteria (std::move (peers)));
+    all.push_back (createMultipleCriteria());
 
     return all;
 }

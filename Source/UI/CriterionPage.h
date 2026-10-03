@@ -19,6 +19,9 @@ public:
     /** The criterion with its current settings and results, for criteria that combine others. */
     PeerCriterion describeAsPeer() const;
 
+    /** Supplies the other criteria for the ones that combine them (called on the message thread when Analyze is pressed). */
+    std::function<std::vector<PeerCriterion>()> getPeers;
+
     /** Drops the results (they belong to another folder). */
     void forgetResults();
 

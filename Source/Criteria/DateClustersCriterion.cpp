@@ -10,12 +10,13 @@ namespace
     class DateClusters final : public Criterion
     {
     public:
-        DateClusters()
+        explicit DateClusters (Criteria::MetadataSource source)
             : Criterion ({ "dateClusters", "Date clusters",
                            "Files and folders grouped by creation or modification date, or by the date written in the content's metadata "
                            "(photo taken, document created...; folders and files without one are left out). "
                            "A new group starts whenever the gap from the previous item exceeds the given time. Newest groups first.",
-                           Trait::grouped | Trait::exhaustive | Trait::showsFolders }) {}
+                           Trait::grouped | Trait::exhaustive | Trait::showsFolders }),
+              readMetadata (std::move (source)) {}
 
         ParameterSet createParameters() const override
         {
@@ -34,7 +35,7 @@ namespace
 
             if (kind == DateKind::content)
             {
-                ContentDate::fill (entries, context);
+                ContentDate::fill (entries, context, readMetadata);
                 entries = FileScanner::keepIf (std::move (entries), [] (const FileEntry& e) { return e.contentCreated.toMilliseconds() != 0; });
             }
 
@@ -51,7 +52,10 @@ namespace
 
             return result;
         }
+
+    private:
+        Criteria::MetadataSource readMetadata;
     };
 }
 
-std::unique_ptr<Criterion> Criteria::createDateClusters()   { return std::make_unique<DateClusters>(); }
+std::unique_ptr<Criterion> Criteria::createDateClusters (MetadataSource source)   { return std::make_unique<DateClusters> (std::move (source)); }

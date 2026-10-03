@@ -12,6 +12,10 @@ struct MetadataItem
     bool isDate = false;    ///< The value is a date; `raw` then holds it as milliseconds since the epoch.
 };
 
+/** Where the metadata of a file comes from (MetadataReader::read); tests inject fakes. */
+class Metadata;
+using MetadataSource = std::function<Metadata (const juce::File&)>;
+
 /** The metadata of a file, in display order. */
 class Metadata
 {

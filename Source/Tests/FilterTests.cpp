@@ -510,6 +510,25 @@ private:
 
             expectEquals (grouped (1), 0);      // Modified 890 days apart: two singletons, below the minimum group size.
             expectEquals (grouped (2), 0);      // No content dates at all.
+
+            // With a metadata source that knows a real document date, the content kind has something to work with.
+            const auto written = juce::Time (2010, 5, 1, 12, 0);
+            const MetadataSource fake = [written] (const juce::File& f)
+            {
+                Metadata m;
+
+                if (f.getFileName() == "old.txt")
+                    m.addDate ("System.Photo.DateTaken", "Date taken", "2010", written);
+
+                return m;
+            };
+
+            const auto contentOld = names (run (*Criteria::createOldFiles (fake), temp.root, false, [] (ParameterSet& p)
+            {
+                setParameter (p, "dateKind", (int) DateKind::content);
+                setParameter (p, "days", 800);
+            }));
+            expectEquals (contentOld.joinIntoString (","), juce::String ("old.txt"));      // recent.txt has no content date: unknown, not old.
         }
     }
 

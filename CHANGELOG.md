@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
+- *Multiple criteria* no longer makes the analysis thread wait for the user interface: the other criteria, with their settings and results, are handed over
+  when Analyze is pressed.
 - Items modified after the analysis (a duplicate that was edited, a folder that got new files) are left untouched by Move to Trash, Move to folder and
   Delete permanently, and listed as "changed since the analysis".
 - Move to Trash and Delete permanently warn when every item of some group is checked, so nothing of that group would be kept.

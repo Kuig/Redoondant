@@ -19,11 +19,12 @@ namespace ContentDate
 
     /** Reads the file's metadata and returns oldestOf() it. Results are cached (by path and modification time).
         May be slow: call from a background thread that has initialised COM (see ComInit). Thread-safe.
+        With a `source` the metadata comes from it instead of MetadataReader and nothing is cached.
     */
-    juce::Time of (const juce::File& file);
+    juce::Time of (const juce::File& file, const MetadataSource& source = {});
 
     /** Fills `contentCreated` of the files (not folders) whose date is still unknown, reporting progress
         and stopping early when the scan is cancelled. Same threading requirements as of().
     */
-    void fill (std::vector<FileEntry>& entries, const ScanContext& context);
+    void fill (std::vector<FileEntry>& entries, const ScanContext& context, const MetadataSource& source = {});
 }

@@ -2,7 +2,6 @@
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
 #include "../Core/Grouping.h"
-#include "../Core/MessageThread.h"
 #include "ParameterChoices.h"
 #include <map>
 
@@ -49,12 +48,11 @@ namespace
     class MultipleCriteria final : public Criterion
     {
     public:
-        explicit MultipleCriteria (PeerSource source)
+        MultipleCriteria()
             : Criterion ({ "overlaps", "Multiple criteria",
                            "Items marked by several criteria (a folder's mark covers its content), from the lists already "
                            "analyzed or by running all criteria again. \"Folders only\" lists the folders with most candidates.",
-                           Trait::grouped | Trait::recursiveByDefault | Trait::showsFolders }),
-              peers (std::move (source)) {}
+                           Trait::grouped | Trait::recursiveByDefault | Trait::showsFolders | Trait::usesPeers }) {}
 
         ParameterSet createParameters() const override
         {
@@ -76,9 +74,16 @@ namespace
                      Parameter::number ("minShare", "Min. marked share", 50, "%") };
         }
 
+        /** Without peers there is nothing to combine. */
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
-            const auto marks = collectMarks (context, parameters);
+            return analyse (context, parameters, {});
+        }
+
+        AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters,
+                                const std::vector<PeerCriterion>& peers) const override
+        {
+            const auto marks = collectMarks (context, parameters, peers);
             const auto minCriteria = juce::jmax (1, (int) parameters.getNumber ("minCriteria"));
 
             if (parameters.getEnum<OverlapView> ("view") == OverlapView::foldersOnly)
@@ -88,14 +93,10 @@ namespace
         }
 
     private:
-        PeerSource peers;
-
-        Marks collectMarks (const ScanContext& context, const ParameterSet& parameters) const
+        Marks collectMarks (const ScanContext& context, const ParameterSet& parameters, const std::vector<PeerCriterion>& peerList) const
         {
             const bool rerun = parameters.getEnum<OverlapSource> ("source") == OverlapSource::runAllCriteria;
             const bool listedCounts = parameters.getEnum<OverlapMarked> ("marked") == OverlapMarked::listedItems;
-            const auto peerList = peers != nullptr ? callOnMessageThread ([this] { return peers(); })
-                                                   : std::vector<PeerCriterion>();
             Marks marks;
 
             for (size_t i = 0; i < peerList.size() && ! context.isCancelled(); ++i)
@@ -261,7 +262,7 @@ namespace
     };
 }
 
-std::unique_ptr<Criterion> Criteria::createMultipleCriteria (PeerSource source)
+std::unique_ptr<Criterion> Criteria::createMultipleCriteria()
 {
-    return std::make_unique<MultipleCriteria> (std::move (source));
+    return std::make_unique<MultipleCriteria>();
 }

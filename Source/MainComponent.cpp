@@ -88,13 +88,14 @@ void MainComponent::Sidebar::resized()
 MainComponent::MainComponent (Settings& appSettings)
     : appSettings (appSettings),
       settings (appSettings.root()),
-      criteria (Criteria::createAll ([this] { return describePeers(); })),
+      criteria (Criteria::createAll()),
       preview (settings.child ("preview"))
 {
     for (const auto& criterion : criteria)
     {
         auto page = std::make_unique<CriterionPage> (*criterion, settings.child (criterion->getInfo().id));
         wirePage (*page);
+        page->getPeers = [this] { return describePeers(); };
         pages.push_back (std::move (page));
     }
 

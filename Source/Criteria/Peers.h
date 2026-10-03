@@ -14,6 +14,3 @@ struct PeerCriterion
     juce::File resultsRoot;     ///< The folder the results refer to.
     DefaultSelection selection = DefaultSelection::none;   ///< The page's default selection: what a new analysis would check.
 };
-
-/** Supplies the peers. It may be called from an analysis thread. */
-using PeerSource = std::function<std::vector<PeerCriterion>()>;

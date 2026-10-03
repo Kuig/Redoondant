@@ -56,9 +56,10 @@ namespace
     class OldFiles final : public Criterion
     {
     public:
-        OldFiles()
+        explicit OldFiles (Criteria::MetadataSource source)
             : Criterion ({ "oldFiles", "Old files", "Files whose creation, modification or content date (from the metadata: photo taken, "
-                                                    "document created...) is older than the given number of days, oldest first." }) {}
+                                                    "document created...) is older than the given number of days, oldest first." }),
+              readMetadata (std::move (source)) {}
 
         ParameterSet createParameters() const override
         {
@@ -75,7 +76,7 @@ namespace
             auto entries = FileScanner::scanFiles (context);
 
             if (kind == DateKind::content)
-                ContentDate::fill (entries, context);
+                ContentDate::fill (entries, context, readMetadata);
 
             // Files without the date (content kind) are unknown, not old.
             entries = FileScanner::keepIf (std::move (entries), [&] (const FileEntry& e)
@@ -87,6 +88,9 @@ namespace
             std::sort (entries.begin(), entries.end(), [kind] (const FileEntry& a, const FileEntry& b) { return dateOf (a, kind) < dateOf (b, kind); });
             return AnalysisResult::flat (std::move (entries));
         }
+
+    private:
+        Criteria::MetadataSource readMetadata;
     };
 
     //==============================================================================
@@ -191,7 +195,7 @@ namespace
 }
 
 std::unique_ptr<Criterion> Criteria::createLargeFiles()         { return std::make_unique<LargeElements>(); }
-std::unique_ptr<Criterion> Criteria::createOldFiles()           { return std::make_unique<OldFiles>(); }
+std::unique_ptr<Criterion> Criteria::createOldFiles (MetadataSource source)    { return std::make_unique<OldFiles> (std::move (source)); }
 std::unique_ptr<Criterion> Criteria::createEmptyItems()         { return std::make_unique<EmptyItems>(); }
 std::unique_ptr<Criterion> Criteria::createManualInspection()   { return std::make_unique<ManualInspection>(); }
 

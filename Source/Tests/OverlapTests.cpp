@@ -89,7 +89,7 @@ public:
             return list;
         };
 
-        const auto criterion = Criteria::createMultipleCriteria (peers);
+        const auto criterion = Criteria::createMultipleCriteria();
         // Tests start from: checked items, files & folders, at least 2 criteria.
         const auto analyse = [&] (std::function<void (ParameterSet&)> tweak)
         {
@@ -102,7 +102,7 @@ public:
 
                 if (tweak != nullptr)
                     tweak (p);
-            });
+            }, peers());     // The peers are taken at the time of each analysis, as the page does.
         };
 
         beginTest ("Checked items, folder marks cover their content");
