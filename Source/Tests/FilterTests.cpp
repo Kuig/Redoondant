@@ -33,6 +33,7 @@ public:
         testGroupOrder();
         testDefaultSelection();
         testBinFilters();
+        testPathExclusion();
         testProgress();
         testMetadataDiff();
     }
@@ -373,6 +374,38 @@ private:
                 expect (std::all_of (input.all.begin(), input.all.end(), [&] (const FileEntry& e) { return off (e); }));
             }
         }
+    }
+
+    void testPathExclusion()
+    {
+        beginTest ("Filter bar: exclude by words of the path, not of the name");
+
+        TempFolder temp;
+        juce::PropertiesFile::Options options;
+        options.filenameSuffix = ".settings";
+        juce::PropertiesFile file (temp.root.getChildFile ("p.settings"), options);
+        SettingsScope scope (file, "filter");
+        scope.set ("excludePath", "Node_Modules; build");
+
+        const auto entry = [&] (const juce::String& path)
+        {
+            FileEntry e;
+            e.file = temp.root.getChildFile (path);
+            return e;
+        };
+
+        FilterBar bar (scope);
+        bar.setRoot (temp.root);
+        auto filter = bar.createFilter();
+        expect (! filter (entry ("proj/node_modules/lib/a.js")));       // Any word, any case, anywhere in the path.
+        expect (! filter (entry ("proj/BUILD/out.bin")));
+        expect (filter (entry ("proj/src/a.js")));
+        expect (filter (entry ("build.txt")));                          // The name does not count.
+        expect (filter (entry ("src/node_modules")));                   // Nor does the name of a folder.
+
+        bar.setRecursive (false);                                       // Without sub-folders the filter does not exist.
+        filter = bar.createFilter();
+        expect (filter (entry ("proj/node_modules/lib/a.js")));
     }
 
     void testTypeFilter()

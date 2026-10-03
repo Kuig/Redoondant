@@ -44,6 +44,7 @@ private:
     void showResult (AnalysisResult result, const juce::File& root);
     void resetToDefaults();
     void applyDefaultSort();
+    void updatePathFilter();        ///< The "exclude if path contains" filter exists only for recursive analyses.
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CriterionPage)
 };

@@ -15,6 +15,15 @@ public:
     /** The analysed folder, which the Folder filter is relative to. Call createFilter() again afterwards. */
     void setRoot (const juce::File& newRoot)    { root = newRoot; }
 
+    /** Whether the analysis looks into sub-folders: only then the "exclude if path contains" filter is shown and applied.
+        Call createFilter() again afterwards, and lay the bar out again (its height changes).
+    */
+    void setRecursive (bool isRecursive)
+    {
+        recursive = isRecursive;
+        panel.setHidden ("excludePath", ! isRecursive);
+    }
+
     /** Sets the filters so that only the entries of a histogram bar are shown (again: takes them off). */
     void applyBin (Property property, const Histogram::Bin& bin);
 
@@ -31,6 +40,7 @@ private:
     ParameterSet parameters;
     ParametersPanel panel;
     juce::File root;
+    bool recursive = true;
 
     static ParameterSet createParameters();
 

@@ -26,6 +26,7 @@ ParameterSet FilterBar::createParameters()
     return { Parameter::text ("name", "Name contains", {}, 120),
              Parameter::text ("notName", "and not", {}, 120),
              Parameter::text ("folder", "in folder", {}, 120),
+             Parameter::text ("excludePath", "exclude if path contains (;)", {}, 160),
              Parameter::multiChoice ("type", {}, "All types", types),
              kind,
              age,
@@ -50,6 +51,7 @@ ResultsModel::Filter FilterBar::createFilter() const
     const auto name = parameters.getText ("name").trim();
     const auto notName = parameters.getText ("notName").trim();
     const auto folder = parameters.getText ("folder").trim();
+    const auto excluded = recursive ? parameters.getList ("excludePath") : juce::StringArray();     // Only meaningful below the analysed folder.
     std::vector<FileCategory> types;     // Empty = all types.
 
     for (const int index : parameters.getSelection ("type"))
@@ -75,6 +77,15 @@ ResultsModel::Filter FilterBar::createFilter() const
 
         if (folder.isNotEmpty() && ! Histogram::folderOf (e, base).containsIgnoreCase (folder))
             return false;
+
+        if (excluded.size() > 0)
+        {
+            const auto path = Histogram::folderOf (e, base);        // The folders, not the name of the item.
+
+            for (const auto& word : excluded)
+                if (path.containsIgnoreCase (word))
+                    return false;
+        }
 
         if (dateBucket >= 0 && Histogram::Buckets::dateBucket (dateOf (e, kind), now) != dateBucket)
             return false;

@@ -21,6 +21,7 @@ struct Parameter
     bool hasToggle = false;         ///< An enable check box in front of the editor (see textWithToggle).
     bool enabled = true;
     bool defaultEnabled = true;
+    bool hidden = false;            ///< Not shown nor laid out for now (see ParametersPanel::setHidden).
 
     static Parameter toggle (const juce::String& id, const juce::String& label, bool defaultValue)
     {

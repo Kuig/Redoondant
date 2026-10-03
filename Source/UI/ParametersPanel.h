@@ -15,6 +15,9 @@ public:
 
     void resetToDefaults();
 
+    /** Shows or hides a parameter's editor. The panel's height changes, so its owner should lay it out again. */
+    void setHidden (const juce::String& id, bool shouldBeHidden);
+
     /** Sets some parameters from outside (e.g. a histogram bar that sets filters), updating editors and settings; one onChange. */
     void setValues (const std::vector<std::pair<juce::String, juce::var>>& values);
 

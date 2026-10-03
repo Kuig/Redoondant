@@ -265,6 +265,26 @@ void ParametersPanel::setValues (const std::vector<std::pair<juce::String, juce:
         onChange();
 }
 
+void ParametersPanel::setHidden (const juce::String& id, bool shouldBeHidden)
+{
+    for (size_t i = 0; i < editors.size(); ++i)
+    {
+        auto& parameter = parameters.all()[i];
+
+        if (parameter.id != id)
+            continue;
+
+        parameter.hidden = shouldBeHidden;
+
+        for (auto* component : std::initializer_list<juce::Component*> { editors[i]->enableToggle.get(), &editors[i]->label,
+                                                                           editors[i]->widget.get(), &editors[i]->suffix })
+            if (component != nullptr)
+                component->setVisible (! shouldBeHidden);
+    }
+
+    resized();
+}
+
 void ParametersPanel::resetToDefaults()
 {
     for (size_t i = 0; i < editors.size(); ++i)
@@ -298,8 +318,12 @@ int ParametersPanel::layout (int width, bool apply) const
 
     int x = 0, y = 0;
 
-    for (const auto& editor : editors)
+    for (size_t i = 0; i < editors.size(); ++i)
     {
+        if (parameters.all()[i].hidden)
+            continue;
+
+        const auto& editor = editors[i];
         const int w = editor->getWidth();
 
         if (x > 0 && x + w > width)

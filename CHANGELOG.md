@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Histogram in the preview area while nothing is selected: folder, size, modified, created, content created or type, by number of items
   or by total size (linear or logarithmic), with three layers (all items, items passing the filters, checked items), statistics on hover and a click
   on a bar that sets the filters to show only its items.
-- Filters: *in folder*, and the kind of date to filter by (modified, created or content created).
+- Filters: *in folder*, *exclude if path contains* (words separated by `;`, matched against the folders and not the name; shown only when Recursive is on), and the kind of date to filter by (modified, created or content created).
 
 ### Changed
 - The date filter uses the same buckets as the histogram (today, 1-7 days, 7-30 days, 30 days - 1 year, 1-2 years, more than 2 years ago,

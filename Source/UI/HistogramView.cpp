@@ -14,6 +14,12 @@ namespace
     const juce::Colour visibleColour = juce::Colour::fromHSV (0.58f, 0.65f, 0.90f, 1.0f);
     const juce::Colour checkedColour = juce::Colour::fromHSV (0.04f, 0.80f, 0.95f, 1.0f);
 
+    /** A size, with "b" for bytes ("512 b", not "512 bytes"). */
+    juce::String sizeText (juce::int64 bytes)
+    {
+        return Format::size (bytes).replace (" bytes", " b").replace (" byte", " b");
+    }
+
     juce::String dates (const Histogram::Stats& s)
     {
         return s.oldest.toMilliseconds() == 0 ? juce::String() : Format::date (s.oldest).substring (0, 10) + " - " + Format::date (s.newest).substring (0, 10);
@@ -86,7 +92,7 @@ int HistogramView::binAt (juce::Point<int> position) const
 
 juce::String HistogramView::valueText (const Histogram::Stats& stats) const
 {
-    return metric == Metric::count ? juce::String (stats.count) : Format::size (stats.bytes);
+    return metric == Metric::count ? juce::String (stats.count) : sizeText (stats.bytes);
 }
 
 void HistogramView::paint (juce::Graphics& g)
@@ -248,19 +254,19 @@ juce::String HistogramView::getTooltip()
     juce::String tip;
     tip << bin.label << "\n";
     tip << Format::count ((size_t) total.count, "item") << " (" << share (total.count, allItems) << "), "
-        << Format::size (total.bytes) << " (" << share (total.bytes, allBytes) << ")";
+        << sizeText (total.bytes) << " (" << share (total.bytes, allBytes) << ")";
 
     if (total.count > 0)
-        tip << "\nAverage " << Format::size (total.average()) << ", largest " << total.largestName << " (" << Format::size (total.largestSize) << ")";
+        tip << "\nAverage " << sizeText (total.average()) << ", largest " << total.largestName << " (" << sizeText (total.largestSize) << ")";
 
     if (dates (total).isNotEmpty())
         tip << "\nModified " << dates (total);
 
     if (bin.filtered.count != total.count)
-        tip << "\nShown by the filters: " << bin.filtered.count << " items, " << Format::size (bin.filtered.bytes);
+        tip << "\nShown by the filters: " << bin.filtered.count << " items, " << sizeText (bin.filtered.bytes);
 
     if (bin.checked.count > 0)
-        tip << "\nChecked: " << bin.checked.count << " items, " << Format::size (bin.checked.bytes);
+        tip << "\nChecked: " << bin.checked.count << " items, " << sizeText (bin.checked.bytes);
 
     tip << (bin.filterable ? "\nClick to show only these" : juce::String());
     return tip;

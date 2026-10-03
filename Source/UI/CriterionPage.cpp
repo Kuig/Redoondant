@@ -67,7 +67,11 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     description.setMinimumHorizontalScale (1.0f);
 
     recursiveToggle.setToggleState (settings.getBool ("recursive", info.recursiveByDefault), juce::dontSendNotification);
-    recursiveToggle.onClick = [this] { settings.set ("recursive", recursiveToggle.getToggleState()); };
+    recursiveToggle.onClick = [this]
+    {
+        settings.set ("recursive", recursiveToggle.getToggleState());
+        updatePathFilter();
+    };
 
     groupOrderBox.addItemList (groupOrderNames(), 1);
     groupOrderBox.setSelectedItemIndex (juce::jlimit (0, groupOrderNames().size() - 1, settings.get ("groupOrder").getIntValue()), juce::dontSendNotification);
@@ -97,8 +101,8 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
         table.refresh();
         updateSummary();
     };
-    model.setFilter (filterBar->createFilter());
     addAndMakeVisible (*filterBar);
+    updatePathFilter();
 
     for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &parametersPanel, &recursiveToggle,
                                                                        &analyseButton, &resetButton, &status })
@@ -174,6 +178,18 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
     status.setTooltip (root.getFullPathName());
     updateSummary();
     loadContentDates (true);
+}
+
+void CriterionPage::updatePathFilter()
+{
+    if (filterBar == nullptr)
+        return;
+
+    filterBar->setRecursive (recursiveToggle.getToggleState());
+    model.setFilter (filterBar->createFilter());
+    table.refresh();
+    updateSummary();
+    resized();
 }
 
 void CriterionPage::applyDefaultSort()
