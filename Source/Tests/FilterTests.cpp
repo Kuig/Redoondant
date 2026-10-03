@@ -303,6 +303,12 @@ private:
         model.sort (Column::size, true);
         expectEquals ((int) model.getCheckedEntries().size(), 4);   // The first group stays all checked; the second keeps one.
 
+        // A new folder forgets the old results.
+        model.clear();
+        expect (! model.hasResult());
+        expectEquals (model.getNumRows(), 0);
+        expectEquals ((int) model.getAllEntries().size(), 0);
+
         // Which strategies a criterion can offer.
         expectEquals ((int) DefaultSelections::available (false, false).size(), 2);
         expectEquals ((int) DefaultSelections::available (true, false).size(), 5);

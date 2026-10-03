@@ -174,6 +174,14 @@ void MainComponent::setRootFolder (const juce::File& folder)
 {
     folderEditor.setText (folder.getFullPathName(), false);
 
+    if (folder != analysedFolder)       // The old results describe another folder.
+    {
+        analysedFolder = folder;
+
+        for (auto& page : pages)
+            page->forgetResults();
+    }
+
     if (folder.isDirectory())
         settings.set ("folder", folder.getFullPathName());
 }

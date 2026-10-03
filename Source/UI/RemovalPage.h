@@ -40,6 +40,9 @@ protected:
     /** Goes back to the `initial` selection given to setupDefaultSelection. */
     void resetDefaultSelection();
 
+    /** Empties the list, as before the first analysis (the analysed folder is no longer the current one). */
+    void discardResults();
+
     /** Lays out the footer and the table in `area`. */
     void layoutTableAndFooter (juce::Rectangle<int> area);
 

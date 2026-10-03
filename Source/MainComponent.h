@@ -54,6 +54,7 @@ private:
     std::vector<std::unique_ptr<CriterionPage>> pages;
     std::unique_ptr<CleanupPage> cleanupPage;
     juce::Component* currentPage = nullptr;
+    juce::File analysedFolder;          ///< The folder the pages were last reset for.
 
     juce::Label folderLabel { {}, "Folder:" };
     juce::TextEditor folderEditor;

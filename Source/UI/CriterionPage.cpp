@@ -191,6 +191,13 @@ void CriterionPage::resetToDefaults()
     resized();
 }
 
+void CriterionPage::forgetResults()
+{
+    discardResults();
+    status.setText ({}, juce::dontSendNotification);
+    status.setTooltip ({});
+}
+
 PeerCriterion CriterionPage::describeAsPeer() const
 {
     PeerCriterion peer { &criterion, parameters, std::nullopt, {}, model.getDefaultSelection() };

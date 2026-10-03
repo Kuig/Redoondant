@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Old files: the date to use (created, modified or content created) is chosen from a drop-down.
 
 ### Fixed
+- Changing the folder to analyze now discards the results of every criterion; they used to stay on screen
+  although they described the previous folder.
 - A filter saved in an older format could be read as a wrong file type.
 
 ## [1.0.0] - 2026-10-02

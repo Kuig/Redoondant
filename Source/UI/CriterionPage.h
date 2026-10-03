@@ -18,6 +18,9 @@ public:
     /** The criterion with its current settings and results, for criteria that combine others. */
     PeerCriterion describeAsPeer() const;
 
+    /** Drops the results (they belong to another folder). */
+    void forgetResults();
+
     void resized() override;
     void paint (juce::Graphics&) override;
 

@@ -35,6 +35,9 @@ public:
 
     void setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped);
     void setFilter (Filter newFilter);
+
+    /** Forgets the result (e.g. the analysed folder changed): back to the state before the first analysis. */
+    void clear();
     void sort (Column column, bool forwards);
     void setGroupOrder (GroupOrder newOrder);
 

@@ -101,6 +101,20 @@ void RemovalPage::selectDefault (DefaultSelection selection)
     updateSummary();
 }
 
+void RemovalPage::discardResults()
+{
+    ++dateRequest;                          // A running date reader is abandoned.
+    dateLoader.removeAllJobs (false, 0);
+    datesPending = 0;
+    model.clear();
+    checks = Checks::defaults;
+    table.refresh();
+    updateSummary();
+
+    if (onSelectionChanged != nullptr)
+        onSelectionChanged ({});
+}
+
 void RemovalPage::loadContentDates (bool restart)
 {
     if (! table.isColumnVisible (Column::contentCreated) || (datesPending > 0 && ! restart))

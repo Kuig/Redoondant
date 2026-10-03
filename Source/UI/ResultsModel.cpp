@@ -53,6 +53,14 @@ void ResultsModel::updateDefaults()
                     item.selected = item.selectedByDefault;
 }
 
+void ResultsModel::clear()
+{
+    result = {};
+    root = {};
+    analysed = false;
+    rows.clear();
+}
+
 void ResultsModel::setFilter (Filter newFilter)
 {
     filter = std::move (newFilter);
