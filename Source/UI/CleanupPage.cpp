@@ -2,6 +2,7 @@
 #include "../Core/EmptyFolders.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
+#include <map>
 
 namespace
 {
@@ -10,23 +11,21 @@ namespace
     constexpr int gap = 8;
     const juce::String noneChecked ("-");   // Stored when the list of checked folders is empty (as opposed to never saved).
 
-    /** The entry of a listed folder: measured if it exists, flagged missing otherwise. */
-    FileEntry measure (const juce::File& folder)
-    {
-        if (folder.isDirectory())
-            return FileScanner::makeEntry (folder);
-
-        FileEntry entry;
-        entry.file = folder;
-        entry.isDirectory = true;
-        entry.missing = true;
-        return entry;
-    }
-
     void warn (const juce::String& boxTitle, const juce::String& message)
     {
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, boxTitle, message);
     }
+}
+
+CleanupPage::Measured CleanupPage::measure (const juce::File& folder)
+{
+    if (folder.isDirectory())
+        return { FileScanner::makeEntry (folder), false };
+
+    FileEntry entry;
+    entry.file = folder;
+    entry.isDirectory = true;
+    return { std::move (entry), true };
 }
 
 CleanupPage::CleanupPage (SettingsScope s)
@@ -220,26 +219,31 @@ void CleanupPage::refresh()
     // A new measurement makes a running one stale: its result is ignored.
     measurer.submit ([this, files = std::move (files)] (const LatestOnlyWorker::Job& job)
     {
-        std::vector<FileEntry> entries;
+        std::vector<Measured> measured;
 
         for (const auto& file : files)
         {
             if (! job.isCurrent())
                 return;
 
-            entries.push_back (measure (file));
+            measured.push_back (measure (file));
         }
 
-        job.deliver ([this, entries = std::move (entries)]() mutable { showMeasured (std::move (entries)); });
+        job.deliver ([this, measured = std::move (measured)]() mutable { showMeasured (std::move (measured)); });
     });
 }
 
-void CleanupPage::showMeasured (std::vector<FileEntry> entries)
+void CleanupPage::showMeasured (std::vector<Measured> measured)
 {
     std::vector<juce::File> files;
 
-    for (const auto& entry : entries)
-        files.push_back (entry.file);
+    std::map<juce::String, size_t> indexOf;     // Position of each folder in the list, which is also where it is in `measured`.
+
+    for (size_t i = 0; i < measured.size(); ++i)
+    {
+        files.push_back (measured[i].entry.file);
+        indexOf[measured[i].entry.file.getFullPathName()] = i;
+    }
 
     AnalysisResult result;
     juce::int64 total = 0;
@@ -249,17 +253,18 @@ void CleanupPage::showMeasured (std::vector<FileEntry> entries)
         ResultGroup g { group.parent.getFullPathName(), {} };
 
         for (const auto index : group.members)
-        {
-            auto entry = entries[index];
-            entry.selected = ! entry.missing && folders[index].checkedByDefault;
-            g.items.push_back (std::move (entry));
-        }
+            g.items.push_back (measured[index].entry);
 
         total += g.totalSize();
         result.groups.push_back (std::move (g));
     }
 
-    model.setResult (std::move (result), {}, true);
+    model.setResult (std::move (result), {}, true, [&] (ResultItem& item)
+    {
+        const auto index = indexOf.at (item.file.getFullPathName());
+        item.missing = measured[index].missing;
+        item.selected = ! item.missing && folders[index].checkedByDefault;
+    });
     model.checkWhere ([this] (const FileEntry& e) { return checkedPaths.count (e.file.getFullPathName()) > 0; });
     table.refresh();
 
@@ -273,14 +278,15 @@ void CleanupPage::checksChanged()
 {
     bool changed = false;
 
-    for (const auto& entry : model.getAllEntries())
-    {
-        if (entry.missing)
-            continue;       // Keeps its saved state in case the folder appears later.
+    for (const auto& group : model.getResult().groups)
+        for (const auto& item : group.items)
+        {
+            if (item.missing)
+                continue;       // Keeps its saved state in case the folder appears later.
 
-        const auto path = entry.file.getFullPathName();
-        changed |= entry.selected ? checkedPaths.insert (path).second : checkedPaths.erase (path) > 0;
-    }
+            const auto path = item.file.getFullPathName();
+            changed |= item.selected ? checkedPaths.insert (path).second : checkedPaths.erase (path) > 0;
+        }
 
     if (changed)
         saveFolders();

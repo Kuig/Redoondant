@@ -40,7 +40,17 @@ private:
     void addFolder (const juce::File& folder);
     void removeSelected();
     void resetToDefaults();
-    void showMeasured (std::vector<FileEntry> entries);
+    /** A listed folder as measured: the entry, and whether it is missing from the disk. */
+    struct Measured
+    {
+        FileEntry entry;
+        bool missing = false;
+    };
+
+    /** Measures a listed folder: measured if it exists, flagged missing otherwise. Runs on the worker thread. */
+    static Measured measure (const juce::File& folder);
+
+    void showMeasured (std::vector<Measured> measured);
     void updateButtons();
 
     std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const override;

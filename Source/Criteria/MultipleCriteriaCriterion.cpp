@@ -107,26 +107,28 @@ namespace
                 if (peerInfo.id == getInfo().id || (listedCounts && peerInfo.exhaustive))
                     continue;
 
-                std::vector<FileEntry> items;
+                std::vector<FileEntry> listed, checked;
 
                 if (rerun)
                 {
                     context.progress ((double) i / (double) peerList.size(), "Running " + peerInfo.name + "...");
 
-                    auto result = peer.criterion->analyse (context, peer.parameters);
-                    DefaultSelections::applyAndCheck (peer.selection, result.groups);
+                    const auto result = peer.criterion->analyse (context, peer.parameters);
 
-                    for (auto& group : result.groups)
-                        items.insert (items.end(), group.items.begin(), group.items.end());
+                    for (const auto& group : result.groups)
+                        listed.insert (listed.end(), group.items.begin(), group.items.end());
+
+                    if (! listedCounts)
+                        checked = DefaultSelections::checkedEntries (peer.selection, result.groups);
                 }
                 else if (peer.results.has_value() && peer.resultsRoot == context.root)
                 {
-                    items = *peer.results;
+                    listed = *peer.results;
+                    checked = peer.checked;
                 }
 
-                for (const auto& item : items)
-                    if (listedCounts || item.selected)
-                        marks.add (item, peerInfo.name);
+                for (const auto& item : listedCounts ? listed : checked)
+                    marks.add (item, peerInfo.name);
             }
 
             return marks;

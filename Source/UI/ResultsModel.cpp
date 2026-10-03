@@ -5,17 +5,31 @@
 #include <map>
 #include <set>
 
-void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped)
+void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped,
+                              const std::function<void (ResultItem&)>& initialise)
 {
-    result = std::move (newResult);
+    result = {};
     root = scannedRoot;
 
-    for (size_t i = 0; i < result.groups.size(); ++i)
-        result.groups[i].order = (int) i;
+    for (auto& found : newResult.groups)
+    {
+        ListedGroup group;
+        group.title = std::move (found.title);
+        group.order = (int) result.groups.size();
 
-    for (auto& group : result.groups)
-        for (auto& item : group.items)
+        for (auto& entry : found.items)
+        {
+            ResultItem item (std::move (entry));
+
+            if (initialise != nullptr)
+                initialise (item);
+
             item.selectedByDefault = item.selected;
+            group.items.push_back (std::move (item));
+        }
+
+        result.groups.push_back (std::move (group));
+    }
 
     grouped = isGrouped;
     analysed = true;
@@ -88,7 +102,7 @@ void ResultsModel::setGroupOrder (GroupOrder newOrder)
 
 void ResultsModel::sortGroups()
 {
-    std::stable_sort (result.groups.begin(), result.groups.end(), [&] (const ResultGroup& a, const ResultGroup& b)
+    std::stable_sort (result.groups.begin(), result.groups.end(), [&] (const ListedGroup& a, const ListedGroup& b)
     {
         switch (groupOrder)
         {
@@ -109,19 +123,19 @@ const ResultsModel::Row* ResultsModel::getRow (int index) const
     return juce::isPositiveAndBelow (index, (int) rows.size()) ? &rows[(size_t) index] : nullptr;
 }
 
-const ResultGroup* ResultsModel::getGroup (int row) const
+const ListedGroup* ResultsModel::getGroup (int row) const
 {
     const auto* r = getRow (row);
     return r != nullptr ? &result.groups[(size_t) r->group] : nullptr;
 }
 
-FileEntry* ResultsModel::getEntry (int row)
+ResultItem* ResultsModel::getEntry (int row)
 {
     const auto* r = getRow (row);
     return r != nullptr && ! r->isHeader() ? &result.groups[(size_t) r->group].items[(size_t) r->item] : nullptr;
 }
 
-juce::String ResultsModel::getCellText (const FileEntry& entry, Column column, const ResultGroup* group) const
+juce::String ResultsModel::getCellText (const ResultItem& entry, Column column, const ListedGroup* group) const
 {
     switch (column)
     {
@@ -153,7 +167,7 @@ namespace
     {
         size_t total = 0, checked = 0;
 
-        void add (const FileEntry& e)
+        void add (const ResultItem& e)
         {
             if (! e.missing)
             {
@@ -166,7 +180,7 @@ namespace
     };
 
     /** Applies a bulk check state to an entry: all, none, or what the criterion proposed. */
-    void applyBulkCheck (FileEntry& item, BulkCheck phase)
+    void applyBulkCheck (ResultItem& item, BulkCheck phase)
     {
         item.selected = ! item.missing && (phase == BulkCheck::all || (phase == BulkCheck::defaults && item.selectedByDefault));
     }
@@ -175,7 +189,7 @@ namespace
 CheckState ResultsModel::getGroupState (int group) const
 {
     CheckTally tally;
-    forEachVisible (group, [&] (const FileEntry& e) { tally.add (e); });
+    forEachVisible (group, [&] (const ResultItem& e) { tally.add (e); });
     return tally.state();
 }
 
@@ -211,7 +225,7 @@ CheckState ResultsModel::getOverallState() const
     CheckTally tally;
 
     for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const FileEntry& e) { tally.add (e); });
+        forEachVisible (g, [&] (const ResultItem& e) { tally.add (e); });
 
     return tally.state();
 }
@@ -221,7 +235,7 @@ int ResultsModel::countGroupsFullyChecked() const
     int count = 0;
 
     for (const auto& group : result.groups)
-        if (group.items.size() >= 2 && std::all_of (group.items.begin(), group.items.end(), [] (const FileEntry& e) { return e.selected; }))
+        if (group.items.size() >= 2 && std::all_of (group.items.begin(), group.items.end(), [] (const ResultItem& e) { return e.selected; }))
             ++count;
 
     return count;
@@ -232,7 +246,7 @@ size_t ResultsModel::getVisibleCount() const
     size_t count = 0;
 
     for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const FileEntry&) { ++count; });
+        forEachVisible (g, [&] (const ResultItem&) { ++count; });
 
     return count;
 }
@@ -242,7 +256,7 @@ std::vector<FileEntry> ResultsModel::getCheckedEntries() const
     std::vector<FileEntry> checked;
 
     for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const FileEntry& e) { if (e.selected) checked.push_back (e); });
+        forEachVisible (g, [&] (const ResultItem& e) { if (e.selected) checked.push_back (e); });
 
     return checked;
 }
@@ -252,7 +266,7 @@ std::vector<FileEntry> ResultsModel::getVisibleEntries() const
     std::vector<FileEntry> visible;
 
     for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const FileEntry& e) { visible.push_back (e); });
+        forEachVisible (g, [&] (const ResultItem& e) { if (! e.missing) visible.push_back (e); });
 
     return visible;
 }
@@ -294,7 +308,9 @@ std::vector<FileEntry> ResultsModel::getAllEntries() const
     std::vector<FileEntry> all;
 
     for (const auto& group : result.groups)
-        all.insert (all.end(), group.items.begin(), group.items.end());
+        for (const auto& item : group.items)
+            if (! item.missing)
+                all.push_back (item);
 
     return all;
 }
@@ -335,7 +351,7 @@ void ResultsModel::remove (const juce::Array<juce::File>& files)
         return false;
     };
 
-    std::vector<ResultGroup> kept;
+    std::vector<ListedGroup> kept;
 
     for (auto& group : result.groups)
     {
@@ -357,9 +373,9 @@ void ResultsModel::applySort()
     if (sortColumn == Column::check)
         return;
 
-    const ResultGroup* currentGroup = nullptr;
+    const ListedGroup* currentGroup = nullptr;
 
-    const auto compare = [this, &currentGroup] (const FileEntry& a, const FileEntry& b) -> int
+    const auto compare = [this, &currentGroup] (const ResultItem& a, const ResultItem& b) -> int
     {
         switch (sortColumn)
         {
@@ -379,7 +395,7 @@ void ResultsModel::applySort()
     for (auto& group : result.groups)
     {
         currentGroup = &group;
-        std::stable_sort (group.items.begin(), group.items.end(), [&] (const FileEntry& a, const FileEntry& b)
+        std::stable_sort (group.items.begin(), group.items.end(), [&] (const ResultItem& a, const ResultItem& b)
         {
             const int c = compare (a, b);
             return sortForwards ? c < 0 : c > 0;

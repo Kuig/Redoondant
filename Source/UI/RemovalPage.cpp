@@ -178,12 +178,7 @@ void RemovalPage::cycleChecks()
 
 Histogram::Input RemovalPage::getHistogramInput() const
 {
-    const auto listed = [] (std::vector<FileEntry> entries)
-    {
-        return FileScanner::keepIf (std::move (entries), [] (const FileEntry& e) { return ! e.missing; });
-    };
-
-    return { listed (model.getAllEntries()), listed (model.getVisibleEntries()), model.getCheckedEntries(), model.getRoot() };
+    return { model.getAllEntries(), model.getVisibleEntries(), model.getCheckedEntries(), model.getRoot() };
 }
 
 void RemovalPage::updateSummary()

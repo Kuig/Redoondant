@@ -10,7 +10,8 @@ struct PeerCriterion
 {
     const Criterion* criterion = nullptr;
     ParameterSet parameters;
-    std::optional<std::vector<FileEntry>> results;
+    std::optional<std::vector<FileEntry>> results;      ///< Everything the list shows.
+    std::vector<FileEntry> checked;                     ///< The entries of `results` that the user has checked.
     juce::File resultsRoot;     ///< The folder the results refer to.
     DefaultSelection selection = DefaultSelection::none;   ///< The page's default selection: what a new analysis would check.
 };

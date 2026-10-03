@@ -236,11 +236,12 @@ void CriterionPage::forgetResults()
 
 PeerCriterion CriterionPage::describeAsPeer() const
 {
-    PeerCriterion peer { &criterion, parameters, std::nullopt, {}, model.getDefaultSelection() };
+    PeerCriterion peer { &criterion, parameters, std::nullopt, {}, {}, model.getDefaultSelection() };
 
     if (model.hasResult())
     {
         peer.results = model.getAllEntries();
+        peer.checked = model.getCheckedEntries();
         peer.resultsRoot = model.getRoot();
     }
 

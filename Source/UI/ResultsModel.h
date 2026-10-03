@@ -1,7 +1,6 @@
 #pragma once
 
-#include "../Core/AnalysisResult.h"
-#include "../Core/DefaultSelection.h"
+#include "ListedResult.h"
 #include <optional>
 
 enum class CheckState { none, some, all };
@@ -33,7 +32,12 @@ public:
 
     using Filter = std::function<bool (const FileEntry&)>;
 
-    void setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped);
+    /** Shows an analysis result. The items start unchecked and present; `initialise` can set the state of each one
+        (`selected`, `missing`): what it checks also becomes the "default checks" state, unless a default selection
+        (setDefaultSelection) takes over.
+    */
+    void setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped,
+                    const std::function<void (ResultItem&)>& initialise = {});
     /** `usesContentDate`: the filter looks at the content created date, so the rows must be filtered again when dates arrive. */
     void setFilter (Filter newFilter, bool usesContentDate = false);
 
@@ -44,7 +48,7 @@ public:
 
     /** Chooses which entries are checked by default. Groups still in their "default" check state are updated
         (and again whenever the sort or the filter changes, for the strategies that depend on them).
-        Without a call, the entries keep the checks the criterion gave them (Cache Cleaner).
+        Without a call, the entries keep the checks `initialise` gave them (Cache Cleaner).
     */
     void setDefaultSelection (DefaultSelection newSelection);
     DefaultSelection getDefaultSelection() const    { return defaultSelection.value_or (DefaultSelection::none); }
@@ -54,13 +58,13 @@ public:
 
     int getNumRows() const noexcept                 { return (int) rows.size(); }
     const Row* getRow (int index) const;
-    const ResultGroup* getGroup (int row) const;
-    FileEntry* getEntry (int row);
+    const ListedGroup* getGroup (int row) const;
+    ResultItem* getEntry (int row);
 
     /** Text shown in a cell. Entries flagged `missing` have no size or dates. When no folder was
         analysed (empty root) and the group's title is a folder, names are shown relative to it.
     */
-    juce::String getCellText (const FileEntry& entry, Column column, const ResultGroup* group = nullptr) const;
+    juce::String getCellText (const ResultItem& entry, Column column, const ListedGroup* group = nullptr) const;
 
     CheckState getGroupState (int group) const;
 
@@ -75,7 +79,7 @@ public:
 
     size_t getVisibleCount() const;
     std::vector<FileEntry> getCheckedEntries() const;
-    std::vector<FileEntry> getVisibleEntries() const;
+    std::vector<FileEntry> getVisibleEntries() const;       // Entries flagged `missing` are left out of these lists.
 
     /** Files (not folders) whose content date has not been read yet. */
     std::vector<juce::File> filesNeedingContentDate() const;
@@ -83,10 +87,10 @@ public:
     /** Stores content dates read in the background (null times are kept as "unknown"). */
     void setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates);
 
-    /** Every entry of the result, visible or not. */
+    /** Every entry of the result that exists, visible or not. */
     std::vector<FileEntry> getAllEntries() const;
     const juce::File& getRoot() const noexcept      { return root; }
-    const AnalysisResult& getResult() const noexcept    { return result; }
+    const ListedResult& getResult() const noexcept      { return result; }
 
     /** Bulk check states for the visible entries. */
     void applyChecks (BulkCheck checks);
@@ -103,7 +107,7 @@ public:
     void remove (const juce::Array<juce::File>& files);
 
 private:
-    AnalysisResult result;
+    ListedResult result;
     juce::File root;
     bool grouped = false;
     bool analysed = false;

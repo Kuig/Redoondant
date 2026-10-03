@@ -48,52 +48,61 @@ namespace DefaultSelections
         return s == DefaultSelection::followsSort || s == DefaultSelection::longestName || s == DefaultSelection::shortestName;
     }
 
-    /** Sets `selectedByDefault` of every entry. The "keep one" strategies look at each group's visible entries in their
-        current order and keep the first one that wins (hidden and missing entries are never kept nor checked).
+    /** The item a "keep one" strategy leaves unchecked in a group: the first candidate (in the group's current order)
+        that wins. Null for the other strategies, or when there is no candidate.
     */
-    inline void apply (DefaultSelection strategy, std::vector<ResultGroup>& groups, const std::function<bool (const FileEntry&)>& isVisible)
+    template <typename Items, typename IsCandidate>
+    const typename Items::value_type* keeperOf (DefaultSelection strategy, const Items& items, IsCandidate&& isCandidate)
     {
-        for (auto& group : groups)
+        const typename Items::value_type* keeper = nullptr;
+
+        if (! dependsOnView (strategy))
+            return keeper;
+
+        for (const auto& item : items)
         {
-            const FileEntry* keeper = nullptr;
+            if (! isCandidate (item))
+                continue;
 
-            if (dependsOnView (strategy))
-                for (const auto& item : group.items)
-                {
-                    if (item.missing || ! isVisible (item))
-                        continue;
+            const auto length = item.name().length();
+            const bool wins = keeper == nullptr
+                               || (strategy == DefaultSelection::longestName && length > keeper->name().length())
+                               || (strategy == DefaultSelection::shortestName && length < keeper->name().length());
 
-                    const auto length = item.name().length();
-                    const auto* best = keeper;
-                    const bool wins = best == nullptr
-                                       || (strategy == DefaultSelection::longestName && length > best->name().length())
-                                       || (strategy == DefaultSelection::shortestName && length < best->name().length());
+            if (wins)
+                keeper = &item;
+        }
 
-                    if (wins)
-                        keeper = &item;
-                }
+        return keeper;
+    }
 
-            for (auto& item : group.items)
-            {
-                switch (strategy)
-                {
-                    case DefaultSelection::none:    item.selectedByDefault = false; break;
-                    case DefaultSelection::all:     item.selectedByDefault = ! item.missing; break;
-                    case DefaultSelection::folders: item.selectedByDefault = ! item.missing && item.isDirectory; break;
-                    case DefaultSelection::files:   item.selectedByDefault = ! item.missing && ! item.isDirectory; break;
-                    default:                        item.selectedByDefault = ! item.missing && isVisible (item) && &item != keeper; break;
-                }
-            }
+    /** Whether the strategy checks an item by default. Only the "keep one" strategies care whether it is visible. */
+    inline bool checkedBy (DefaultSelection strategy, const FileEntry& item, bool exists, bool visible, bool isKeeper)
+    {
+        switch (strategy)
+        {
+            case DefaultSelection::none:    return false;
+            case DefaultSelection::all:     return exists;
+            case DefaultSelection::folders: return exists && item.isDirectory;
+            case DefaultSelection::files:   return exists && ! item.isDirectory;
+            default:                        return exists && visible && ! isKeeper;
         }
     }
 
-    /** apply() with everything visible, then checks exactly what is selected by default (for results used outside the table). */
-    inline void applyAndCheck (DefaultSelection strategy, std::vector<ResultGroup>& groups)
+    /** The entries a strategy checks in fresh analysis results (everything visible, nothing missing). */
+    inline std::vector<FileEntry> checkedEntries (DefaultSelection strategy, const std::vector<ResultGroup>& groups)
     {
-        apply (strategy, groups, [] (const FileEntry&) { return true; });
+        std::vector<FileEntry> checked;
 
-        for (auto& group : groups)
-            for (auto& item : group.items)
-                item.selected = item.selectedByDefault;
+        for (const auto& group : groups)
+        {
+            const auto* keeper = keeperOf (strategy, group.items, [] (const FileEntry&) { return true; });
+
+            for (const auto& item : group.items)
+                if (checkedBy (strategy, item, true, true, &item == keeper))
+                    checked.push_back (item);
+        }
+
+        return checked;
     }
 }

@@ -9,28 +9,39 @@ using namespace ParameterChoices;
 
 namespace
 {
+    /** An entry and whether the user has it checked. */
+    struct Marked
+    {
+        FileEntry entry;
+        bool checked;
+    };
+
+    Marked mark (const juce::File& file, bool checked)    { return { FileScanner::makeEntry (file), checked }; }
+
     /** A criterion returning a fixed list. */
     class FakeCriterion final : public Criterion
     {
     public:
-        FakeCriterion (const juce::String& name, std::vector<FileEntry> list, bool exhaustive = false)
-            : Criterion ({ name.toLowerCase(), name, {}, exhaustive ? Trait::exhaustive : Trait::none }), items (std::move (list)) {}
+        FakeCriterion (const juce::String& name, std::vector<Marked> list, bool exhaustive = false)
+            : Criterion ({ name.toLowerCase(), name, {}, exhaustive ? Trait::exhaustive : Trait::none })
+        {
+            for (auto& marked : list)
+            {
+                items.push_back (marked.entry);
+
+                if (marked.checked)
+                    checked.push_back (marked.entry);
+            }
+        }
 
         AnalysisResult analyse (const ScanContext&, const ParameterSet&) const override   { return AnalysisResult::flat (items); }
 
-        std::vector<FileEntry> items;
+        std::vector<FileEntry> items, checked;
     };
 
-    FileEntry mark (const juce::File& file, bool checked)
+    std::vector<ResultItem> allItems (const ListedResult& result)
     {
-        auto e = FileScanner::makeEntry (file);
-        e.selected = checked;
-        return e;
-    }
-
-    std::vector<FileEntry> allItems (const AnalysisResult& result)
-    {
-        std::vector<FileEntry> items;
+        std::vector<ResultItem> items;
 
         for (const auto& group : result.groups)
             items.insert (items.end(), group.items.begin(), group.items.end());
@@ -50,8 +61,8 @@ public:
         {
             TempFolder temp;
             ResultsModel model;
-            model.setResult (AnalysisResult::flat ({ mark (temp.write ("a.txt", "a"), true), mark (temp.write ("b.txt", "b"), false) }),
-                             temp.root, false);
+            model.setResult (AnalysisResult::flat ({ FileScanner::makeEntry (temp.write ("a.txt", "a")), FileScanner::makeEntry (temp.write ("b.txt", "b")) }),
+                             temp.root, false, [] (ResultItem& item) { item.selected = item.name() == "a.txt"; });
 
             model.applyChecks (BulkCheck::all);
             expectEquals ((int) model.getCheckedEntries().size(), 2);
@@ -84,7 +95,8 @@ public:
             std::vector<PeerCriterion> list;
 
             for (const auto* c : { &alpha, &beta, &gamma })
-                list.push_back ({ c, {}, static_cast<const FakeCriterion*> (c)->items, c == &beta ? betaRoot : temp.root, c == &gamma ? DefaultSelection::none : DefaultSelection::all });
+                list.push_back ({ c, {}, static_cast<const FakeCriterion*> (c)->items, static_cast<const FakeCriterion*> (c)->checked,
+                                  c == &beta ? betaRoot : temp.root, c == &gamma ? DefaultSelection::none : DefaultSelection::all });
 
             return list;
         };

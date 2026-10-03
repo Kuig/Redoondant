@@ -40,7 +40,7 @@ public:
     }
 
 private:
-    static juce::StringArray names (const AnalysisResult& result)
+    static juce::StringArray names (const ListedResult& result)
     {
         juce::StringArray found;
 
@@ -202,21 +202,23 @@ private:
     {
         beginTest ("Group check boxes cycle default -> all -> none");
 
-        const auto entry = [] (const juce::String& fileName, bool byDefault, bool missing = false)
+        const auto entry = [] (const juce::String& fileName)
         {
             FileEntry e;
             e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
-            e.selected = byDefault;
-            e.missing = missing;
             return e;
         };
 
         AnalysisResult result;
-        result.groups.push_back ({ "first", { entry ("a", true), entry ("b", false), entry ("gone", false, true) } });
-        result.groups.push_back ({ "second", { entry ("c", true), entry ("d", false) } });
+        result.groups.push_back ({ "first", { entry ("a"), entry ("b"), entry ("gone") } });
+        result.groups.push_back ({ "second", { entry ("c"), entry ("d") } });
 
         ResultsModel model;
-        model.setResult (std::move (result), {}, true);
+        model.setResult (std::move (result), {}, true, [] (ResultItem& item)
+        {
+            item.selected = item.name() == "a" || item.name() == "c";       // Checked by whoever filled the list.
+            item.missing = item.name() == "gone";
+        });
         model.setFilter ([] (const FileEntry& e) { return e.name() != "d"; });      // "d" is hidden: never touched.
 
         const auto checked = [&] { return model.getCheckedEntries().size(); };
@@ -260,9 +262,10 @@ private:
         {
             juce::StringArray names;
 
-            for (const auto& e : model.getAllEntries())
-                if (! e.selected)
-                    names.add (e.name());
+            for (const auto& group : model.getResult().groups)
+                for (const auto& e : group.items)
+                    if (! e.selected)
+                        names.add (e.name());
 
             return names.joinIntoString (",");
         };

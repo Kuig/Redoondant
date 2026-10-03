@@ -28,7 +28,7 @@ namespace TestHelpers
     /** Runs a criterion with its default parameters (optionally tweaked), then sorts and checks the result
         the way a page does at start: the criterion's default sort and default selection.
     */
-    inline AnalysisResult run (const Criterion& criterion, const juce::File& root, bool recursive = false,
+    inline ListedResult run (const Criterion& criterion, const juce::File& root, bool recursive = false,
                                const std::function<void (ParameterSet&)>& tweak = {},
                                const std::vector<PeerCriterion>& peers = {})
     {
@@ -56,7 +56,7 @@ namespace TestHelpers
                 p.value = value;
     }
 
-    inline const FileEntry* findItem (const ResultGroup& group, const juce::String& name)
+    inline const ResultItem* findItem (const ListedGroup& group, const juce::String& name)
     {
         for (const auto& item : group.items)
             if (item.name() == name)

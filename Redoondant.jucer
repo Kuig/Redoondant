@@ -124,6 +124,7 @@
         <FILE id="hBUh6X" name="HistogramView.cpp" compile="1" resource="0" file="Source/UI/HistogramView.cpp"/>
         <FILE id="chy3Kd" name="HistogramView.h" compile="0" resource="0" file="Source/UI/HistogramView.h"/>
         <FILE id="LOWork" name="LatestOnlyWorker.h" compile="0" resource="0" file="Source/UI/LatestOnlyWorker.h"/>
+        <FILE id="LstRes" name="ListedResult.h" compile="0" resource="0" file="Source/UI/ListedResult.h"/>
         <FILE id="j2FNqs" name="IconCache.cpp" compile="1" resource="0" file="Source/UI/IconCache.cpp"/>
         <FILE id="fi7Dzw" name="IconCache.h" compile="0" resource="0" file="Source/UI/IconCache.h"/>
         <FILE id="pdp4K8" name="ParametersPanel.cpp" compile="1" resource="0"
