@@ -272,6 +272,13 @@ void ResultsTable::cellClicked (int row, int columnId, const juce::MouseEvent& e
 
     if (r != nullptr && (columnId == (int) Column::check || r->isHeader()))
         toggle (row);
+
+    // Clicking the only selected item again deselects it (the list would keep it selected): the click is the mouse-up
+    // of a row that was already selected at mouse-down, and nothing else changed the selection since.
+    if (r != nullptr && ! r->isHeader() && columnId != (int) Column::check
+         && ! e.mods.isAnyModifierKeyDown() && e.getNumberOfClicks() == 1
+         && lastSelectionChange < e.mouseDownTime && table.getNumSelectedRows() == 1 && table.isRowSelected (row))
+        table.deselectAllRows();
 }
 
 void ResultsTable::cellDoubleClicked (int row, int, const juce::MouseEvent&)
@@ -289,6 +296,7 @@ void ResultsTable::sortOrderChanged (int columnId, bool isForwards)
 void ResultsTable::selectedRowsChanged (int lastRowSelected)
 {
     juce::ignoreUnused (lastRowSelected);
+    lastSelectionChange = juce::Time::getCurrentTime();
 
     if (onSelectionChanged == nullptr)
         return;

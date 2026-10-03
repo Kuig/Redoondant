@@ -111,20 +111,28 @@ void HistogramView::paint (juce::Graphics& g)
     const int fullHeight = baseline - (plot.getY() + valueHeight);
     const auto yOf = [&] (juce::int64 value) { return baseline - (int) std::ceil ((double) fullHeight * heightFraction (value, most)); };
 
-    // Light horizontal grid: even steps on a linear scale, decades (powers of 1024 for sizes) on a logarithmic one.
-    g.setColour (text.withAlpha (0.12f));
+    // Light horizontal grid: even steps on a linear scale; on a logarithmic one a line at each decade
+    // (1, 10, 100...) and lighter ones at 2, 3... 9 times it, which bunch up the way the scale does.
+    const auto gridLine = [&] (double value, float alpha)
+    {
+        g.setColour (text.withAlpha (alpha));
+        g.drawHorizontalLine (yOf ((juce::int64) value), (float) plot.getX(), (float) plot.getRight());
+    };
 
     if (logButton.getToggleState())
     {
-        const double step = metric == Metric::count ? 10.0 : 1024.0;
+        for (double decade = 1.0; decade <= (double) most; decade *= 10.0)
+        {
+            gridLine (decade, 0.16f);
 
-        for (double tick = metric == Metric::count ? 1.0 : 1024.0; tick <= (double) most; tick *= step)
-            g.drawHorizontalLine (yOf ((juce::int64) tick), (float) plot.getX(), (float) plot.getRight());
+            for (int multiple = 2; multiple <= 9 && decade * multiple <= (double) most; ++multiple)
+                gridLine (decade * multiple, 0.06f);
+        }
     }
     else
     {
         for (int k = 1; k <= 4; ++k)
-            g.drawHorizontalLine (yOf (most * k / 4), (float) plot.getX(), (float) plot.getRight());
+            gridLine ((double) most * k / 4.0, 0.12f);
     }
 
     g.setColour (text.withAlpha (0.35f));

@@ -13,7 +13,7 @@ public:
 
     void setBins (std::vector<Histogram::Bin> newBins, Metric newMetric);
 
-    /** Logarithmic height of the bars (the "log" check box, bottom right). */
+    /** Logarithmic height of the bars (the "log" check box, bottom right); the grid then has a line per decade and lighter ones in between. */
     void setLogScale (bool shouldBeLog);
     std::function<void (bool)> onLogChanged;
 

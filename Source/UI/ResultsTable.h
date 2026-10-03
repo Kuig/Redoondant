@@ -58,6 +58,7 @@ private:
     ResultsModel& model;
     Table table { *this };
     IconCache icons;
+    juce::Time lastSelectionChange;         ///< Tells whether a click changed the selection (see cellClicked).
 
     struct HeaderListener;
     struct CheckHeader;

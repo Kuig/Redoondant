@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - The date filter uses the same buckets as the histogram (today, 1-7 days, 7-30 days, 30 days - 1 year, 1-2 years, more than 2 years ago,
   unknown date) instead of cumulative ranges.
+- Clicking the only selected item again deselects it, which brings the histogram back.
 
 ### Fixed
 - Changing the folder to analyze now discards the results of every criterion; they used to stay on screen
