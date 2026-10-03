@@ -1,6 +1,9 @@
 /*  Tests of PDF support and of the name/metadata based criteria. */
 
 #include "TestHelpers.h"
+#include "../Platform/ShellIcon.h"
+#include "../Platform/ComInit.h"
+#include "../Metadata/MetadataDiff.h"
 #include "../Core/Grouping.h"
 #include "../Criteria/AllCriteria.h"
 #include "../Pdf/PdfDocument.h"
@@ -55,6 +58,8 @@ public:
 
     void runTest() override
     {
+        testMetadataDiff();
+        testIcons();
         beginTest ("PDF metadata and rendering");
         {
             TempFolder temp;
@@ -120,6 +125,50 @@ public:
             expectEquals ((int) result.groups[0].items.size(), 2);
             expect (! findItem (result.groups[0], "song.flac")->selected);
             expect (findItem (result.groups[0], "song 128k.mp3")->selected);
+        }
+    }
+
+private:
+    void testMetadataDiff()
+    {
+        beginTest ("Metadata diff keeps only what differs");
+
+        Metadata a, b, c;
+
+        for (auto* m : { &a, &b, &c })
+        {
+            m->add ("Base.Path", "Path", m == &a ? "/a" : (m == &b ? "/b" : "/c"));      // Always different.
+            m->add ("Base.Type", "Type", "Image");                                         // Shared by all.
+        }
+
+        a.add ("Photo.Camera", "Camera", "X100");
+        b.add ("Photo.Camera", "Camera", "X100");
+        c.add ("Photo.Camera", "Camera", "Z7");                                            // Differs in one file.
+        a.add ("Photo.Lens", "Lens", "35mm");                                              // Missing in the others.
+        a.add ({}, "Note", "no key");                                                      // Items without a key are kept.
+
+        const auto result = MetadataDiff::differing ({ a, b, c });
+        const auto keys = [&] (size_t i) { juce::StringArray k; for (const auto& item : result[i].items()) k.add (item.key.isEmpty() ? "-" : item.key); return k.joinIntoString (","); };
+
+        expectEquals (keys (0), juce::String ("Base.Path,Photo.Camera,Photo.Lens,-"));
+        expectEquals (keys (1), juce::String ("Base.Path,Photo.Camera"));
+        expectEquals (keys (2), juce::String ("Base.Path,Photo.Camera"));
+
+        // Identical files differ only by path.
+        expectEquals ((int) MetadataDiff::differing ({ b, b })[0].items().size(), 0);
+    }
+
+    void testIcons()
+    {
+        beginTest ("System icons");
+        {
+            const ScopedComInit com;
+            TempFolder temp;
+            const auto text = temp.write ("note.txt", "x");
+
+            expect (ShellIcon::get (text, 32).isValid());
+            expect (ShellIcon::get (juce::File::getSpecialLocation (juce::File::currentExecutableFile), 32).isValid());
+            expect (ShellIcon::get (temp.root, 32).isValid());      // Folders too.
         }
     }
 };

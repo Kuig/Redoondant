@@ -56,10 +56,10 @@ public:
 };
 
 //==============================================================================
-class TrashTests final : public juce::UnitTest
+class RemovalTests final : public juce::UnitTest
 {
 public:
-    TrashTests() : UnitTest ("Trash", "Redoondant") {}
+    RemovalTests() : UnitTest ("Removal", "Redoondant") {}
 
     void runTest() override
     {
@@ -255,5 +255,5 @@ public:
 
 static GroupingTests groupingTests;
 static RegistryTests registryTests;
-static TrashTests trashTests;
+static RemovalTests removalTests;
 static CriteriaTests criteriaTests;

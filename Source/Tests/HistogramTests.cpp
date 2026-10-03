@@ -1,6 +1,8 @@
 /*  Tests of the histogram bars (buckets, layers, statistics). */
 
 #include "TestHelpers.h"
+#include "../UI/ResultsModel.h"
+#include "../UI/FilterBar.h"
 #include "../Core/Histogram.h"
 
 class HistogramTests final : public juce::UnitTest
@@ -10,6 +12,7 @@ public:
 
     void runTest() override
     {
+        testBinFilters();
         testBuckets();
         testBars();
         testFolders();
@@ -161,6 +164,62 @@ private:
             total += bin.total.count;
 
         expectEquals (total, (int) input.all.size());               // No entry is lost.
+    }
+
+    void testBinFilters()
+    {
+        beginTest ("A bar sets the filters that show exactly its entries");
+
+        TempFolder temp;
+        juce::PropertiesFile::Options options;
+        options.filenameSuffix = ".settings";
+        juce::PropertiesFile file (temp.root.getChildFile ("b.settings"), options);
+
+        const auto now = juce::Time::getCurrentTime();
+        Histogram::Input input;
+        int n = 0;
+
+        for (const auto& [fileName, size, days] : std::vector<std::tuple<const char*, juce::int64, double>> {
+                 { "a.txt", mb / 2, 0.1 }, { "sub/b.png", 5 * mb, 3 }, { "sub/c.mp3", 50 * mb, 10 }, { "other/d.txt", 500 * mb, 100 },
+                 { "other/e.png", 2048 * mb, 500 }, { "f.mp3", 10 * mb, 900 }, { "g.txt", mb - 1, 6.9 }, { "h.txt", 10 * mb, 29 } })
+        {
+            FileEntry e;
+            e.file = temp.root.getChildFile (fileName);
+            e.size = size;
+            e.modified = e.created = now - juce::RelativeTime::days (days);
+            input.all.push_back (e);
+        }
+
+        input.visible = input.all;
+
+        for (int p = 0; p < Histogram::propertyNames().size(); ++p)
+        {
+            const auto property = (Property) p;
+
+            for (const auto& bin : Histogram::compute (input, property, Metric::count, temp.root, now))
+            {
+                if (! bin.filterable)
+                    continue;
+
+                FilterBar bar (SettingsScope (file, "bar" + juce::String (n++)));
+                bar.setRoot (temp.root);
+                bar.applyBin (property, bin);
+                const auto filter = bar.createFilter();
+
+                for (const auto& e : input.all)
+                {
+                    Histogram::Input single;
+                    single.all = { e };
+                    const auto where = Histogram::compute (single, property, Metric::count, temp.root, now);
+                    const bool inBar = std::any_of (where.begin(), where.end(), [&] (const Histogram::Bin& b) { return b.total.count > 0 && b.label == bin.label; });
+                    expect (filter (e) == inBar, Histogram::nameOf (property) + " / " + bin.label + " / " + e.name());
+                }
+
+                bar.applyBin (property, bin);       // Again: the filter is taken off.
+                const auto off = bar.createFilter();
+                expect (std::all_of (input.all.begin(), input.all.end(), [&] (const FileEntry& e) { return off (e); }));
+            }
+        }
     }
 };
 
