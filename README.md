@@ -34,7 +34,8 @@ crash dumps, shader caches, Premiere media cache, Teams, browser and VS Code cac
 with their sizes, grouped under the deepest directory shared with another listed folder.
 Missing folders are shown dimmed. **Add folder...** / **Remove** edit the list, **Reset to defaults** restores it
 (defaults use `%APPDATA%`-style variables, so they don't depend on the user name); folders that are too
-broad (drive roots, the user profile, AppData, Windows...) can't be added. The buttons act on the *content* of the
+broad (drive roots, the user profile, AppData and its Microsoft and Packages folders, Windows...) or that hold keys and credentials
+can't be added, also when they are reached through a junction, a symbolic link or a `subst` drive. The buttons act on the *content* of the
 checked folders (the folders stay): **Move to Trash**, **Move to folder** or **Delete permanently** (bypasses the
 Recycle Bin). Files in use by a running program are reported and skipped. Big caches of browsers/VS Code/pip/npm are listed but not checked at first.
 

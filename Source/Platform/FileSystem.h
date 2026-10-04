@@ -25,6 +25,11 @@ namespace FileSystem
         bool complete() const noexcept      { return failed == 0 && ! stopped; }
     };
 
+    /** The path the file system really uses for an existing file or folder: junctions, symbolic links and subst drives
+        resolved. The file itself if it can't be opened.
+    */
+    juce::File finalPath (const juce::File& file);
+
     /** Deletes a file, or a folder with everything in it, for good. Links are deleted, never followed; read-only items
         are deleted too. Goes on after a failure (a file in use), and stops between items when shouldStop() is true.
     */

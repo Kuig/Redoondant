@@ -40,6 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Move to Trash, Move to folder and Delete permanently act on exactly the items their confirmation described: content dates arriving while
   the question is open (which can re-sort a list and change the item each group keeps) no longer change what is removed.
 - The Cache Cleaner's confirmation no longer counts twice a folder listed inside another checked one.
+- **Move to Trash** is much faster on many items (one shell operation per batch instead of one per item). When Windows can't recycle an
+  item (too big for the Recycle Bin) its question now shows above the progress window, and an item deleted for good after that question is
+  reported as such instead of "moved to the Recycle Bin". Drives mounted in a folder are recognised by their own volume, and the drive
+  checks before the confirmation are done once per folder instead of once per item.
+- The Cache Cleaner checks the real path of a folder (junctions, symbolic links and `subst` drives resolved) against the protected ones,
+  and refuses `%APPDATA%\Microsoft`, `%LOCALAPPDATA%\Microsoft`, `%LOCALAPPDATA%\Packages` themselves and the folders of keys and
+  credentials (`Protect`, `Credentials`, `Crypto`, `SystemCertificates`, `Vault`).
+- The summary line no longer slows down on big lists of checked items (nested items are found with one sort instead of one walk up per item).
 - **The last copy is never removed.** In the groups of copies (duplicates, versions, same name, similar metadata, an archive and its folder) a
   checked item is left untouched when the copy kept in its group has been removed or changed since the analysis, for example from another
   page or in Explorer; and what an action removes now leaves the lists of the other pages too.

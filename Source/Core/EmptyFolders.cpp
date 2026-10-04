@@ -1,6 +1,7 @@
 #include "EmptyFolders.h"
 #include "FileScanner.h"
 #include "Paths.h"
+#include "../Platform/FileSystem.h"
 #include <map>
 
 namespace
@@ -16,6 +17,19 @@ namespace
 
     juce::String variable (const juce::String& name)    { return juce::SystemStats::getEnvironmentVariable (name, {}); }
 
+    /** Each folder as written and, if different, as the file system really calls it (see FileSystem::finalPath). */
+    std::vector<juce::File> withRealPaths (std::vector<juce::File> folders)
+    {
+        const auto count = folders.size();
+
+        for (size_t i = 0; i < count; ++i)
+            if (const auto real = FileSystem::finalPath (folders[i]); real != folders[i])
+                folders.push_back (real);
+
+        return folders;
+    }
+
+    /** Folders that must not be emptied, nor anything that contains them (their sub-folders may be caches). */
     std::vector<juce::File> protectedFolders()
     {
         std::vector<juce::File> folders;
@@ -24,8 +38,13 @@ namespace
             if (const auto value = variable (name); value.isNotEmpty())
                 folders.emplace_back (value);
 
+        // Where Windows and the apps from the Store keep their data: only some sub-folders are caches.
+        for (const char* path : { "%APPDATA%\\Microsoft", "%LOCALAPPDATA%\\Microsoft", "%LOCALAPPDATA%\\Packages" })
+            if (const auto expanded = EmptyFolders::expand (path); juce::File::isAbsolutePath (expanded))
+                folders.emplace_back (expanded);
+
         folders.push_back (juce::File::getSpecialLocation (juce::File::userHomeDirectory).getParentDirectory());    // C:\Users
-        return folders;
+        return withRealPaths (std::move (folders));
     }
 
     /** Folders that are never cache, nor anything inside them: system binaries, installed programs, the user's own documents. */
@@ -45,7 +64,14 @@ namespace
                                      juce::File::userMusicDirectory, juce::File::userMoviesDirectory })
             trees.push_back (juce::File::getSpecialLocation (location));
 
-        return trees;
+        // Keys and credentials: emptying them loses saved passwords and certificates for good.
+        for (const char* path : { "%APPDATA%\\Microsoft\\Protect", "%APPDATA%\\Microsoft\\Credentials", "%APPDATA%\\Microsoft\\Crypto",
+                                  "%APPDATA%\\Microsoft\\SystemCertificates", "%LOCALAPPDATA%\\Microsoft\\Credentials",
+                                  "%LOCALAPPDATA%\\Microsoft\\Vault", "%PROGRAMDATA%\\Microsoft\\Crypto" })
+            if (const auto expanded = EmptyFolders::expand (path); juce::File::isAbsolutePath (expanded))
+                trees.emplace_back (expanded);
+
+        return withRealPaths (std::move (trees));
     }
 }
 
@@ -147,18 +173,29 @@ juce::String EmptyFolders::contract (const juce::String& path)
 
 bool EmptyFolders::isTooBroad (const juce::File& folder)
 {
-    if (Paths::isRoot (folder))
-        return true;
+    // The lists don't change while the program runs (and resolving them opens every folder).
+    static const auto protectedList = protectedFolders();
+    static const auto untouchableList = untouchableTrees();
 
-    for (const auto& p : protectedFolders())
-        if (p == folder || p.isAChildOf (folder))
+    const auto tooBroad = [&] (const juce::File& f)
+    {
+        if (Paths::isRoot (f))
             return true;
 
-    for (const auto& tree : untouchableTrees())
-        if (tree == folder || tree.isAChildOf (folder) || folder.isAChildOf (tree))
-            return true;
+        for (const auto& p : protectedList)
+            if (p == f || p.isAChildOf (f))
+                return true;
 
-    return false;
+        for (const auto& tree : untouchableList)
+            if (tree == f || tree.isAChildOf (f) || f.isAChildOf (tree))
+                return true;
+
+        return false;
+    };
+
+    // A junction, a symbolic link or a subst drive can show a protected folder under another name: check its real path too.
+    const auto real = FileSystem::finalPath (folder);
+    return tooBroad (folder) || (real != folder && tooBroad (real));
 }
 
 std::vector<EmptyFolders::Group> EmptyFolders::groupByCommonParent (const std::vector<juce::File>& folders)

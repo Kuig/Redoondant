@@ -22,9 +22,10 @@ namespace EmptyFolders
     /** The reverse for the well-known folders (a path under %LOCALAPPDATA% becomes "%LOCALAPPDATA%\..."). */
     juce::String contract (const juce::String& path);
 
-    /** True for folders that must never be emptied: drive roots, and the user profile, AppData, Windows,
-        Program Files... or any folder that contains one of them; also System32, Program Files, the user's
-        Documents/Desktop/Pictures/Music/Videos and OneDrive, and anything inside those.
+    /** True for folders that must never be emptied: drive roots, and the user profile, AppData (and its Microsoft and
+        Packages folders), Windows, Program Files... or any folder that contains one of them; also System32, Program Files,
+        the user's Documents/Desktop/Pictures/Music/Videos, OneDrive, the stores of keys and credentials, and anything
+        inside those. Both the path as written and the real one (junctions, links and subst drives resolved) are checked.
     */
     bool isTooBroad (const juce::File& folder);
 

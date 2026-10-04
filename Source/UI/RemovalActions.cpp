@@ -156,6 +156,11 @@ void RemovalActions::finish (const RemovalReport& report, const juce::String& bo
             message << "\n\n" << advice;
     }
 
+    if (! report.deletedForGood.isEmpty())
+        message << "\n\n" << Format::count (report.deletedForGood.size(), "item")
+                << " could not be recycled and Windows deleted them for good, as you confirmed:\n"
+                << Format::wrappable (report.deletedForGood.joinIntoString ("\n"));
+
     if (! report.partlyDeleted.isEmpty())
         message << "\n\n" << Format::count (report.partlyDeleted.size(), "folder") << " deleted only in part:\n"
                 << Format::wrappable (report.partlyDeleted.joinIntoString ("\n"));

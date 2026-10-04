@@ -104,6 +104,32 @@ private:
 
     void testEmptying()
     {
+        beginTest ("Keys and credentials, and folders that only lead to protected ones, are refused");
+        {
+            const auto appData = juce::File (juce::SystemStats::getEnvironmentVariable ("APPDATA", {}));
+            expect (EmptyFolders::isTooBroad (appData.getChildFile ("Microsoft")));
+            expect (EmptyFolders::isTooBroad (appData.getChildFile ("Microsoft").getChildFile ("Protect")));
+            expect (! EmptyFolders::isTooBroad (appData.getChildFile ("Microsoft").getChildFile ("Teams").getChildFile ("Cache")));
+
+           #if JUCE_WINDOWS
+            TempFolder temp;
+            const auto link = temp.root.getChildFile ("profile");
+            juce::ChildProcess mklink;
+
+            if (mklink.start ("cmd /c mklink /J \"" + link.getFullPathName() + "\" \"" + appData.getFullPathName() + "\"")
+                && mklink.waitForProcessToFinish (10000) && link.isSymbolicLink())
+            {
+                expect (EmptyFolders::isTooBroad (link));                              // The junction is AppData.
+                expect (EmptyFolders::isTooBroad (link.getChildFile ("Microsoft")));
+                link.deleteFile();
+            }
+            else
+            {
+                logMessage ("Could not create a junction: this check was skipped.");
+            }
+           #endif
+        }
+
         beginTest ("Emptying a folder keeps the folder");
         {
             TempFolder temp;

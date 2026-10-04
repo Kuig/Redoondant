@@ -25,27 +25,46 @@ const std::vector<FileEntry>* Removal::Keepers::keptWith (const juce::File& file
 
 std::vector<FileEntry> Removal::withoutNested (std::vector<FileEntry> entries)
 {
-    std::set<juce::String> paths;
+    // Sorted with the separator before every other character, the content of a path comes right after it:
+    // one pass then drops what lies inside the last item kept (and the duplicates).
+    const auto separator = juce::File::getSeparatorChar();
+    std::vector<std::pair<juce::String, size_t>> sorted;
+    sorted.reserve (entries.size());
 
-    for (const auto& entry : entries)
-        paths.insert (Paths::key (entry.file));
+    for (size_t i = 0; i < entries.size(); ++i)
+        sorted.emplace_back (Paths::key (entries[i].file).replaceCharacter (separator, (juce::juce_wchar) 1), i);
 
-    std::set<juce::String> kept;
+    std::stable_sort (sorted.begin(), sorted.end(), [] (const auto& a, const auto& b) { return a.first < b.first; });
+
+    std::vector<size_t> kept;
+    juce::String insideKept;        // "<last kept path><separator>"
+
+    for (const auto& [key, index] : sorted)
+    {
+        if (insideKept.isNotEmpty() && (key + juce::String::charToString (1)).startsWith (insideKept))
+            continue;       // The same path again, or something inside it.
+
+        kept.push_back (index);
+        insideKept = key.endsWithChar (1) ? key : key + juce::String::charToString (1);     // A drive root already ends with one.
+    }
+
+    std::sort (kept.begin(), kept.end());       // Back to the order of the entries.
     std::vector<FileEntry> result;
+    result.reserve (kept.size());
 
-    for (auto& entry : entries)
-        if (! Paths::hasAncestorIn (entry.file, paths) && kept.insert (Paths::key (entry.file)).second)
-            result.push_back (std::move (entry));
+    for (const auto index : kept)
+        result.push_back (std::move (entries[index]));
 
     return result;
 }
 
 int Removal::countWithoutRecycleBin (std::vector<FileEntry> entries)
 {
+    RecycleBin::Support support;
     int count = 0;
 
     for (const auto& entry : withoutNested (std::move (entries)))
-        if (! RecycleBin::isSupported (entry.file))
+        if (! support.isSupported (entry.file))
             ++count;
 
     return count;
@@ -56,7 +75,7 @@ namespace
     /** What an action did with one item: skipped items are left alone without being failures;
         leftBehind ones were copied but their original couldn't be removed completely; partial ones were deleted in part.
     */
-    enum class Outcome { done, failed, skipped, leftBehind, partial };
+    enum class Outcome { done, doneForGood, failed, skipped, leftBehind, partial };
 
     struct ItemResult
     {
@@ -92,11 +111,15 @@ namespace
             || std::any_of (kept->begin(), kept->end(), [] (const FileEntry& k) { return k.file.exists() && ! changedSinceAnalysis (k); });
     }
 
-    /** Runs `act` on each item (after withoutNested) with progress and cancellation, and fills the report.
-        Items that don't exist any more are counted apart: they are gone from the list but not "removed" by us.
+    /** Acts on a batch of items that passed the checks, returning one result per item. */
+    using BatchAction = std::function<std::vector<ItemResult> (const std::vector<FileEntry>&)>;
+
+    /** Runs `act` on the items (after withoutNested) in batches of up to `batchSize`, with progress and cancellation,
+        and fills the report. Items that don't exist any more are counted apart: they are gone from the list but not
+        "removed" by us. After Cancel, the items checked but not acted on yet are left untouched.
     */
     RemovalReport forEachItem (std::vector<FileEntry> entries, const ScanContext& context, const Removal::Keepers& keepers,
-                               const std::function<ItemResult (const FileEntry&)>& act)
+                               size_t batchSize, const BatchAction& act)
     {
         RemovalReport report;
         const auto items = Removal::withoutNested (std::move (entries));
@@ -105,6 +128,62 @@ namespace
 
         for (const auto& entry : items)
             totalBytes += entry.size;
+
+        std::vector<FileEntry> batch;
+
+        const auto record = [&report] (const FileEntry& entry, const ItemResult& result)
+        {
+            const auto described = entry.file.getFullPathName() + (result.message.isEmpty() ? juce::String() : "  (" + result.message + ")");
+
+            switch (result.outcome)
+            {
+                case Outcome::done:
+                case Outcome::doneForGood:
+                    ++report.processed;
+                    report.bytes += entry.size;
+                    report.files.add (entry.file);
+
+                    if (result.outcome == Outcome::doneForGood)
+                        report.deletedForGood.add (entry.file.getFullPathName());
+
+                    break;
+
+                case Outcome::partial:
+                {
+                    auto now = FileScanner::makeEntry (entry.file);
+                    report.bytes += juce::jmax ((juce::int64) 0, entry.size - now.size);
+                    report.partlyDeleted.add (described);
+                    report.shrunk.push_back (std::move (now));
+                    break;
+                }
+
+                case Outcome::failed:       report.failures.add (described); break;
+                case Outcome::leftBehind:   report.leftBehind.add (described); break;
+                case Outcome::skipped:      break;
+            }
+        };
+
+        const auto actOnBatch = [&]
+        {
+            if (batch.empty())
+                return;
+
+            std::vector<ItemResult> results;
+
+            try
+            {
+                results = act (batch);
+            }
+            catch (const std::exception& e)     { results.assign (batch.size(), { Outcome::failed, e.what() }); }
+            catch (...)                         { results.assign (batch.size(), { Outcome::failed, "unexpected error" }); }
+
+            results.resize (batch.size());
+
+            for (size_t k = 0; k < batch.size(); ++k)
+                record (batch[k], results[k]);
+
+            batch.clear();
+        };
 
         for (size_t i = 0; i < items.size(); ++i)
         {
@@ -139,43 +218,31 @@ namespace
                 continue;
             }
 
-            ItemResult result;
+            batch.push_back (entry);
 
-            try
-            {
-                result = act (entry);
-            }
-            catch (const std::exception& e)     { result = {}; result.message = e.what(); }
-            catch (...)                         { result = {}; result.message = "unexpected error"; }
-
-            const auto described = entry.file.getFullPathName() + (result.message.isEmpty() ? juce::String() : "  (" + result.message + ")");
-
-            switch (result.outcome)
-            {
-                case Outcome::done:
-                    ++report.processed;
-                    report.bytes += entry.size;
-                    report.files.add (entry.file);
-                    break;
-
-                case Outcome::partial:
-                {
-                    auto now = FileScanner::makeEntry (entry.file);
-                    report.bytes += juce::jmax ((juce::int64) 0, entry.size - now.size);
-                    report.partlyDeleted.add (described);
-                    report.shrunk.push_back (std::move (now));
-                    break;
-                }
-
-                case Outcome::failed:       report.failures.add (described); break;
-                case Outcome::leftBehind:   report.leftBehind.add (described); break;
-                case Outcome::skipped:      break;
-            }
+            if (batch.size() >= batchSize)
+                actOnBatch();
         }
+
+        if (! report.cancelled)
+            actOnBatch();
 
         report.cancelled = report.cancelled || context.isCancelled();
         return report;
     }
+
+    /** forEachItem for actions that take one item at a time. */
+    RemovalReport forEachItem (std::vector<FileEntry> entries, const ScanContext& context, const Removal::Keepers& keepers,
+                               const std::function<ItemResult (const FileEntry&)>& act)
+    {
+        return forEachItem (std::move (entries), context, keepers, 1, [&act] (const std::vector<FileEntry>& batch)
+        {
+            return std::vector<ItemResult> { act (batch.front()) };
+        });
+    }
+
+    /** Items sent to the Recycle Bin in one shell operation: much faster than one at a time, still often enough to show progress. */
+    constexpr size_t trashBatch = 200;
 
     FileSystem::ShouldStop stopperOf (const ScanContext& context)
     {
@@ -185,20 +252,43 @@ namespace
 
 RemovalReport Removal::toTrash (std::vector<FileEntry> entries, const ScanContext& context, const Keepers& keepers)
 {
-    return forEachItem (std::move (entries), context, keepers, [] (const FileEntry& entry)
-    {
-        ItemResult result;
+    RecycleBin::Support support;
 
-        if (! RecycleBin::isSupported (entry.file))
+    return forEachItem (std::move (entries), context, keepers, trashBatch, [&] (const std::vector<FileEntry>& batch)
+    {
+        std::vector<ItemResult> results (batch.size());
+        std::vector<juce::File> files;
+        std::vector<size_t> sent;
+
+        for (size_t i = 0; i < batch.size(); ++i)
         {
-            result.message = "no Recycle Bin on this drive: left untouched";
-            return result;
+            if (support.isSupported (batch[i].file))
+            {
+                files.push_back (batch[i].file);
+                sent.push_back (i);
+            }
+            else
+            {
+                results[i].message = "no Recycle Bin on this drive: left untouched";
+            }
         }
 
-        if (RecycleBin::move (entry.file))
-            result.outcome = Outcome::done;
+        const auto outcomes = RecycleBin::move (files, stopperOf (context));
 
-        return result;
+        for (size_t k = 0; k < sent.size(); ++k)
+        {
+            auto& result = results[sent[k]];
+
+            switch (outcomes[k])
+            {
+                case RecycleBin::Outcome::recycled:         result.outcome = Outcome::done; break;
+                case RecycleBin::Outcome::deletedForGood:   result.outcome = Outcome::doneForGood; break;
+                case RecycleBin::Outcome::failed:           result.message = context.isCancelled() ? "stopped: left untouched"
+                                                                                                   : "Windows could not recycle it (in use?)"; break;
+            }
+        }
+
+        return results;
     });
 }
 

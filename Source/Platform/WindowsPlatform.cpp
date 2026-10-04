@@ -28,6 +28,8 @@
 #include "ShellContextMenu.h"
 #include "ShellIcon.h"
 #include "ShellThumbnail.h"
+#include "../Core/Paths.h"
+#include <thread>
 #include "../Metadata/MetadataReader.h"
 
 #if JUCE_WINDOWS
@@ -316,34 +318,207 @@ namespace
     }
 }
 
-bool RecycleBin::isSupported (const juce::File& file)
+namespace
 {
-    const auto path = file.getFullPathName();
+    /** The root of the volume the file is really on ("C:\\", or the folder a drive is mounted in), or empty. */
+    juce::String volumeOf (const juce::File& file)
+    {
+        wchar_t volume[MAX_PATH + 1] = {};
 
-    if (path.length() < 3 || path[1] != ':')     // UNC shares and odd paths: no Recycle Bin.
-        return false;
+        if (! GetVolumePathNameW (file.getFullPathName().toWideCharPointer(), volume, MAX_PATH + 1))
+            return {};
 
-    const auto root = path.substring (0, 3);
+        return juce::String (volume);
+    }
 
-    return GetDriveTypeW (root.toWideCharPointer()) == DRIVE_FIXED && ! recycleBinTurnedOff (root);
+    bool volumeRecycles (const juce::String& volume)
+    {
+        // UNC shares and odd paths: no Recycle Bin.
+        return volume.length() >= 3 && volume[1] == ':'
+            && GetDriveTypeW (volume.toWideCharPointer()) == DRIVE_FIXED && ! recycleBinTurnedOff (volume);
+    }
 }
 
-bool RecycleBin::move (const juce::File& file)
+bool RecycleBin::isSupported (const juce::File& file)
 {
-    if (! file.exists())
-        return false;
+    return volumeRecycles (volumeOf (file));
+}
 
-    // SHFileOperation wants a double-null-terminated list. FOF_WANTNUKEWARNING makes it refuse (rather than
-    // silently delete for good) what can't be recycled.
-    std::wstring from (file.getFullPathName().toWideCharPointer());
-    from.push_back (L'\0');
+bool RecycleBin::Support::isSupported (const juce::File& file)
+{
+    const auto folder = Paths::key (file.getParentDirectory());
 
-    SHFILEOPSTRUCTW operation {};
-    operation.wFunc = FO_DELETE;
-    operation.pFrom = from.c_str();
-    operation.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT | FOF_WANTNUKEWARNING;
+    if (const auto known = byFolder.find (folder); known != byFolder.end())
+        return known->second;
 
-    return SHFileOperationW (&operation) == 0 && ! operation.fAnyOperationsAborted && ! file.exists();
+    const auto volume = volumeOf (file).toLowerCase();
+    auto found = byVolume.find (volume);
+
+    if (found == byVolume.end())
+        found = byVolume.emplace (volume, volumeRecycles (volume)).first;
+
+    // Keyed by folder too: a drive mounted in a folder makes the volume depend on the path, but never within one folder.
+    return byFolder[folder] = found->second;
+}
+
+namespace
+{
+    using Microsoft::WRL::ComPtr;
+
+    /** Follows a shell file operation item by item: lets it stop (shouldStop) and records what became of each file. */
+    class DeletionSink final : public IFileOperationProgressSink
+    {
+    public:
+        DeletionSink (const std::vector<juce::File>& files, std::vector<RecycleBin::Outcome>& outcomes,
+                      std::vector<bool>& reported, const std::function<bool()>& stop)
+            : results (outcomes), seen (reported), shouldStop (stop)
+        {
+            for (size_t i = 0; i < files.size(); ++i)
+                indexOf[Paths::key (files[i])] = i;
+        }
+
+        // IUnknown (the sink lives on the stack, longer than the operation)
+        IFACEMETHODIMP QueryInterface (REFIID riid, void** object) override
+        {
+            if (riid == IID_IUnknown || riid == __uuidof (IFileOperationProgressSink))
+            {
+                *object = static_cast<IFileOperationProgressSink*> (this);
+                return S_OK;
+            }
+
+            *object = nullptr;
+            return E_NOINTERFACE;
+        }
+
+        IFACEMETHODIMP_(ULONG) AddRef() override     { return 2; }
+        IFACEMETHODIMP_(ULONG) Release() override    { return 1; }
+
+        IFACEMETHODIMP PreDeleteItem (DWORD, IShellItem*) override
+        {
+            return shouldStop != nullptr && shouldStop() ? HRESULT_FROM_WIN32 (ERROR_CANCELLED) : S_OK;
+        }
+
+        IFACEMETHODIMP PostDeleteItem (DWORD, IShellItem* item, HRESULT result, IShellItem* recycled) override
+        {
+            PWSTR path = nullptr;
+
+            if (item != nullptr && SUCCEEDED (item->GetDisplayName (SIGDN_FILESYSPATH, &path)))
+            {
+                const auto found = indexOf.find (Paths::key (juce::File (juce::String (path))));
+                CoTaskMemFree (path);
+
+                if (found != indexOf.end())     // Not the content of a listed folder.
+                {
+                    seen[found->second] = true;
+                    results[found->second] = FAILED (result) ? RecycleBin::Outcome::failed
+                                                             : (recycled != nullptr ? RecycleBin::Outcome::recycled : RecycleBin::Outcome::deletedForGood);
+                }
+            }
+
+            return S_OK;
+        }
+
+        IFACEMETHODIMP StartOperations() override                                                       { return S_OK; }
+        IFACEMETHODIMP FinishOperations (HRESULT) override                                              { return S_OK; }
+        IFACEMETHODIMP PreRenameItem (DWORD, IShellItem*, LPCWSTR) override                             { return S_OK; }
+        IFACEMETHODIMP PostRenameItem (DWORD, IShellItem*, LPCWSTR, HRESULT, IShellItem*) override       { return S_OK; }
+        IFACEMETHODIMP PreMoveItem (DWORD, IShellItem*, IShellItem*, LPCWSTR) override                  { return S_OK; }
+        IFACEMETHODIMP PostMoveItem (DWORD, IShellItem*, IShellItem*, LPCWSTR, HRESULT, IShellItem*) override  { return S_OK; }
+        IFACEMETHODIMP PreCopyItem (DWORD, IShellItem*, IShellItem*, LPCWSTR) override                  { return S_OK; }
+        IFACEMETHODIMP PostCopyItem (DWORD, IShellItem*, IShellItem*, LPCWSTR, HRESULT, IShellItem*) override  { return S_OK; }
+        IFACEMETHODIMP PreNewItem (DWORD, IShellItem*, LPCWSTR) override                                { return S_OK; }
+        IFACEMETHODIMP PostNewItem (DWORD, IShellItem*, LPCWSTR, LPCWSTR, DWORD, HRESULT, IShellItem*) override  { return S_OK; }
+        IFACEMETHODIMP UpdateProgress (UINT, UINT) override                                             { return S_OK; }
+        IFACEMETHODIMP ResetTimer() override                                                            { return S_OK; }
+        IFACEMETHODIMP PauseTimer() override                                                            { return S_OK; }
+        IFACEMETHODIMP ResumeTimer() override                                                           { return S_OK; }
+
+    private:
+        std::map<juce::String, size_t> indexOf;
+        std::vector<RecycleBin::Outcome>& results;
+        std::vector<bool>& seen;
+        const std::function<bool()>& shouldStop;
+    };
+
+    /** A window of this program to own the shell's questions, so they show above the progress window (null if none is active). */
+    HWND ownWindow()
+    {
+        const auto window = GetForegroundWindow();
+        DWORD process = 0;
+        GetWindowThreadProcessId (window, &process);
+        return process == GetCurrentProcessId() ? window : nullptr;
+    }
+}
+
+namespace
+{
+    void recycleInThisThread (const std::vector<juce::File>& files, const std::function<bool()>& shouldStop,
+                              std::vector<RecycleBin::Outcome>& outcomes, std::vector<bool>& reported)
+    {
+        ComPtr<IFileOperation> operation;
+
+        if (FAILED (CoCreateInstance (CLSID_FileOperation, nullptr, CLSCTX_ALL, IID_PPV_ARGS (&operation))))
+            return;
+
+        // FOF_ALLOWUNDO recycles. FOF_WANTNUKEWARNING makes Windows ask (instead of silently deleting for good) about what
+        // it can't recycle; the sink then tells "deleted for good" from "recycled".
+        operation->SetOperationFlags (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT | FOF_WANTNUKEWARNING);
+
+        if (const auto owner = ownWindow())
+            operation->SetOwnerWindow (owner);
+
+        bool anyQueued = false;
+
+        for (const auto& file : files)
+        {
+            ComPtr<IShellItem> item;
+
+            if (SUCCEEDED (SHCreateItemFromParsingName (file.getFullPathName().toWideCharPointer(), nullptr, IID_PPV_ARGS (&item))))
+                anyQueued = SUCCEEDED (operation->DeleteItem (item.Get(), nullptr)) || anyQueued;
+        }
+
+        if (! anyQueued)
+            return;
+
+        DeletionSink sink (files, outcomes, reported, shouldStop);
+        DWORD cookie = 0;
+        const bool advised = SUCCEEDED (operation->Advise (&sink, &cookie));
+
+        operation->PerformOperations();
+
+        if (advised)
+            operation->Unadvise (cookie);
+    }
+}
+
+std::vector<RecycleBin::Outcome> RecycleBin::move (const std::vector<juce::File>& files, const std::function<bool()>& shouldStop)
+{
+    std::vector<Outcome> outcomes (files.size(), Outcome::failed);
+    std::vector<bool> reported (files.size(), false);
+
+    if (files.empty())
+        return outcomes;
+
+    // IFileOperation only works in a single-threaded apartment, and the caller's thread may already be multi-threaded.
+    std::thread sta ([&]
+    {
+        if (SUCCEEDED (CoInitializeEx (nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE)))
+        {
+            recycleInThisThread (files, shouldStop, outcomes, reported);
+            CoUninitialize();
+        }
+    });
+
+    sta.join();
+
+    // Whatever the sink didn't hear about: gone means recycled (the shell reports every item it deletes for good).
+    for (size_t i = 0; i < files.size(); ++i)
+        if (! reported[i])
+            outcomes[i] = files[i].exists() ? Outcome::failed : Outcome::recycled;
+        else if (outcomes[i] != Outcome::failed && files[i].exists())
+            outcomes[i] = Outcome::failed;
+
+    return outcomes;
 }
 
 Metadata MetadataReader::readSystemProperties (const juce::File& file)
@@ -436,7 +611,37 @@ bool FileSystem::copyFile (const juce::File& source, const juce::File& target, c
                         copyProgress, const_cast<ShouldStop*> (&shouldStop), &cancel, COPY_FILE_FAIL_IF_EXISTS) != 0;
 }
 
+juce::File FileSystem::finalPath (const juce::File& file)
+{
+    const auto handle = CreateFileW (file.getFullPathName().toWideCharPointer(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                     nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);     // Backup semantics: folders too.
+
+    if (handle == INVALID_HANDLE_VALUE)
+        return file;
+
+    std::wstring buffer (32768, L'\0');
+    const auto length = GetFinalPathNameByHandleW (handle, buffer.data(), (DWORD) buffer.size(), FILE_NAME_NORMALIZED | VOLUME_NAME_DOS);
+    CloseHandle (handle);
+
+    if (length == 0 || length >= buffer.size())
+        return file;
+
+    juce::String path (buffer.c_str(), (size_t) length);
+
+    if (path.startsWith ("\\\\?\\UNC\\"))
+        path = "\\\\" + path.substring (8);
+    else if (path.startsWith ("\\\\?\\"))
+        path = path.substring (4);
+
+    return juce::File (path);
+}
+
 #else
+
+juce::File FileSystem::finalPath (const juce::File& file)
+{
+    return file.isSymbolicLink() ? file.getLinkedTarget() : file;
+}
 
 FileSystem::Rename FileSystem::rename (const juce::File& source, const juce::File& target)
 {
@@ -455,7 +660,17 @@ juce::Image ShellThumbnail::get (const juce::File&, int)                  { retu
 juce::Image ShellIcon::get (const juce::File&, int)                       { return {}; }
 bool ShellContextMenu::show (const juce::Array<juce::File>&, juce::Point<int>, juce::Component&)   { return false; }
 bool RecycleBin::isSupported (const juce::File&)                          { return true; }
-bool RecycleBin::move (const juce::File& file)                            { return file.moveToTrash(); }
+bool RecycleBin::Support::isSupported (const juce::File&)                 { return true; }
+
+std::vector<RecycleBin::Outcome> RecycleBin::move (const std::vector<juce::File>& files, const std::function<bool()>& shouldStop)
+{
+    std::vector<Outcome> outcomes;
+
+    for (const auto& file : files)
+        outcomes.push_back ((shouldStop == nullptr || ! shouldStop()) && file.moveToTrash() ? Outcome::recycled : Outcome::failed);
+
+    return outcomes;
+}
 Metadata MetadataReader::readSystemProperties (const juce::File&)         { return {}; }
 
 #endif

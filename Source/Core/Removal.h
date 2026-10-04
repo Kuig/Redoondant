@@ -16,6 +16,7 @@ struct RemovalReport
     juce::StringArray leftBehind;           ///< Folders/files copied to the destination whose original could not be removed completely.
     juce::StringArray partlyDeleted;        ///< Folders deleted only in part (a file in use, or Cancel half-way).
     std::vector<FileEntry> shrunk;          ///< Those folders as they are now, measured again.
+    juce::StringArray deletedForGood;       ///< Items Windows could not recycle and deleted for good once the user agreed (counted in processed).
     int alreadyGone = 0;                    ///< Items that no longer existed when their turn came (not counted in processed/bytes).
     bool cancelled = false;                 ///< The user stopped the operation: only part of the items were processed.
 };
@@ -58,8 +59,9 @@ namespace Removal
         Items modified since the analysis, and items whose group has lost its kept copies, are left untouched.
     */
 
-    /** Moves the entries to the Recycle Bin and reports the result.
-        Items that Windows would delete for good instead of recycling are left untouched and listed as failures.
+    /** Moves the entries to the Recycle Bin, in batches (one shell operation for many items), and reports the result.
+        Items on volumes without a usable Recycle Bin are left untouched and listed as failures; for items Windows can't
+        recycle (too big...) it asks the user, and what it then deletes for good is listed as such.
     */
     RemovalReport toTrash (std::vector<FileEntry> entries, const ScanContext& context = {}, const Keepers& keepers = {});
 

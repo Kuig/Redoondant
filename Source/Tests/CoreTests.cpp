@@ -6,6 +6,7 @@
 #include "../Core/Removal.h"
 #include "../Platform/RecycleBin.h"
 #include "../Criteria/AllCriteria.h"
+#include "../Platform/ComInit.h"
 
 namespace
 {
@@ -74,8 +75,45 @@ public:
             expectEquals ((int) mixed.size(), 1);
         }
 
+        beginTest ("Nested entries: siblings whose names extend another's are not nested");
+        {
+            const auto keptInOrder = Removal::withoutNested ({ make ("x/y"), make ("x b/c"), make ("x"), make ("x b"), make ("x.txt"), make ("x/z") });
+            juce::StringArray names;
+
+            for (const auto& e : keptInOrder)
+                names.add (e.file.getRelativePathFrom (root).replaceCharacter ('\\', '/'));
+
+            expectEquals (names.joinIntoString (","), juce::String ("x,x b,x.txt"));     // In the order given.
+        }
+
         beginTest ("Recycle Bin support is only claimed for local fixed drives");
         expect (! RecycleBin::isSupported (juce::File ("\\\\server\\share\\file.txt")));
+
+        // Sends files to the user's real Recycle Bin, so it only runs when asked for.
+        if (juce::SystemStats::getEnvironmentVariable ("REDOONDANT_TEST_RECYCLE", {}) == "1")
+        {
+            beginTest ("Move to Trash recycles a batch of items");
+            TempFolder temp;
+            std::vector<FileEntry> entries;
+
+            for (const auto* path : { "redoondant-test-a.txt", "redoondant-test-b.txt", "redoondant-test-dir/c.txt" })
+                temp.write (path, "recycle me");
+
+            for (const auto* path : { "redoondant-test-a.txt", "redoondant-test-b.txt", "redoondant-test-dir" })
+                entries.push_back (FileScanner::makeEntry (temp.root.getChildFile (path)));
+
+            if (RecycleBin::isSupported (temp.root))
+            {
+                const ScopedComInit com;
+                const auto report = Removal::toTrash (entries);
+                expectEquals (report.processed, 3);
+                expect (report.failures.isEmpty(), report.failures.joinIntoString ("; "));
+                expect (report.deletedForGood.isEmpty());
+
+                for (const auto& e : entries)
+                    expect (! e.file.exists());
+            }
+        }
     }
 };
 
