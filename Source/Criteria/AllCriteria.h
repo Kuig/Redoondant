@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Peers.h"
+#include "../Core/FileScanner.h"
 #include "../Metadata/Metadata.h"
 
 /** Factories of the built-in criteria (each implemented in its own .cpp file). */
@@ -30,6 +31,25 @@ namespace Criteria
     */
     std::unique_ptr<Criterion> createMultipleCriteriaItems();
     std::unique_ptr<Criterion> createMultipleCriteriaFolders();
+
+    /** The option, on by default, to leave out the data of version control (see FileScanner::isVersionControlFolder). */
+    inline Parameter skipVersionControl()
+    {
+        return Parameter::toggle ("skipVersionControl", "Skip version control data", true)
+                   .withTooltip ("Leave out what is inside the folders where version control systems keep their data ("
+                                 + FileScanner::versionControlFolderNames().joinIntoString (", ")
+                                 + "): removing anything there breaks the repository.");
+    }
+
+    /** The option, on by default, to leave out installed dependencies (see FileScanner::isDependencyFolder). */
+    inline Parameter skipDependencies()
+    {
+        return Parameter::toggle ("skipDependencies", "Skip installed dependencies", true)
+                   .withTooltip ("Leave out what is inside the folders where package managers install the dependencies of a project, "
+                                 "and Python virtual environments ("
+                                 + FileScanner::dependencyFolderNames().joinIntoString (", ")
+                                 + "): each package needs its own copy of its files. Junk folders removes these folders whole.");
+    }
 
     /** All criteria, in the order shown in the sidebar. */
     std::vector<std::unique_ptr<Criterion>> createAll();

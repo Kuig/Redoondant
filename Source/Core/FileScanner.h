@@ -51,13 +51,39 @@ namespace FileScanner
         return entries;
     }
 
-    /** The folders where version control keeps its data (.git, .svn, .hg): their content belongs to the repository,
-        so criteria don't propose it (it would break the repository).
+    /** The names of the folders where version control keeps its data (Git, Subversion, Mercurial, Bazaar, Darcs, CVS,
+        Jujutsu, Pijul). */
+    inline const juce::StringArray& versionControlFolderNames()
+    {
+        static const juce::StringArray names { ".git", ".svn", ".hg", ".bzr", "_darcs", "CVS", ".jj", ".pijul" };
+        return names;
+    }
+
+    /** A folder where version control keeps its data: its content belongs to the repository, so criteria can leave it
+        out (removing it would break the repository).
     */
     inline bool isVersionControlFolder (const FileEntry& e)
     {
-        static const juce::StringArray names { ".git", ".svn", ".hg" };
-        return e.isDirectory && names.contains (e.name(), true);
+        return e.isDirectory && versionControlFolderNames().contains (e.name(), true);
+    }
+
+    /** The names of the folders where package managers install the dependencies of a project (npm, Bower, pip), and of
+        Python virtual environments (only with their pyvenv.cfg). */
+    inline const juce::StringArray& dependencyFolderNames()
+    {
+        static const juce::StringArray names { "node_modules", "bower_components", "site-packages", ".venv", "venv" };
+        return names;
+    }
+
+    /** A folder of installed dependencies: they hold many identical files (licences, shared libraries) that are not
+        redundant, since each package needs its own; the whole folder can be removed instead (Junk folders).
+    */
+    inline bool isDependencyFolder (const FileEntry& e)
+    {
+        if (! e.isDirectory || ! dependencyFolderNames().contains (e.name(), true))
+            return false;
+
+        return ! e.name().endsWithIgnoreCase ("venv") || e.file.getChildFile ("pyvenv.cfg").existsAsFile();
     }
 
     /** Keeps only the files of a list of entries. */

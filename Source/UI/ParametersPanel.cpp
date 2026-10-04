@@ -134,6 +134,17 @@ std::unique_ptr<ParametersPanel::Editor> ParametersPanel::createEditor (Paramete
     if (parameter.hasToggle)
         addEnableToggle (parameter, *editor);
 
+    if (parameter.tooltip.isNotEmpty())
+    {
+        editor->label.setTooltip (parameter.tooltip);
+
+        if (auto* client = dynamic_cast<juce::SettableTooltipClient*> (editor->widget.get()))
+            client->setTooltip (parameter.tooltip);
+
+        if (editor->enableToggle != nullptr)
+            editor->enableToggle->setTooltip (parameter.tooltip);
+    }
+
     editor->refresh();
     addAndMakeVisible (editor->label);
     addAndMakeVisible (*editor->widget);

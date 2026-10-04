@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Histogram in the preview area while nothing is selected: folder, size, modified, created, content created or type, by number of items
   or by total size (linear or logarithmic), with three layers (all items, items passing the filters, checked items), statistics on hover and a click
   on a bar that sets the filters to show only its items.
+- *Duplicate files*: option *Skip installed dependencies*, on by default: the content of `node_modules`, `bower_components`,
+  `site-packages` and of Python virtual environments is left out (each package needs its own copy of its files; *Junk folders* removes
+  these folders whole).
 - Filters: *in folder*, *exclude if path contains* (words separated by `;`, matched against the folders and not the name; shown only when Recursive is on), and the kind of date to filter by (modified, created or content created).
 
 ### Changed
@@ -17,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The date filter uses the same buckets as the histogram (today, 1-7 days, 7-30 days, 30 days - 1 year, 1-2 years, more than 2 years ago,
   unknown date) instead of cumulative ranges.
 - Clicking the only selected item again deselects it, which brings the histogram back.
+
+### Removed
+- *Duplicate files*: the *Algorithm* choice and the *Checksum* algorithm. Files are always compared by size, then by a quick fingerprint
+  (first and last 64 KB), then by content (stopping at the first difference), which is much faster.
 
 ### Fixed
 - *Multiple criteria* no longer makes the analysis thread wait for the user interface: the other criteria, with their settings and results, are handed over
@@ -42,14 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Move to Trash, Move to folder and Delete permanently act on exactly the items their confirmation described: content dates arriving while
   the question is open (which can re-sort a list and change the item each group keeps) no longer change what is removed.
 - The Cache Cleaner's confirmation no longer counts twice a folder listed inside another checked one.
-- *Duplicate files*, *Checksum*: no longer relies on the sizes the file system reports (they can differ for identical content): only files
-  whose first 64 KB read alike are hashed, files are identical when their checksum and the number of bytes read match, and a file that can't
-  be read to the end (a read error half-way) is left out instead of being compared on its first part. The checksum is several times faster
-  (the file is read in 1 MB blocks).
-- *Duplicate files*, *Size + content*: the candidates of a group are compared side by side in large blocks, so each file is read once (it used
+- *Duplicate files*: the candidates of a group are compared side by side in large blocks, so each file is read once (it used
   to be read again for every other copy, alternating small blocks between two files: very slow on hard disks).
-- *Duplicate files* and *Empty files & folders* leave out the content of `.git`, `.svn` and `.hg` folders (deleting a repository's packs or
-  its empty `refs` folders breaks it); *Empty files & folders* also leaves out placeholders such as `.gitkeep` and `__init__.py`.
+- *Duplicate files* and *Empty files & folders* leave out the data of version control (`.git`, `.svn`, `.hg`, `.bzr`, `_darcs`, `CVS`,
+  `.jj`, `.pijul` folders: deleting a repository's packs or its empty `refs` folders breaks it), with the option *Skip version control
+  data* (on by default; its tooltip lists the folders); *Empty files & folders* also leaves out placeholders such as `.gitkeep` and `__init__.py`.
 - *Junk folders*: generic names (`Release`, `Debug`, `bin`, `obj`, `target`, `x64`, `Build`, `Builds`) only count in a folder holding a
   project file, so `Music\Release` is no longer proposed. The list is a setting that can be edited or switched off.
 - *Archives & extracted folders*: an archive that holds the same path twice no longer matches a folder with an extra file; folders that

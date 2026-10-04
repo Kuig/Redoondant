@@ -5,8 +5,6 @@
 */
 namespace ParameterChoices
 {
-    enum class DuplicateAlgorithm { sizeAndContent, checksum };
-
     enum class OverlapSource     { existingResults, runAllCriteria };
     enum class OverlapMarked     { checkedItems, listedItems };
     enum class OverlapFolderMode { topFolders, mostlyCandidate };

@@ -86,22 +86,30 @@ namespace
         EmptyItems()
             : Criterion ({ "empty", "Empty files & folders",
                            "Zero-byte files, and folders that contain no files (only empty sub-folders, if any). "
-                           "Placeholders (.gitkeep, __init__.py...) and what is inside .git, .svn or .hg are left out.",
+                           "Placeholders (.gitkeep, __init__.py...) are left out, and by default the data of version control.",
                            Trait::showsFolders },
                         { DefaultSelection::all }) {}
 
-        AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
+        ParameterSet createParameters() const override
+        {
+            return { Criteria::skipVersionControl() };
+        }
+
+        AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
             // Empty files that only hold a place (a Python package, an empty folder kept in git) are not junk.
             static const juce::StringArray placeholders { ".gitkeep", ".keep", "__init__.py", "py.typed" };
 
             // A repository's empty folders (refs/heads after "git gc"...) are part of it: deleting them breaks it.
+            const bool skipVersionControl = parameters.getBool ("skipVersionControl");
             auto options = fullScan;
-            options.shouldDescend = [] (const FileEntry& e) { return ! FileScanner::isVersionControlFolder (e); };
 
-            auto items = FileScanner::scanAndFilter (context, options, [] (const FileEntry& e)
+            if (skipVersionControl)
+                options.shouldDescend = [] (const FileEntry& e) { return ! FileScanner::isVersionControlFolder (e); };
+
+            auto items = FileScanner::scanAndFilter (context, options, [skipVersionControl] (const FileEntry& e)
             {
-                return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown && ! FileScanner::isVersionControlFolder (e)
+                return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown && ! (skipVersionControl && FileScanner::isVersionControlFolder (e))
                                      : e.size == 0 && ! placeholders.contains (e.name(), true);
             });
 

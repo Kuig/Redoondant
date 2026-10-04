@@ -1,10 +1,8 @@
 #include "AllCriteria.h"
-#include "ParameterChoices.h"
 #include "../Core/ContentHasher.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
 #include "../Core/Grouping.h"
-#include <map>
 
 namespace
 {
@@ -13,37 +11,34 @@ namespace
     public:
         DuplicateFiles()
             : Criterion ({ "duplicates", "Duplicate files",
-                           "Files with identical content: same size then same bytes, or the same SHA-256 checksum of what is read (slower; "
-                           "ignores the sizes the file system reports, which can differ for identical content). "
+                           "Files with identical content: same size, then the same quick fingerprint (first and last 64 KB), then the same bytes "
+                           "(by default leaving out the data of version control and installed dependencies). "
                            "By default the file with the shortest name of each group is kept and the others are checked.",
                            Trait::grouped | Trait::groupsOfCopies },
                         { DefaultSelection::shortestName, Column::name }) {}
 
         ParameterSet createParameters() const override
         {
-            auto algorithm = Parameter::choice ("algorithm", "Algorithm", { "Size + content", "Checksum" }, 0);
-            algorithm.editorWidth = 130;
-            return { algorithm };
+            return { Criteria::skipVersionControl(), Criteria::skipDependencies() };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
             FileScanner::Options options { false };
-            options.shouldDescend = [] (const FileEntry& e) { return ! FileScanner::isVersionControlFolder (e); };     // Its objects belong to the repository.
+            const bool skipVersionControl = parameters.getBool ("skipVersionControl");     // Its objects belong to the repository.
+            const bool skipDependencies = parameters.getBool ("skipDependencies");
 
-            auto files = FileScanner::filesOnly (FileScanner::scan (context, options));
-            AnalysisResult result;
-
-            const auto add = [&result] (std::vector<FileEntry> identical, juce::int64 bytesEach)
+            options.shouldDescend = [skipVersionControl, skipDependencies] (const FileEntry& e)
             {
-                result.groups.push_back ({ Format::count (identical.size(), "identical file") + ", " + Format::size (bytesEach) + " each",
-                                           std::move (identical) });
+                return ! (skipVersionControl && FileScanner::isVersionControlFolder (e))
+                    && ! (skipDependencies && FileScanner::isDependencyFolder (e));
             };
 
-            if (parameters.getEnum<ParameterChoices::DuplicateAlgorithm> ("algorithm") == ParameterChoices::DuplicateAlgorithm::checksum)
-                findByChecksum (std::move (files), context, add);
-            else
-                findBySizeAndContent (FileScanner::keepIf (std::move (files), [] (const FileEntry& e) { return e.size != 0; }), context, add);
+            AnalysisResult result;
+
+            for (auto& identical : findIdentical (FileScanner::filesOnly (FileScanner::scan (context, options)), context))
+                result.groups.push_back ({ Format::count (identical.size(), "identical file") + ", " + Format::size (identical.front().size) + " each",
+                                           std::move (identical) });
 
             // Most space wasted first.
             std::sort (result.groups.begin(), result.groups.end(), [] (const ResultGroup& a, const ResultGroup& b)
@@ -55,15 +50,19 @@ namespace
         }
 
     private:
-        using Emit = std::function<void (std::vector<FileEntry>, juce::int64 bytesEach)>;
-
-        /** Groups bigger than this are compared by checksum rather than by reading them all side by side. */
+        /** Groups bigger than this are compared one file at a time against each set found so far, instead of side by
+            side (which keeps a file open and a block in memory for each of them).
+        */
         static constexpr size_t maxComparedTogether = 256;
 
-        /** Same size, then same start/end fingerprint, then the same bytes. */
-        static void findBySizeAndContent (std::vector<FileEntry> files, const ScanContext& context, const Emit& emit)
+        /** Byte-identical files with the same non-zero size: same size, then the same start/end fingerprint, then the
+            same bytes (the reading stops at the first difference).
+        */
+        static Grouping::Groups findIdentical (std::vector<FileEntry> files, const ScanContext& context)
         {
-            auto sameSize = Grouping::groupBy (std::move (files), [] (const FileEntry& e) { return e.size; });
+            auto sameSize = Grouping::groupBy (FileScanner::keepIf (std::move (files), [] (const FileEntry& e) { return e.size != 0; }),
+                                               [] (const FileEntry& e) { return e.size; });
+            Grouping::Groups identical;
 
             for (size_t i = 0; i < sameSize.size() && ! context.isCancelled(); ++i)
             {
@@ -73,81 +72,38 @@ namespace
                                                     [] (const FileEntry& e) { return ContentHasher::quickHash (e.file); });
 
                 for (auto& candidates : sameStart)
-                {
-                    const auto bytes = candidates.front().size;
-
-                    for (auto& identical : candidates.size() > maxComparedTogether ? byChecksum (std::move (candidates), context)
-                                                                                     : partitionByContent (std::move (candidates), context))
-                        emit (std::move (identical), bytes);
-                }
+                    for (auto& group : candidates.size() > maxComparedTogether ? partitionOneByOne (std::move (candidates), context)
+                                                                                : partitionByContent (std::move (candidates), context))
+                        identical.push_back (std::move (group));
             }
+
+            return identical;
         }
 
-        /** Checksums of the content actually read: the size the file system reports is never used, since it can differ
-            for identical content from one file system to another. Only files whose first 64 KB read alike are hashed.
-        */
-        static void findByChecksum (std::vector<FileEntry> files, const ScanContext& context, const Emit& emit)
+        /** Like partitionByContent, comparing each file with the first of each set found so far. */
+        static Grouping::Groups partitionOneByOne (std::vector<FileEntry> files, const ScanContext& context)
         {
-            std::map<juce::uint64, std::vector<FileEntry>> byStart;
+            Grouping::Groups partitions;
 
-            for (size_t i = 0; i < files.size() && ! context.isCancelled(); ++i)
+            for (auto& file : files)
             {
-                if (i % 100 == 0)
-                    context.progress ((double) i / (double) files.size() * 0.2, "Reading the start of the files...");
-
-                if (const auto start = ContentHasher::startHash (files[i].file))
-                    byStart[*start].push_back (std::move (files[i]));
-            }
-
-            std::vector<FileEntry> candidates;
-
-            for (auto& [start, same] : byStart)
-                if (same.size() > 1)
-                    candidates.insert (candidates.end(), std::make_move_iterator (same.begin()), std::make_move_iterator (same.end()));
-
-            for (auto& [identical, bytes] : byChecksumWithSize (std::move (candidates), context, 0.2))
-                if (bytes > 0)      // Empty files are all "identical" but are not duplicates of anything.
-                    emit (std::move (identical), bytes);
-        }
-
-        /** Files grouped by the SHA-256 and the length of what was read from them (groups of one are dropped). */
-        static std::vector<std::pair<std::vector<FileEntry>, juce::int64>> byChecksumWithSize (std::vector<FileEntry> files, const ScanContext& context,
-                                                                                                double progressStart = -1.0)
-        {
-            std::map<juce::String, std::pair<std::vector<FileEntry>, juce::int64>> bySum;
-
-            for (size_t i = 0; i < files.size() && ! context.isCancelled(); ++i)
-            {
-                if (progressStart >= 0)
-                    context.progress (progressStart + (1.0 - progressStart) * (double) i / (double) files.size(), "Checksum of " + files[i].name() + "...");
-
-                juce::int64 bytes = 0;
-
-                if (const auto sum = ContentHasher::checksum (files[i].file, context, &bytes); sum.isNotEmpty())
+                const auto match = std::find_if (partitions.begin(), partitions.end(), [&] (const std::vector<FileEntry>& p)
                 {
-                    auto& group = bySum[sum + ":" + juce::String (bytes)];
-                    group.first.push_back (std::move (files[i]));
-                    group.second = bytes;
-                }
+                    juce::FileInputStream a (p.front().file), b (file.file);
+                    return a.openedOk() && b.openedOk() && ContentHasher::streamsEqual (a, b, context)
+                        && ! a.getStatus().failed() && ! b.getStatus().failed();
+                });
+
+                if (match != partitions.end())
+                    match->push_back (std::move (file));
+                else
+                    partitions.push_back ({ std::move (file) });
             }
 
-            std::vector<std::pair<std::vector<FileEntry>, juce::int64>> groups;
-
-            for (auto& [key, group] : bySum)
-                if (group.first.size() > 1 && ! context.isCancelled())
-                    groups.push_back (std::move (group));
-
-            return groups;
-        }
-
-        static Grouping::Groups byChecksum (std::vector<FileEntry> files, const ScanContext& context)
-        {
-            Grouping::Groups groups;
-
-            for (auto& [identical, bytes] : byChecksumWithSize (std::move (files), context))
-                groups.push_back (std::move (identical));
-
-            return groups;
+            partitions.erase (std::remove_if (partitions.begin(), partitions.end(),
+                                              [] (const std::vector<FileEntry>& p) { return p.size() < 2; }),
+                              partitions.end());
+            return partitions;
         }
 
         /** Splits same-size files into sets of byte-identical files (sets of one are dropped), reading all of them side by

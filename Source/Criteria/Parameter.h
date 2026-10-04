@@ -22,6 +22,7 @@ struct Parameter
     bool enabled = true;
     bool defaultEnabled = true;
     bool hidden = false;            ///< Not shown nor laid out for now (see ParametersPanel::setHidden).
+    juce::String tooltip;           ///< Shown when the pointer rests on the editor (details the label leaves out).
 
     static Parameter toggle (const juce::String& id, const juce::String& label, bool defaultValue)
     {
@@ -63,6 +64,13 @@ struct Parameter
         auto p = make (id, label, Kind::multiChoice, juce::String(), 130);
         p.allLabel = allLabel;
         p.choices = choices;
+        return p;
+    }
+
+    Parameter withTooltip (const juce::String& text) const
+    {
+        auto p = *this;
+        p.tooltip = text;
         return p;
     }
 

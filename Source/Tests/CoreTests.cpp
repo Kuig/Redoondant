@@ -142,9 +142,22 @@ public:
             result = run (*Criteria::createDuplicateFiles(), temp.root, true);
             expectEquals ((int) result.groups[0].items.size(), 3);
 
-            temp.write ("a/.git/objects/pack/p.pack", "same content");     // A repository's objects are never offered.
+            temp.write ("a/.git/objects/pack/p.pack", "same content");     // A repository's objects are left out by default.
             result = run (*Criteria::createDuplicateFiles(), temp.root, true);
             expectEquals ((int) result.groups[0].items.size(), 3);
+
+            result = run (*Criteria::createDuplicateFiles(), temp.root, true, [] (ParameterSet& p) { setParameter (p, "skipVersionControl", false); });
+            expectEquals ((int) result.groups[0].items.size(), 4);
+
+            temp.write ("app/node_modules/x/photo.jpg", "same content");      // Installed dependencies are left out by default.
+            temp.write ("env/.venv/pyvenv.cfg", "home = x");
+            temp.write ("env/.venv/Lib/photo.jpg", "same content");
+            temp.write ("env/venv/photo.jpg", "same content");                // Not a virtual environment: no pyvenv.cfg.
+            result = run (*Criteria::createDuplicateFiles(), temp.root, true);
+            expectEquals ((int) result.groups[0].items.size(), 4);
+
+            result = run (*Criteria::createDuplicateFiles(), temp.root, true, [] (ParameterSet& p) { setParameter (p, "skipDependencies", false); });
+            expectEquals ((int) result.groups[0].items.size(), 6);
         }
 
         beginTest ("Duplicates: many identical files, and files that differ late");
@@ -158,12 +171,21 @@ public:
             temp.write ("late.bin", big.dropLastCharacters (1) + "X");            // Same size, differs in the last byte.
             temp.write ("early.bin", "X" + big.substring (1));
 
-            for (const int algorithm : { 0, 1 })
-            {
-                const auto result = run (*Criteria::createDuplicateFiles(), temp.root, false, [&] (ParameterSet& p) { setParameter (p, "algorithm", algorithm); });
-                expectEquals ((int) result.groups.size(), 1);
-                expectEquals ((int) result.groups[0].items.size(), 5);
-            }
+            const auto result = run (*Criteria::createDuplicateFiles(), temp.root);
+            expectEquals ((int) result.groups.size(), 1);
+            expectEquals ((int) result.groups[0].items.size(), 5);
+        }
+
+        beginTest ("Duplicates: big groups are compared one file at a time");
+        {
+            TempFolder temp;
+
+            for (int i = 0; i < 300; ++i)
+                temp.write ("same" + juce::String (i) + ".txt", "same content");
+
+            const auto result = run (*Criteria::createDuplicateFiles(), temp.root);
+            expectEquals ((int) result.groups.size(), 1);
+            expectEquals ((int) result.groups[0].items.size(), 300);
         }
 
         beginTest ("Scans taken from a shared tree match scans of the disk");
@@ -231,6 +253,9 @@ public:
 
             const auto result = run (*Criteria::createEmptyItems(), temp.root, true);
             expectEquals (namesOf (result).joinIntoString (","), juce::String ("empty,zero.txt"));
+
+            const auto withRepository = run (*Criteria::createEmptyItems(), temp.root, true, [] (ParameterSet& p) { setParameter (p, "skipVersionControl", false); });
+            expectEquals (namesOf (withRepository).joinIntoString (","), juce::String ("empty,refs,zero.txt"));
         }
 
 #if JUCE_WINDOWS

@@ -25,7 +25,6 @@ public:
     {
         testInstallersAndJunk();
         testArchivesByContent();
-        testDuplicateAlgorithms();
         testLargeElements();
         testDates();
     }
@@ -113,35 +112,6 @@ private:
             temp.write ("Renamed/a.txt", "alpha");
             temp.write ("Renamed/extra.txt", "one more file");
             expect (run (*criterion, temp.root, false, [] (ParameterSet& p) { setParameter (p, "ignoreName", true); }).groups.empty());
-        }
-    }
-
-    void testDuplicateAlgorithms()
-    {
-        beginTest ("Duplicates: both algorithms agree");
-        {
-            TempFolder temp;
-            temp.write ("a.txt", "same content");
-            temp.write ("b copy.txt", "same content");
-            temp.write ("c.txt", "same length!");
-            temp.write ("sub/d.txt", "unique");
-
-            const auto criterion = Criteria::createDuplicateFiles();
-
-            for (const int algorithm : { 0, 1 })
-            {
-                const auto result = run (*criterion, temp.root, true, [&] (ParameterSet& p) { setParameter (p, "algorithm", algorithm); });
-                expectEquals ((int) result.groups.size(), 1);
-                expectEquals (namesOf (result).joinIntoString (","), juce::String ("a.txt,b copy.txt"));
-                expect (findItem (result.groups[0], "b copy.txt")->selected);
-            }
-
-            expectEquals (ContentHasher::checksum (temp.root.getChildFile ("a.txt"), {}), ContentHasher::checksum (temp.root.getChildFile ("b copy.txt"), {}));
-            expect (ContentHasher::checksum (temp.root.getChildFile ("a.txt"), {}) != ContentHasher::checksum (temp.root.getChildFile ("c.txt"), {}));
-
-            ScanContext cancelled;
-            cancelled.shouldStop = [] { return true; };
-            expect (ContentHasher::checksum (temp.root.getChildFile ("a.txt"), cancelled).isEmpty());
         }
     }
 

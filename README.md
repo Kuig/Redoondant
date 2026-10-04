@@ -47,7 +47,7 @@ filters, panel sizes, window position, volume) are saved in
 
 | Criterion | Finds | Default selection (initial) |
 |---|---|---|
-| Duplicate files | Identical content; algorithm *Size + content* (same size, same quick fingerprint, then byte comparison of all candidates side by side; default) or *Checksum* (SHA-256 of what is read, for files whose first 64 KB match; never relies on the sizes the file system reports, which can differ for identical content). The content of `.git`, `.svn` and `.hg` folders is left out | All but the shortest name |
+| Duplicate files | Identical content: same size, same quick fingerprint (first and last 64 KB), then byte comparison of all candidates side by side, stopping at the first difference. Empty files are left out, and by default the data of version control (option *Skip version control data*: `.git`, `.svn`, `.hg`, `.bzr`, `_darcs`, `CVS`, `.jj`, `.pijul` folders) and installed dependencies (option *Skip installed dependencies*: `node_modules`, `bower_components`, `site-packages`, and `.venv`/`venv` with a `pyvenv.cfg`) | All but the shortest name |
 | File versions | Same folder and extension, names sharing a long enough start (no assumption on the differing ending) | All but the most recently modified |
 | Same name, different extension | e.g. `video.mp4` + `video.mkv`, `thesis.docx` + `thesis.pdf` (optionally across folders / same kind only) | None |
 | Similar metadata | Media/documents with the same descriptive metadata in different formats (song FLAC + MP3: artist, title, album, track, duration ± tolerance; photo HEIC + JPG: date taken, camera; DOCX + PDF: title, author, pages). *Strict identity* (off by default) requires the title (date taken for photos) and doesn't count pages or duration as matching fields | All but the largest |
@@ -55,7 +55,7 @@ filters, panel sizes, window position, volume) are saved in
 | Junk folders | Folders with configurable names (`Build;Builds;node_modules;...`); generic names (`Release`, `bin`, `x64`... a second, switchable list) count only in a folder holding a project file (`.sln`, `.vcxproj`, `CMakeLists.txt`, `package.json`, `Cargo.toml`, `.jucer`...) | All |
 | Large elements | Files (and, optionally, folders) above a size threshold | None |
 | Date clusters | Items grouped by *File created*, *File modified* or *Content created* date (the oldest date in the file's metadata: photo taken, document created, PDF creation...), split on time gaps | None |
-| Empty files & folders | 0-byte files, folders without files; placeholders (`.gitkeep`, `__init__.py`...) and the content of `.git`/`.svn`/`.hg` are left out | All |
+| Empty files & folders | 0-byte files, folders without files; placeholders (`.gitkeep`, `__init__.py`...) are left out, and by default the data of version control (option *Skip version control data*) | All |
 | Incomplete downloads | `.crdownload`, `.part`, ... | All |
 | Installers & junk files | Two lists, each with its own on/off check box: installers/disk images (`.exe`, `.msi`, `.iso`...) and junk (`.tmp`, `.bak`, `~$*`, and regenerable audio-software files: Cubase `.pek`/`.peak`, Ableton `.asd`, Reaper `.reapeaks`/`.RPP-bak`/`.RPP-UNDO`, WaveLab `.gpk`) | None |
 | Old files | Files whose creation, modification or content date is older than N days | None |
