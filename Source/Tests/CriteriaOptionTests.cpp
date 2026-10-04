@@ -130,6 +130,34 @@ private:
 
             expectEquals (namesOf (run (*criterion, temp.root, true, tweak (false))).joinIntoString (","), juce::String ("big.bin"));
             expectEquals (namesOf (run (*criterion, temp.root, true, tweak (true))).joinIntoString (","), juce::String ("big.bin,dir"));
+
+            temp.write ("dir/sub/c.bin", juce::String::repeatedString ("x", 2500));
+
+            const auto analyse = [&] (bool recursive, bool folders)
+            {
+                ScanContext context;
+                context.root = temp.root;
+                context.recursive = recursive;
+                auto parameters = criterion->createParameters();
+                tweak (folders) (parameters);
+                return criterion->analyse (context, parameters);
+            };
+
+            expect (! analyse (true, false).nestedGroups);      // Grouped only with Recursive and Include folders.
+            expect (! analyse (false, true).nestedGroups);
+
+            const auto grouped = analyse (true, true);
+            expect (grouped.nestedGroups);
+            expectEquals ((int) grouped.groups.size(), 2);                  // dir with what is inside it, and big.bin alone.
+            expectEquals (grouped.groups[0].items.front().name(), juce::String ("dir"));
+            expectEquals ((int) grouped.groups[0].items.size(), 3);         // dir, dir/sub and c.bin (a.bin and b.bin are too small)
+            expectEquals (grouped.groups[1].items.front().name(), juce::String ("big.bin"));
+
+            temp.write ("other.bin", juce::String::repeatedString ("x", 2100));      // Elements with nothing inside share a group.
+            const auto shared = analyse (true, true);
+            expectEquals ((int) shared.groups.size(), 2);
+            expectEquals ((int) shared.groups[1].items.size(), 2);
+            expectEquals (shared.groups[1].items.front().name(), juce::String ("big.bin"));
         }
     }
 

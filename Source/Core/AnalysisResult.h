@@ -32,6 +32,12 @@ struct AnalysisResult
 {
     std::vector<ResultGroup> groups;
 
+    /** The groups are shown as such even if the criterion is not a grouped one (the result decides, e.g. from the settings
+        of the run): each holds an outermost folder with the listed items inside it, so a group may have a single item and
+        losing items does not dissolve it.
+    */
+    bool nestedGroups = false;
+
     /** Wraps a flat list into a single untitled group. */
     static AnalysisResult flat (std::vector<FileEntry> items)
     {

@@ -122,6 +122,7 @@ private:
     ListedResult result;
     juce::File root;
     bool grouped = false;
+    bool keepsSmallGroups = false;      ///< A group left with one item stays (nested groups).
     bool analysed = false;
     Filter filter;
     bool filterUsesContentDate = false;

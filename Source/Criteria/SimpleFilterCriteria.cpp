@@ -6,6 +6,7 @@
 #include "../Core/DateKind.h"
 #include "../Core/Paths.h"
 #include "../Metadata/ContentDate.h"
+#include <map>
 #include <set>
 
 namespace
@@ -18,7 +19,8 @@ namespace
     {
     public:
         LargeElements()
-            : Criterion ({ "largeFiles", "Large elements", "Files (and optionally folders) larger than the given size, largest first.",
+            : Criterion ({ "largeFiles", "Large elements", "Files (and optionally folders) larger than the given size, largest first. With Recursive and Include folders, "
+                           "each outermost folder is a group with the large elements inside it.",
                            Trait::showsFolders },
                         { DefaultSelection::none, Column::size, false }) {}
 
@@ -33,9 +35,80 @@ namespace
             const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * Format::bytesPerMB);
             const bool folders = parameters.getBool ("folders");
 
-            return AnalysisResult::flatSorted (FileScanner::scanAndFilter (context, folders ? fullScan : filesOnlyScan,
-                                                                           [=] (const FileEntry& e) { return (folders || ! e.isDirectory) && e.size >= minBytes; }),
-                                               Orderings::largestFirst);
+            auto entries = FileScanner::scanAndFilter (context, folders ? fullScan : filesOnlyScan,
+                                                       [=] (const FileEntry& e) { return (folders || ! e.isDirectory) && e.size >= minBytes; });
+
+            if (folders && context.recursive)
+                return groupedByOutermostFolder (std::move (entries));
+
+            return AnalysisResult::flatSorted (std::move (entries), Orderings::largestFirst);
+        }
+
+    private:
+        /** One group for each outermost listed folder with large elements inside it, largest first; the elements that
+            have none (large files in the scanned folder itself, folders whose size is made of small files) share the
+            last group.
+        */
+        static AnalysisResult groupedByOutermostFolder (std::vector<FileEntry> entries)
+        {
+            std::set<juce::String> listedFolders;
+
+            for (const auto& e : entries)
+                if (e.isDirectory)
+                    listedFolders.insert (Paths::key (e.file));
+
+            std::map<juce::String, std::vector<FileEntry>> byOutermost;
+
+            for (auto& e : entries)
+            {
+                auto top = e.file;
+
+                for (auto parent = top.getParentDirectory(); listedFolders.count (Paths::key (parent)) > 0; parent = parent.getParentDirectory())
+                    top = parent;
+
+                byOutermost[Paths::key (top)].push_back (std::move (e));
+            }
+
+            AnalysisResult result;
+            result.nestedGroups = true;
+            std::vector<FileEntry> alone;
+
+            for (auto& [key, items] : byOutermost)
+            {
+                if (items.size() == 1)
+                {
+                    alone.push_back (std::move (items.front()));
+                    continue;
+                }
+
+                // The outermost folder comes first: nothing is larger, and a file as large as it is inside it.
+                std::sort (items.begin(), items.end(), [] (const FileEntry& a, const FileEntry& b)
+                {
+                    return a.size != b.size ? a.size > b.size
+                                            : a.file.getFullPathName().length() < b.file.getFullPathName().length();
+                });
+                const auto& outermost = items.front();
+                auto title = outermost.name() + "  -  " + Format::count (items.size(), "large element") + ", " + Format::size (outermost.size);
+                result.groups.push_back ({ std::move (title), std::move (items) });
+            }
+
+            std::sort (result.groups.begin(), result.groups.end(), [] (const ResultGroup& a, const ResultGroup& b)
+            {
+                return a.items.front().size > b.items.front().size;
+            });
+
+            if (alone.size() == 1)      // A group of one only repeats its row's name: listed on its own all the same, with no other to join.
+            {
+                result.groups.push_back ({ alone.front().name() + "  -  " + Format::size (alone.front().size), std::move (alone) });
+            }
+            else if (! alone.empty())
+            {
+                std::sort (alone.begin(), alone.end(), Orderings::largestFirst);
+                auto title = "Without large elements inside  -  " + Format::count (alone.size(), "large element") + ", " + Format::size (totalSize (alone));
+                result.groups.push_back ({ std::move (title), std::move (alone) });
+            }
+
+            return result;
         }
     };
 

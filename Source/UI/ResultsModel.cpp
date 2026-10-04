@@ -26,6 +26,8 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
 {
     result = {};
     root = scannedRoot;
+    keepsSmallGroups = newResult.nestedGroups;
+    isGrouped = isGrouped || newResult.nestedGroups;
 
     for (auto& found : newResult.groups)
     {
@@ -371,7 +373,7 @@ void ResultsModel::remove (const juce::Array<juce::File>& files)
         const auto before = group.items.size();
         group.items.erase (std::remove_if (group.items.begin(), group.items.end(), isRemoved), group.items.end());
 
-        const bool broken = grouped && group.items.size() < 2 && group.items.size() != before;
+        const bool broken = grouped && ! keepsSmallGroups && group.items.size() < 2 && group.items.size() != before;
 
         if (! group.items.empty() && ! broken)
             kept.push_back (std::move (group));

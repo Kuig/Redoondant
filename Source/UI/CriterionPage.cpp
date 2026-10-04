@@ -129,7 +129,10 @@ void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
 {
     filterBar->setRoot (root);
     model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
+    const bool grouped = criterion.getInfo().grouped || result.nestedGroups;
     model.setResult (std::move (result), root, criterion.getInfo().grouped);
+    groupOrderBox.setVisible (grouped);
+    resized();
     checks = BulkCheck::defaults;
     table.refresh();
     status.setText ("Analyzed \"" + root.getFileName() + "\"" + (recursiveToggle.getToggleState() ? " recursively" : "")

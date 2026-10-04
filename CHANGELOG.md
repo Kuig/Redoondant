@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Histogram in the preview area while nothing is selected: folder, size, modified, created, content created or type, by number of items
   or by total size (linear or logarithmic), with three layers (all items, items passing the filters, checked items), statistics on hover and a click
   on a bar that sets the filters to show only its items.
+- *Large elements*: with *Recursive* and *Include folders* on, the results are grouped by outermost folder (the folder with the large
+  elements inside it, largest group first; the elements with none inside share the last group) instead of listing a folder and its contents as unrelated rows.
 - *Duplicate files*: option *Skip installed dependencies*, on by default: the content of `node_modules`, `bower_components`,
   `site-packages` and of Python virtual environments is left out (each package needs its own copy of its files; *Junk folders* removes
   these folders whole).
