@@ -3,6 +3,7 @@
 #include "../Core/ContentHasher.h"
 #include "../Core/FileScanner.h"
 #include <map>
+#include <set>
 
 namespace
 {
@@ -69,7 +70,15 @@ namespace
                 return found != folderFiles.end() && found->second.size == entry.size ? &found->second : nullptr;
             };
 
-            if (! std::all_of (entries.begin(), entries.end(), [&] (const ArchiveReader::Entry& e) { return match (e) != nullptr; }))
+            // Every entry matches a file, and no two entries the same file (an archive can hold a path twice): then the
+            // counts being equal means every file of the folder is in the archive.
+            std::set<const FileEntry*> matched;
+
+            if (! std::all_of (entries.begin(), entries.end(), [&] (const ArchiveReader::Entry& e)
+                               {
+                                   const auto* file = match (e);
+                                   return file != nullptr && matched.insert (file).second;
+                               }))
                 continue;
 
             // Same listing: compare the bytes, in a single pass over the archive.
@@ -78,7 +87,8 @@ namespace
             {
                 const auto* file = match (entry);
                 juce::FileInputStream extracted (file != nullptr ? file->file : juce::File());
-                identical = file != nullptr && extracted.openedOk() && ContentHasher::streamsEqual (data, extracted, context);
+                identical = file != nullptr && extracted.openedOk() && ContentHasher::streamsEqual (data, extracted, context)
+                              && ! extracted.getStatus().failed();
                 return identical;
             });
 
@@ -124,6 +134,11 @@ namespace
                 auto& archive = archives[i];
                 context.progress ((double) i / (double) archives.size(), "Comparing " + archive.name() + "...");
 
+                const auto* sibling = siblingOf (archive, folders);
+
+                if (! ignoreName && sibling == nullptr)
+                    continue;       // Nothing to compare with: don't decompress the archive just to list it.
+
                 const auto entries = ArchiveReader::list (archive.file, context);
 
                 if (! entries.has_value() || entries->empty())
@@ -131,7 +146,7 @@ namespace
 
                 std::vector<FileEntry> matches;
 
-                for (const auto* candidate : candidatesFor (archive, *entries, folders, ignoreName))
+                for (const auto* candidate : ignoreName ? sameSizeFolders (*entries, folders) : std::vector<const FileEntry*> { sibling })
                     if (haveSameContent (archive.file, *entries, candidate->file, ignoreName, context))
                         matches.push_back (*candidate);
 
@@ -155,31 +170,26 @@ namespace
         }
 
     private:
-        /** The folders worth comparing with an archive: the same-named sibling, or (ignoring names)
-            every folder with the same number of files and total size.
-        */
-        static std::vector<const FileEntry*> candidatesFor (const FileEntry& archive, const std::vector<ArchiveReader::Entry>& entries,
-                                                            const std::map<juce::String, FileEntry>& folders, bool ignoreName)
+        /** The folder named like the archive next to it, if it was scanned and all its content could be listed. */
+        static const FileEntry* siblingOf (const FileEntry& archive, const std::map<juce::String, FileEntry>& folders)
+        {
+            const auto sibling = folders.find (archive.file.getSiblingFile (ArchiveReader::stemOf (archive.file)).getFullPathName());
+            return sibling != folders.end() && ! sibling->second.contentUnknown ? &sibling->second : nullptr;
+        }
+
+        /** Ignoring names: every folder with the same number of files and total size (and all its content listed). */
+        static std::vector<const FileEntry*> sameSizeFolders (const std::vector<ArchiveReader::Entry>& entries,
+                                                              const std::map<juce::String, FileEntry>& folders)
         {
             std::vector<const FileEntry*> candidates;
-
-            if (! ignoreName)
-            {
-                const auto sibling = folders.find (archive.file.getSiblingFile (ArchiveReader::stemOf (archive.file)).getFullPathName());
-
-                if (sibling != folders.end())
-                    candidates.push_back (&sibling->second);
-
-                return candidates;
-            }
-
             juce::int64 total = 0;
 
             for (const auto& e : entries)
                 total += e.size;
 
+            // A folder with something unreadable or a link inside could hold more than what was compared.
             for (const auto& [path, folder] : folders)
-                if (folder.fileCount == (int) entries.size() && folder.size == total)
+                if (folder.fileCount == (int) entries.size() && folder.size == total && ! folder.contentUnknown)
                     candidates.push_back (&folder);
 
             return candidates;

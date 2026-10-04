@@ -1,5 +1,8 @@
 #include "FileScanner.h"
+#include "Paths.h"
 #include <filesystem>
+#include <map>
+#include <optional>
 
 namespace
 {
@@ -109,16 +112,86 @@ namespace
         }
     };
 
+    /** What a walk of `base` would list, taken from the context's tree if it covers `base`: the children of `base` and,
+        if recursive, of every folder below it whose content the walk would enter (see Options::shouldDescend).
+    */
+    std::optional<std::vector<FileEntry>> fromTree (const ScanContext& context, const juce::File& base, bool recursive,
+                                                    const FileScanner::Options& options)
+    {
+        const auto* tree = context.tree.get();
+
+        if (tree == nullptr || ! (base == tree->root || base.isAChildOf (tree->root)))
+            return std::nullopt;
+
+        const auto baseKey = Paths::key (base);
+        std::map<juce::String, const FileEntry*> folders;
+
+        if (recursive && options.shouldDescend != nullptr)
+            for (const auto& e : tree->entries)
+                if (e.isDirectory)
+                    folders[Paths::key (e.file)] = &e;
+
+        std::map<juce::String, bool> listed;    // Folder key -> whether the walk lists its children.
+
+        std::function<bool (const juce::File&)> listsChildren = [&] (const juce::File& folder)
+        {
+            const auto key = Paths::key (folder);
+
+            if (key == baseKey)
+                return true;
+
+            if (! recursive || Paths::isRoot (folder))
+                return false;
+
+            if (const auto known = listed.find (key); known != listed.end())
+                return known->second;
+
+            bool lists = listsChildren (folder.getParentDirectory());
+
+            if (lists && options.shouldDescend != nullptr)
+            {
+                const auto found = folders.find (key);
+                lists = found != folders.end() && options.shouldDescend (*found->second);
+            }
+
+            return listed[key] = lists;
+        };
+
+        std::vector<FileEntry> entries;
+
+        for (const auto& e : tree->entries)
+            if (listsChildren (e.file.getParentDirectory()))
+                entries.push_back (e);
+
+        return entries;
+    }
 }
 
 std::vector<FileEntry> FileScanner::scan (const ScanContext& context, const Options& options)
 {
+    if (auto shared = fromTree (context, context.root, context.recursive, options))
+        return std::move (*shared);
+
     return Walker (context, options, context.recursive).run (context.root);
 }
 
 std::vector<FileEntry> FileScanner::scanTree (const juce::File& folder, const ScanContext& context, const Options& options)
 {
+    if (auto shared = fromTree (context, folder, true, options))
+        return std::move (*shared);
+
     return Walker (context, options, true).run (folder);
+}
+
+std::shared_ptr<const ScannedTree> FileScanner::scanWholeTree (const ScanContext& context)
+{
+    auto tree = std::make_shared<ScannedTree>();
+    tree->root = context.root;
+
+    auto own = context;
+    own.tree = nullptr;
+    tree->entries = scanTree (context.root, own);
+    return tree;
 }
 
 std::vector<FileEntry> FileScanner::filesOnly (std::vector<FileEntry> entries)

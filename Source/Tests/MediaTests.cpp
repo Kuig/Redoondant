@@ -126,6 +126,38 @@ public:
             expect (! findItem (result.groups[0], "song.flac")->selected);
             expect (findItem (result.groups[0], "song 128k.mp3")->selected);
         }
+
+        beginTest ("Similar metadata: strict identity needs the title and ignores page counts");
+        {
+            TempFolder temp;
+            temp.write ("letter.docx", "a");
+            temp.write ("invoice.pdf", "b");
+            temp.write ("report.docx", "c");
+            temp.write ("report.pdf", "d");
+
+            const auto document = [] (const juce::String& title)
+            {
+                Metadata m;
+                m.add (MetadataKeys::author, "Author", "Same Person");
+                m.add (MetadataKeys::pageCount, "Pages", "1");
+
+                if (title.isNotEmpty())
+                    m.add (MetadataKeys::title, "Title", title);
+
+                return m;
+            };
+
+            std::map<juce::String, Metadata> fake { { "letter.docx", document ({}) }, { "invoice.pdf", document ({}) },
+                                                    { "report.docx", document ("Report") }, { "report.pdf", document ("Report") } };
+            const auto criterion = Criteria::createSameContent ([&] (const juce::File& f) { return fake[f.getFileName()]; });
+
+            // Author + pages are enough by default, so the two untitled documents look alike.
+            expectEquals ((int) run (*criterion, temp.root).groups.size(), 2);
+
+            const auto strict = run (*criterion, temp.root, false, [] (ParameterSet& p) { setParameter (p, "strict", true); });
+            expectEquals ((int) strict.groups.size(), 1);
+            expectEquals (namesOf (strict).joinIntoString (","), juce::String ("report.docx,report.pdf"));
+        }
     }
 
 private:

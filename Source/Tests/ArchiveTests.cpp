@@ -92,6 +92,16 @@ public:
             expect (result.groups.empty());
         }
 
+        beginTest ("An archive holding a path twice doesn't stand for a folder with an extra file");
+        {
+            TempFolder temp;
+            temp.write ("Photos/a.txt", "alpha");
+            temp.write ("Photos/b.txt", "other");
+            expect (writeArchive (temp.root.getChildFile ("Photos.tar"), "gnutar", nullptr, { { "Photos/a.txt", "alpha" }, { "Photos/a.txt", "alpha" } }));
+
+            expect (run (*Criteria::createArchiveMirrors(), temp.root).groups.empty());
+        }
+
         beginTest ("Unreadable archive");
         {
             TempFolder temp;

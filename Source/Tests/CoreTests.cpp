@@ -141,19 +141,82 @@ public:
 
             result = run (*Criteria::createDuplicateFiles(), temp.root, true);
             expectEquals ((int) result.groups[0].items.size(), 3);
+
+            temp.write ("a/.git/objects/pack/p.pack", "same content");     // A repository's objects are never offered.
+            result = run (*Criteria::createDuplicateFiles(), temp.root, true);
+            expectEquals ((int) result.groups[0].items.size(), 3);
+        }
+
+        beginTest ("Duplicates: many identical files, and files that differ late");
+        {
+            TempFolder temp;
+            const auto big = juce::String::repeatedString ("0123456789", 30000);     // 300 KB: several blocks.
+
+            for (int i = 0; i < 5; ++i)
+                temp.write ("same" + juce::String (i) + ".bin", big);
+
+            temp.write ("late.bin", big.dropLastCharacters (1) + "X");            // Same size, differs in the last byte.
+            temp.write ("early.bin", "X" + big.substring (1));
+
+            for (const int algorithm : { 0, 1 })
+            {
+                const auto result = run (*Criteria::createDuplicateFiles(), temp.root, false, [&] (ParameterSet& p) { setParameter (p, "algorithm", algorithm); });
+                expectEquals ((int) result.groups.size(), 1);
+                expectEquals ((int) result.groups[0].items.size(), 5);
+            }
+        }
+
+        beginTest ("Scans taken from a shared tree match scans of the disk");
+        {
+            TempFolder temp;
+            temp.write ("a.txt", "a");
+            temp.write ("sub/b.txt", "bb");
+            temp.write ("sub/skip/c.txt", "ccc");
+            temp.write ("other/d.txt", "dddd");
+
+            ScanContext disk;
+            disk.root = temp.root;
+            auto shared = disk;
+            shared.tree = FileScanner::scanWholeTree (disk);
+
+            FileScanner::Options options;
+            options.shouldDescend = [] (const FileEntry& e) { return e.name() != "skip"; };
+
+            const auto describe = [] (const std::vector<FileEntry>& entries)
+            {
+                juce::StringArray lines;
+
+                for (const auto& e : entries)
+                    lines.add (e.file.getFullPathName() + " " + juce::String (e.size) + " " + juce::String (e.fileCount));
+
+                lines.sort (true);
+                return lines.joinIntoString ("|");
+            };
+
+            for (const bool recursive : { false, true })
+            {
+                disk.recursive = shared.recursive = recursive;
+                expectEquals (describe (FileScanner::scan (shared, options)), describe (FileScanner::scan (disk, options)));
+                expectEquals (describe (FileScanner::scanFiles (shared)), describe (FileScanner::scanFiles (disk)));
+            }
+
+            const auto sub = temp.root.getChildFile ("sub");
+            expectEquals (describe (FileScanner::scanTree (sub, shared)), describe (FileScanner::scanTree (sub, disk)));
         }
 
         beginTest ("Junk folders: matched ignoring case, not descended");
         {
             TempFolder temp;
+            temp.write ("proj/CMakeLists.txt", "project (p)");
             temp.write ("proj/build/x.obj", "x");
             temp.write ("proj/build/Debug/y.obj", "y");
             temp.write ("proj/src/main.cpp", "int main() {}");
+            temp.write ("Music/Release/song.mp3", "a song");            // A generic name outside a project.
+            temp.write ("web/node_modules/lib/index.js", "x");         // A specific name: anywhere.
 
             const auto result = run (*Criteria::createJunkFolders(), temp.root, true);
-            expectEquals ((int) result.groups[0].items.size(), 1);
-            expectEquals (result.groups[0].items[0].name(), juce::String ("build"));
-            expectEquals (result.groups[0].items[0].size, (juce::int64) 2);
+            expectEquals (namesOf (result).joinIntoString (","), juce::String ("build,node_modules"));
+            expectEquals (findItem (result.groups[0], "build")->size, (juce::int64) 2);
         }
 
         beginTest ("Empty items: only the outermost empty folder");
@@ -162,9 +225,12 @@ public:
             temp.root.getChildFile ("empty/inner").createDirectory();
             temp.write ("zero.txt", {});
             temp.write ("full/a.txt", "a");
+            temp.write ("pkg/__init__.py", {});                        // Placeholders and repository data are left out.
+            temp.write ("repo/.git/HEAD", "ref");
+            temp.root.getChildFile ("repo/.git/refs/heads").createDirectory();
 
             const auto result = run (*Criteria::createEmptyItems(), temp.root, true);
-            expectEquals ((int) result.groups[0].items.size(), 2);
+            expectEquals (namesOf (result).joinIntoString (","), juce::String ("empty,zero.txt"));
         }
 
 #if JUCE_WINDOWS

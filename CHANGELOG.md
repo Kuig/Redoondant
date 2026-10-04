@@ -5,6 +5,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 ### Added
+- *Similar metadata*: option *Strict identity*, off by default: the title (date taken for photos) is required, and the page count and the
+  duration don't count as matching fields, so documents of one page by the same author without a title are no longer grouped.
 - Histogram in the preview area while nothing is selected: folder, size, modified, created, content created or type, by number of items
   or by total size (linear or logarithmic), with three layers (all items, items passing the filters, checked items), statistics on hover and a click
   on a bar that sets the filters to show only its items.
@@ -40,6 +42,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Move to Trash, Move to folder and Delete permanently act on exactly the items their confirmation described: content dates arriving while
   the question is open (which can re-sort a list and change the item each group keeps) no longer change what is removed.
 - The Cache Cleaner's confirmation no longer counts twice a folder listed inside another checked one.
+- *Duplicate files*, *Checksum*: no longer relies on the sizes the file system reports (they can differ for identical content): only files
+  whose first 64 KB read alike are hashed, files are identical when their checksum and the number of bytes read match, and a file that can't
+  be read to the end (a read error half-way) is left out instead of being compared on its first part. The checksum is several times faster
+  (the file is read in 1 MB blocks).
+- *Duplicate files*, *Size + content*: the candidates of a group are compared side by side in large blocks, so each file is read once (it used
+  to be read again for every other copy, alternating small blocks between two files: very slow on hard disks).
+- *Duplicate files* and *Empty files & folders* leave out the content of `.git`, `.svn` and `.hg` folders (deleting a repository's packs or
+  its empty `refs` folders breaks it); *Empty files & folders* also leaves out placeholders such as `.gitkeep` and `__init__.py`.
+- *Junk folders*: generic names (`Release`, `Debug`, `bin`, `obj`, `target`, `x64`, `Build`, `Builds`) only count in a folder holding a
+  project file, so `Music\Release` is no longer proposed. The list is a setting that can be edited or switched off.
+- *Archives & extracted folders*: an archive that holds the same path twice no longer matches a folder with an extra file; folders that
+  could not be listed completely are not matched; without *Ignore folder name* an archive with no folder of the same name is no longer
+  decompressed for nothing.
+- *Multiple criteria* with *Run all criteria* walks the folder once instead of once per criterion, and counting the folders is faster.
 - **Move to Trash** is much faster on many items (one shell operation per batch instead of one per item). When Windows can't recycle an
   item (too big for the Recycle Bin) its question now shows above the progress window, and an item deleted for good after that question is
   reported as such instead of "moved to the Recycle Bin". Drives mounted in a folder are recognised by their own volume, and the drive

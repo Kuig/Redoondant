@@ -85,15 +85,24 @@ namespace
     public:
         EmptyItems()
             : Criterion ({ "empty", "Empty files & folders",
-                           "Zero-byte files, and folders that contain no files (only empty sub-folders, if any).",
+                           "Zero-byte files, and folders that contain no files (only empty sub-folders, if any). "
+                           "Placeholders (.gitkeep, __init__.py...) and what is inside .git, .svn or .hg are left out.",
                            Trait::showsFolders },
                         { DefaultSelection::all }) {}
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {
-            auto items = FileScanner::scanAndFilter (context, fullScan, [] (const FileEntry& e)
+            // Empty files that only hold a place (a Python package, an empty folder kept in git) are not junk.
+            static const juce::StringArray placeholders { ".gitkeep", ".keep", "__init__.py", "py.typed" };
+
+            // A repository's empty folders (refs/heads after "git gc"...) are part of it: deleting them breaks it.
+            auto options = fullScan;
+            options.shouldDescend = [] (const FileEntry& e) { return ! FileScanner::isVersionControlFolder (e); };
+
+            auto items = FileScanner::scanAndFilter (context, options, [] (const FileEntry& e)
             {
-                return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown : e.size == 0;
+                return e.isDirectory ? e.fileCount == 0 && ! e.contentUnknown && ! FileScanner::isVersionControlFolder (e)
+                                     : e.size == 0 && ! placeholders.contains (e.name(), true);
             });
 
             // Only list the outermost empty folder of a chain of empty folders.

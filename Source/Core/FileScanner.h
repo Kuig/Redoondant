@@ -3,7 +3,17 @@
 #include "FileEntry.h"
 #include "ScanContext.h"
 
-/** Walks a folder tree, producing FileEntry objects with aggregated folder sizes. */
+/** Every file and folder under a folder (with folder sizes), as scanned once to be shared (ScanContext::tree). */
+struct ScannedTree
+{
+    juce::File root;
+    std::vector<FileEntry> entries;
+};
+
+/** Walks a folder tree, producing FileEntry objects with aggregated folder sizes.
+    When the context carries a ScannedTree that covers the folder, the scans are taken from it (same entries, same
+    order) instead of the disk.
+*/
 namespace FileScanner
 {
     struct Options
@@ -27,6 +37,9 @@ namespace FileScanner
     /** Lists the content of a folder recursively, regardless of the context's recursive flag. */
     std::vector<FileEntry> scanTree (const juce::File& folder, const ScanContext& context, const Options& options = {});
 
+    /** Scans the whole tree under context.root (whatever context.recursive says), to hand to several analyses. */
+    std::shared_ptr<const ScannedTree> scanWholeTree (const ScanContext& context);
+
     /** Builds an entry by querying the file system (folder sizes are computed recursively). */
     FileEntry makeEntry (const juce::File& file);
 
@@ -36,6 +49,15 @@ namespace FileScanner
     {
         entries.erase (std::remove_if (entries.begin(), entries.end(), [&] (const FileEntry& e) { return ! accept (e); }), entries.end());
         return entries;
+    }
+
+    /** The folders where version control keeps its data (.git, .svn, .hg): their content belongs to the repository,
+        so criteria don't propose it (it would break the repository).
+    */
+    inline bool isVersionControlFolder (const FileEntry& e)
+    {
+        static const juce::StringArray names { ".git", ".svn", ".hg" };
+        return e.isDirectory && names.contains (e.name(), true);
     }
 
     /** Keeps only the files of a list of entries. */

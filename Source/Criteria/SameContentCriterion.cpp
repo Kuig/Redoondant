@@ -28,6 +28,12 @@ namespace
         return fields;
     }
 
+    /** With "strict identity": the field a work can't be identified without (a title, the moment a photo was taken). */
+    const juce::String& strongField (FileCategory category)
+    {
+        return category == FileCategory::image ? MetadataKeys::dateTaken : MetadataKeys::title;
+    }
+
     juce::String normalise (const juce::String& value)
     {
         return juce::StringArray::fromTokens (value.toLowerCase(), " \t\r\n", {}).joinIntoString (" ");
@@ -41,7 +47,10 @@ namespace
         double duration = -1.0;
     };
 
-    std::optional<Identity> identify (const FileEntry& entry, const Metadata& metadata, int minFields)
+    /** @param strict   the strong field must be present, and neither the page count nor the duration (which many different
+                        works share) counts towards minFields.
+    */
+    std::optional<Identity> identify (const FileEntry& entry, const Metadata& metadata, int minFields, bool strict)
     {
         const auto category = FileCategories::of (entry);
         const auto found = identityFields().find (category);
@@ -52,6 +61,9 @@ namespace
         Identity identity;
         identity.signature = FileCategories::nameOf (category);
         int matched = 0;
+
+        if (strict && metadata.text (strongField (category)).trim().isEmpty())
+            return std::nullopt;
 
         for (const auto& alternatives : found->second)
         {
@@ -66,14 +78,14 @@ namespace
             if (value.isNotEmpty())
             {
                 identity.values.add (value);
-                ++matched;
+                matched += strict && alternatives.front() == MetadataKeys::pageCount ? 0 : 1;
             }
         }
 
         if (const auto* duration = metadata.find (MetadataKeys::duration); duration != nullptr && duration->raw.isDouble())
         {
             identity.duration = (double) duration->raw;
-            ++matched;      // A duration counts as one matching field.
+            matched += strict ? 0 : 1;      // A duration counts as one matching field (not when strict).
         }
 
         if (matched < minFields)
@@ -96,13 +108,15 @@ namespace
         ParameterSet createParameters() const override
         {
             return { Parameter::number ("minFields", "Min. matching fields", 2),
-                     Parameter::number ("tolerance", "Duration tolerance", 2, "s") };
+                     Parameter::number ("tolerance", "Duration tolerance", 2, "s"),
+                     Parameter::toggle ("strict", "Strict identity (title / date taken required)", false) };
         }
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
             const int minFields = juce::jmax (1, (int) parameters.getNumber ("minFields"));
             const double tolerance = juce::jmax (0.0, parameters.getNumber ("tolerance"));
+            const bool strict = parameters.getBool ("strict");
 
             auto files = FileScanner::keepIf (FileScanner::scanFiles (context), [] (const FileEntry& e)
             {
@@ -116,7 +130,7 @@ namespace
             {
                 context.progress ((double) i / (double) files.size(), "Reading metadata of " + files[i].name());
 
-                if (auto identity = identify (files[i], readMetadata (files[i].file), minFields))
+                if (auto identity = identify (files[i], readMetadata (files[i].file), minFields, strict))
                 {
                     identities[files[i].file.getFullPathName()] = std::move (*identity);
                     candidates.push_back (std::move (files[i]));

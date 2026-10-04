@@ -27,18 +27,38 @@ namespace
         /** Criteria marking the file or one of its folders, up to root. */
         juce::StringArray criteriaFor (const juce::File& file, const juce::File& root) const
         {
-            juce::StringArray names;
+            auto names = marksOf (file);
 
-            for (auto f = file; f != root && f != f.getParentDirectory(); f = f.getParentDirectory())
-            {
-                const auto found = byPath.find (Paths::key (f));
-
-                if (found != byPath.end())
-                    names.mergeArray (found->second.second);
-            }
+            if (file != root && ! Paths::isRoot (file))
+                names.mergeArray (inherited (file.getParentDirectory(), root));
 
             names.sort (true);
             return names;
+        }
+
+    private:
+        mutable std::map<juce::String, juce::StringArray> inheritedByFolder;     // Folder key -> marks of it and its folders up to root.
+
+        juce::StringArray marksOf (const juce::File& f) const
+        {
+            const auto found = byPath.find (Paths::key (f));
+            return found != byPath.end() ? found->second.second : juce::StringArray();
+        }
+
+        /** Marks of a folder and of the folders containing it, up to root; computed once per folder. */
+        const juce::StringArray& inherited (const juce::File& folder, const juce::File& root) const
+        {
+            const auto key = Paths::key (folder);
+
+            if (const auto known = inheritedByFolder.find (key); known != inheritedByFolder.end())
+                return known->second;
+
+            auto names = marksOf (folder);
+
+            if (folder != root && ! Paths::isRoot (folder))
+                names.mergeArray (inherited (folder.getParentDirectory(), root));
+
+            return inheritedByFolder[key] = std::move (names);
         }
     };
 
@@ -150,7 +170,8 @@ namespace
 
             const bool marked = marks.criteriaFor (entry.file, root).size() >= minCriteria;
 
-            for (auto dir = entry.file.getParentDirectory(); dir != root && dir.isAChildOf (root); dir = dir.getParentDirectory())
+            // Every scanned item is inside root: going up reaches it.
+            for (auto dir = entry.file.getParentDirectory(); dir != root && ! Paths::isRoot (dir); dir = dir.getParentDirectory())
             {
                 auto& tally = tallies[Paths::key (dir)];
                 ++tally.files;
@@ -194,7 +215,7 @@ namespace
                 bool outermost = true;
 
                 for (auto dir = folders.count (path) > 0 ? folders.at (path).file.getParentDirectory() : root;
-                     dir != root && dir.isAChildOf (root); dir = dir.getParentDirectory())
+                     dir != root && ! Paths::isRoot (dir); dir = dir.getParentDirectory())
                     outermost = outermost && ! qualifies (Paths::key (dir));
 
                 if (outermost && qualifies (path) && folders.count (path) > 0)
@@ -216,6 +237,22 @@ namespace
                                        { folder } });
 
         return result;
+    }
+
+    /** The context with the folder's whole tree scanned once, so that running every criterion (and counting the folders)
+        doesn't walk it again for each of them.
+    */
+    ScanContext withSharedTree (const ScanContext& context, bool needed)
+    {
+        auto shared = context;
+
+        if (needed)
+        {
+            context.progress (-1.0, "Scanning the folder...");
+            shared.tree = FileScanner::scanWholeTree (context);
+        }
+
+        return shared;
     }
 
     /** The settings both criteria have: where the marks come from, what counts as marked, and by how many criteria. */
@@ -258,8 +295,9 @@ namespace
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters,
                                 const std::vector<PeerCriterion>& peers) const override
         {
-            const auto marks = collectMarks (context, parameters, peers);
-            return listItems (context, marks, juce::jmax (1, (int) parameters.getNumber ("minCriteria")));
+            const auto shared = withSharedTree (context, parameters.getEnum<OverlapSource> ("source") == OverlapSource::runAllCriteria);
+            const auto marks = collectMarks (shared, parameters, peers);
+            return listItems (shared, marks, juce::jmax (1, (int) parameters.getNumber ("minCriteria")));
         }
     };
 
@@ -289,8 +327,9 @@ namespace
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters,
                                 const std::vector<PeerCriterion>& peers) const override
         {
-            const auto marks = collectMarks (context, parameters, peers);
-            return listFolders (context, parameters, marks, juce::jmax (1, (int) parameters.getNumber ("minCriteria")));
+            const auto shared = withSharedTree (context, true);     // The folders' counts need the whole tree anyway.
+            const auto marks = collectMarks (shared, parameters, peers);
+            return listFolders (shared, parameters, marks, juce::jmax (1, (int) parameters.getNumber ("minCriteria")));
         }
     };
 }
