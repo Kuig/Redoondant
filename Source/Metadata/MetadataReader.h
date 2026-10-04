@@ -11,7 +11,10 @@ namespace MetadataReader
 {
     Metadata read (const juce::File& file);
 
+    /** Only the dated items of read() (what ContentDate needs): the other properties are neither formatted nor kept. */
+    Metadata readDates (const juce::File& file);
+
     /** Individual sources, merged by read(). */
-    Metadata readSystemProperties (const juce::File& file);
+    Metadata readSystemProperties (const juce::File& file, bool datesOnly = false);
     Metadata readExecutableHeaders (const juce::File& file);
 }

@@ -15,16 +15,26 @@ struct IconCache::Shared
     std::mutex lock;
     std::map<juce::String, juce::Image> icons;
     std::set<juce::String> requested;
-    bool alive = true;      // Cleared by the destructor so late jobs don't call back.
+    std::set<IconCache*> caches;        // The live ones: told when an icon arrives (the table that asked first may not be the only one waiting).
 };
 
-IconCache::IconCache() : shared (std::make_shared<Shared>()) {}
+std::shared_ptr<IconCache::Shared> IconCache::sharedIcons()
+{
+    static const auto instance = std::make_shared<Shared>();
+    return instance;
+}
+
+IconCache::IconCache() : shared (sharedIcons())
+{
+    const std::lock_guard<std::mutex> guard (shared->lock);
+    shared->caches.insert (this);
+}
 
 IconCache::~IconCache()
 {
     {
         const std::lock_guard<std::mutex> guard (shared->lock);
-        shared->alive = false;
+        shared->caches.erase (this);    // Late jobs no longer call back here.
     }
 
     loader.removeAllJobs (true, 5000);
@@ -59,31 +69,29 @@ juce::Image IconCache::get (const FileEntry& entry)
             return {};      // Already on its way, or the cache is full (then nothing is recorded, so nothing waits forever).
     }
 
-    loader.addJob ([state = shared, file = entry.file, key, owner = this]
+    loader.addJob ([state = shared, file = entry.file, key]
     {
         const ScopedComInit com;
         auto icon = ShellIcon::get (file, iconSize * 2);    // Oversized: scaled down by the painter, sharp on high-DPI screens.
 
         {
             const std::lock_guard<std::mutex> guard (state->lock);
-
-            if (! state->alive)
-                return;
-
             state->icons[key] = icon.isValid() ? icon : juce::Image();
         }
 
-        juce::MessageManager::callAsync ([state, owner]
+        juce::MessageManager::callAsync ([state]
         {
-            bool alive;
+            // Caches are created and destroyed on the message thread, so the live ones stay alive during these calls.
+            std::set<IconCache*> caches;
 
             {
                 const std::lock_guard<std::mutex> guard (state->lock);
-                alive = state->alive;
+                caches = state->caches;
             }
 
-            if (alive && owner->onIconLoaded != nullptr)
-                owner->onIconLoaded();
+            for (auto* cache : caches)
+                if (cache->onIconLoaded != nullptr)
+                    cache->onIconLoaded();
         });
     });
 

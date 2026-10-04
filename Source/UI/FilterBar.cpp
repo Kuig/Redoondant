@@ -33,13 +33,17 @@ ParameterSet FilterBar::createParameters()
 FilterBar::FilterBar (SettingsScope settings)
     : parameters (createParameters()), panel (parameters, settings)
 {
-    panel.onChange = [this]
-    {
-        if (onChange != nullptr)
-            onChange();
-    };
+    panel.onChange = [this] { startTimer (150); };     // Restarted by each change.
 
     addAndMakeVisible (panel);
+}
+
+void FilterBar::timerCallback()
+{
+    stopTimer();
+
+    if (onChange != nullptr)
+        onChange();
 }
 
 bool FilterBar::usesContentDate() const

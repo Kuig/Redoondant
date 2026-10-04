@@ -21,6 +21,7 @@ struct ResultItem : FileEntry
     bool selected = false;              ///< Checked for removal.
     bool selectedByDefault = false;     ///< The check state proposed by the default selection (or by whoever filled the list).
     bool missing = false;               ///< Listed but not on disk (can't be checked).
+    bool visible = true;                ///< Passes the list's filter (kept up to date by ResultsModel, so the filter runs once per change).
 };
 
 /** A group of the list: its items with their state, and the group's own bookkeeping. */
@@ -47,14 +48,14 @@ namespace DefaultSelections
     /** Sets `selectedByDefault` of every item. The "keep one" strategies look at each group's visible items in their
         current order and keep the first one that wins (hidden and missing items are never kept nor checked).
     */
-    inline void apply (DefaultSelection strategy, std::vector<ListedGroup>& groups, const std::function<bool (const FileEntry&)>& isVisible)
+    inline void apply (DefaultSelection strategy, std::vector<ListedGroup>& groups)
     {
         for (auto& group : groups)
         {
-            const auto* keeper = keeperOf (strategy, group.items, [&] (const ResultItem& item) { return ! item.missing && isVisible (item); });
+            const auto* keeper = keeperOf (strategy, group.items, [] (const ResultItem& item) { return ! item.missing && item.visible; });
 
             for (auto& item : group.items)
-                item.selectedByDefault = checkedBy (strategy, item, ! item.missing, isVisible (item), &item == keeper);
+                item.selectedByDefault = checkedBy (strategy, item, ! item.missing, item.visible, &item == keeper);
         }
     }
 }

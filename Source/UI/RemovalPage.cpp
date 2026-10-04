@@ -188,7 +188,7 @@ void RemovalPage::cycleChecks()
 
 Histogram::Input RemovalPage::getHistogramInput() const
 {
-    return { model.getAllEntries(), model.getVisibleEntries(), model.getCheckedEntries(), model.getRoot() };
+    return model.getHistogramInput();
 }
 
 void RemovalPage::updateSummary()

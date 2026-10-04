@@ -9,6 +9,10 @@
 #include <mutex>
 
 #if JUCE_MSVC
+ #include <delayimp.h>
+#endif
+
+#if JUCE_MSVC
  #pragma comment (lib, "pdfium.dll.lib")
  #pragma comment (lib, "delayimp.lib")
 #endif
@@ -17,17 +21,43 @@ namespace
 {
     std::mutex pdfiumLock;
 
-    /** Loads the library and initialises PDFium once. Call with pdfiumLock held. */
+   #if JUCE_MSVC
+    /** Resolves every delay-loaded import of pdfium.dll now: a missing function (an older or foreign pdfium.dll) would
+        otherwise raise a structured exception at its first call, which nothing catches. No C++ objects in here (__try).
+    */
+    bool allImportsResolve()
+    {
+        __try
+        {
+            return SUCCEEDED (__HrLoadAllImportsForDll ("pdfium.dll"));
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            return false;
+        }
+    }
+   #endif
+
+    /** Loads the library (from the program's folder only: a pdfium.dll found in the current or a system folder could be
+        anything) and initialises PDFium once. Call with pdfiumLock held.
+    */
     bool ensureInitialised()
     {
         static const bool available = []
         {
+            const auto dll = juce::File::getSpecialLocation (juce::File::currentExecutableFile).getSiblingFile ("pdfium.dll");
             juce::DynamicLibrary probe;
 
-            if (! probe.open ("pdfium.dll"))
+            if (! dll.existsAsFile() || ! probe.open (dll.getFullPathName()))
                 return false;
 
+           #if JUCE_MSVC
+            if (! allImportsResolve())      // The delay-load helper finds the module just loaded from that path.
+                return false;
+           #endif
+
             FPDF_InitLibrary();
+            probe.close();      // The delay-load helper holds its own reference.
             return true;
         }();
 

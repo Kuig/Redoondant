@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ListedResult.h"
+#include "../Core/Histogram.h"
 #include "../Core/Removal.h"
 #include <optional>
 
@@ -82,13 +83,18 @@ public:
     std::vector<FileEntry> getVisibleEntries() const;       // Entries flagged `missing` are left out of these lists.
 
     /** Files (not folders) whose content date has not been read yet. */
-    std::vector<juce::File> filesNeedingContentDate() const;
+    std::vector<FileEntry> filesNeedingContentDate() const;
 
-    /** Stores content dates read in the background (null times are kept as "unknown"). */
-    void setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates);
+    /** Stores content dates read in the background (null times are kept as "unknown"). The sort and the filter
+        follow the new dates when `refreshView` (the last batch: re-sorting at every batch would shuffle the list).
+    */
+    void setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates, bool refreshView = true);
 
     /** Every entry of the result that exists, visible or not. */
     std::vector<FileEntry> getAllEntries() const;
+
+    /** What the histogram sums up (every entry, the visible ones, the checked ones), in one pass. */
+    Histogram::Input getHistogramInput() const;
     const juce::File& getRoot() const noexcept      { return root; }
     const ListedResult& getResult() const noexcept      { return result; }
 
@@ -125,7 +131,25 @@ private:
     bool sortForwards = true;
     std::vector<Row> rows;
 
-    bool isVisible (const FileEntry& entry) const   { return filter == nullptr || filter (entry); }
+    bool isVisible (const ResultItem& item) const   { return item.visible; }
+
+    /** Runs the filter on every item (whenever the filter or what it looks at changes). */
+    void refreshVisibility();
+
+    /** The entries for which `keep` is true, in list order. */
+    template <typename Predicate>
+    std::vector<FileEntry> collect (Predicate&& keep) const
+    {
+        std::vector<FileEntry> entries;
+
+        for (const auto& group : result.groups)
+            for (const auto& item : group.items)
+                if (keep (item))
+                    entries.push_back (item);
+
+        return entries;
+    }
+
     void applySort();
     void sortGroups();
     void rebuildRows();

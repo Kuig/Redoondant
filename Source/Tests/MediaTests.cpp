@@ -7,6 +7,8 @@
 #include "../Core/Grouping.h"
 #include "../Criteria/AllCriteria.h"
 #include "../Pdf/PdfDocument.h"
+#include "../Metadata/ContentDate.h"
+#include "../Metadata/MetadataReader.h"
 #include <map>
 
 namespace
@@ -60,6 +62,7 @@ public:
     {
         testMetadataDiff();
         testIcons();
+        testDatesOnly();
         beginTest ("PDF metadata and rendering");
         {
             TempFolder temp;
@@ -188,6 +191,25 @@ private:
 
         // Identical files differ only by path.
         expectEquals ((int) MetadataDiff::differing ({ b, b })[0].items().size(), 0);
+    }
+
+    void testDatesOnly()
+    {
+        beginTest ("Reading only the dates finds the same content date as reading everything");
+
+        const ScopedComInit com;
+        TempFolder temp;
+        const auto exe = juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+
+        for (const auto& file : { exe, temp.write ("note.txt", "x"), juce::File::getSpecialLocation (juce::File::windowsSystemDirectory).getChildFile ("notepad.exe") })
+        {
+            if (! file.existsAsFile())
+                continue;
+
+            const auto entry = FileScanner::makeEntry (file);
+            expect (ContentDate::oldestOf (MetadataReader::read (file), entry) == ContentDate::oldestOf (MetadataReader::readDates (file), entry),
+                    file.getFileName());
+        }
     }
 
     void testIcons()

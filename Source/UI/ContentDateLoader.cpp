@@ -44,34 +44,40 @@ void ContentDateLoader::load (bool restart)
         std::vector<std::pair<juce::File, juce::Time>> batch;
         auto lastFlush = juce::Time::getMillisecondCounter();
 
-        const auto flush = [&]
+        const auto flush = [&] (bool last)
         {
             auto sent = std::move (batch);
             batch.clear();
             lastFlush = juce::Time::getMillisecondCounter();
 
             // Only runs while this read is the latest, so the loader (and the page that owns it) is alive.
-            job.deliver ([this, sent = std::move (sent)]
+            job.deliver ([this, sent = std::move (sent), last]
             {
-                model.setContentDates (sent);
+                model.setContentDates (sent, last);
                 pendingCount -= (int) sent.size();
                 table.refresh();
                 changed();
             });
         };
 
-        for (const auto& file : files)
+        for (const auto& entry : files)
         {
             if (! job.isCurrent())
                 return;
 
-            batch.emplace_back (file, ContentDate::of (file));
+            batch.emplace_back (entry.file, ContentDate::of (entry));
 
             // Each batch costs the UI thread a pass over the whole list: send many at once, but still show progress.
             if (batch.size() >= maxDateBatch || juce::Time::getMillisecondCounter() - lastFlush >= dateBatchMs)
-                flush();
+                flush (false);
         }
 
-        flush();
+        flush (true);
+    },
+    [this] (const juce::String&)
+    {
+        // The read stopped: don't show "reading dates" for ever, and let a later load() try again.
+        pendingCount = 0;
+        changed();
     });
 }

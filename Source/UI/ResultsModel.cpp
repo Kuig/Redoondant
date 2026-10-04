@@ -6,6 +6,21 @@
 #include <map>
 #include <set>
 
+namespace
+{
+    /** The date a date column shows; the other columns have none. */
+    std::optional<DateKind> dateKindOf (Column column)
+    {
+        switch (column)
+        {
+            case Column::modified:          return DateKind::modified;
+            case Column::created:           return DateKind::created;
+            case Column::contentCreated:    return DateKind::content;
+            default:                        return std::nullopt;
+        }
+    }
+}
+
 void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped,
                               const std::function<void (ResultItem&)>& initialise)
 {
@@ -34,6 +49,7 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
 
     grouped = isGrouped;
     analysed = true;
+    refreshVisibility();
     applySort();
     sortGroups();
     updateDefaults();
@@ -51,7 +67,7 @@ void ResultsModel::updateDefaults()
     if (! defaultSelection)
         return;
 
-    DefaultSelections::apply (*defaultSelection, result.groups, [this] (const FileEntry& e) { return isVisible (e); });
+    DefaultSelections::apply (*defaultSelection, result.groups);
 
     // Hidden items follow too (they are never acted on), so they show the current defaults when a filter reveals them.
     for (auto& group : result.groups)
@@ -72,6 +88,7 @@ void ResultsModel::setFilter (Filter newFilter, bool usesContentDate)
 {
     filter = std::move (newFilter);
     filterUsesContentDate = usesContentDate;
+    refreshVisibility();
     updateViewDependentDefaults();
     rebuildRows();
 }
@@ -141,9 +158,9 @@ juce::String ResultsModel::getCellText (const ResultItem& entry, Column column, 
             return Histogram::folderOf (entry, root);       // No analysed folder: where the item is.
         }
         case Column::size:      return entry.missing ? juce::String ("-") : Format::size (entry.size);
-        case Column::modified:  return Format::date (entry.modified);
-        case Column::created:   return Format::date (entry.created);
-        case Column::contentCreated:    return Format::date (entry.contentCreated);
+        case Column::modified:
+        case Column::created:
+        case Column::contentCreated:    return Format::date (dateOf (entry, *dateKindOf (column)));
         case Column::type:      return entry.isDirectory ? juce::String ("Folder")
                                                          : entry.file.getFileExtension().fromFirstOccurrenceOf (".", false, false).toUpperCase();
         case Column::check:     break;
@@ -233,49 +250,64 @@ int ResultsModel::countGroupsFullyChecked() const
     return count;
 }
 
+void ResultsModel::refreshVisibility()
+{
+    for (auto& group : result.groups)
+        for (auto& item : group.items)
+            item.visible = filter == nullptr || filter (item);
+}
+
 size_t ResultsModel::getVisibleCount() const
 {
     size_t count = 0;
 
-    for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const ResultItem&) { ++count; });
+    for (const auto& group : result.groups)
+        count += (size_t) std::count_if (group.items.begin(), group.items.end(), [] (const ResultItem& e) { return e.visible; });
 
     return count;
 }
 
 std::vector<FileEntry> ResultsModel::getCheckedEntries() const
 {
-    std::vector<FileEntry> checked;
-
-    for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const ResultItem& e) { if (e.selected) checked.push_back (e); });
-
-    return checked;
+    return collect ([] (const ResultItem& e) { return e.visible && e.selected; });
 }
 
 std::vector<FileEntry> ResultsModel::getVisibleEntries() const
 {
-    std::vector<FileEntry> visible;
-
-    for (int g = 0; g < (int) result.groups.size(); ++g)
-        forEachVisible (g, [&] (const ResultItem& e) { if (! e.missing) visible.push_back (e); });
-
-    return visible;
+    return collect ([] (const ResultItem& e) { return e.visible && ! e.missing; });
 }
 
-std::vector<juce::File> ResultsModel::filesNeedingContentDate() const
+Histogram::Input ResultsModel::getHistogramInput() const
 {
-    std::vector<juce::File> files;
+    Histogram::Input input;
+    input.root = root;
 
     for (const auto& group : result.groups)
         for (const auto& item : group.items)
-            if (! item.isDirectory && ! item.missing && item.contentCreated.toMilliseconds() == 0)
-                files.push_back (item.file);
+        {
+            if (item.missing)
+                continue;
 
-    return files;
+            input.all.push_back (item);
+
+            if (item.visible)
+            {
+                input.visible.push_back (item);
+
+                if (item.selected)
+                    input.checked.push_back (item);
+            }
+        }
+
+    return input;
 }
 
-void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates)
+std::vector<FileEntry> ResultsModel::filesNeedingContentDate() const
+{
+    return collect ([] (const ResultItem& e) { return ! e.isDirectory && ! e.missing && e.contentCreated.toMilliseconds() == 0; });
+}
+
+void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates, bool refreshView)
 {
     std::map<juce::String, juce::Time> byPath;
 
@@ -287,8 +319,11 @@ void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce
             if (const auto found = byPath.find (Paths::key (item.file)); found != byPath.end())
                 item.contentCreated = found->second;
 
-    if (sortColumn == Column::contentCreated || filterUsesContentDate)     // The new dates can change the order and what the filter lets through.
+    if (refreshView && (sortColumn == Column::contentCreated || filterUsesContentDate))     // The new dates can change the order and what the filter lets through.
     {
+        if (filterUsesContentDate)
+            refreshVisibility();
+
         applySort();
         updateViewDependentDefaults();
         rebuildRows();
@@ -297,14 +332,7 @@ void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce
 
 std::vector<FileEntry> ResultsModel::getAllEntries() const
 {
-    std::vector<FileEntry> all;
-
-    for (const auto& group : result.groups)
-        for (const auto& item : group.items)
-            if (! item.missing)
-                all.push_back (item);
-
-    return all;
+    return collect ([] (const ResultItem& e) { return ! e.missing; });
 }
 
 void ResultsModel::applyChecks (BulkCheck checks)
@@ -367,6 +395,7 @@ void ResultsModel::update (const std::vector<FileEntry>& entries)
                 const auto contentCreated = item.contentCreated;
                 static_cast<FileEntry&> (item) = *found->second;
                 item.contentCreated = contentCreated;
+                item.visible = filter == nullptr || filter (item);
             }
 
     applySort();
@@ -403,33 +432,46 @@ void ResultsModel::applySort()
     if (sortColumn == Column::check)
         return;
 
-    const ListedGroup* currentGroup = nullptr;
-
-    const auto compare = [this, &currentGroup] (const ResultItem& a, const ResultItem& b) -> int
+    const auto ordered = [this] (auto& items, auto&& compare)
     {
-        switch (sortColumn)
-        {
-            case Column::size:      return a.size < b.size ? -1 : (a.size > b.size ? 1 : 0);
-            case Column::modified:  return a.modified < b.modified ? -1 : (a.modified > b.modified ? 1 : 0);
-            case Column::created:   return a.created < b.created ? -1 : (a.created > b.created ? 1 : 0);
-            case Column::contentCreated:    return a.contentCreated < b.contentCreated ? -1 : (a.contentCreated > b.contentCreated ? 1 : 0);
-            case Column::name:
-            case Column::folder:
-            case Column::type:
-            case Column::check:     break;
-        }
-
-        return getCellText (a, sortColumn, currentGroup).compareNatural (getCellText (b, sortColumn, currentGroup));
-    };
-
-    for (auto& group : result.groups)
-    {
-        currentGroup = &group;
-        std::stable_sort (group.items.begin(), group.items.end(), [&] (const ResultItem& a, const ResultItem& b)
+        std::stable_sort (items.begin(), items.end(), [&] (const auto& a, const auto& b)
         {
             const int c = compare (a, b);
             return sortForwards ? c < 0 : c > 0;
         });
+    };
+
+    const auto threeWay = [] (auto a, auto b) { return a < b ? -1 : (a > b ? 1 : 0); };
+
+    for (auto& group : result.groups)
+    {
+        if (sortColumn == Column::size)
+        {
+            ordered (group.items, [&] (const ResultItem& a, const ResultItem& b) { return threeWay (a.size, b.size); });
+        }
+        else if (const auto kind = dateKindOf (sortColumn))
+        {
+            ordered (group.items, [&] (const ResultItem& a, const ResultItem& b) { return threeWay (dateOf (a, *kind), dateOf (b, *kind)); });
+        }
+        else
+        {
+            // Texts are built once per item, not twice per comparison.
+            std::vector<std::pair<juce::String, size_t>> keys;
+            keys.reserve (group.items.size());
+
+            for (size_t i = 0; i < group.items.size(); ++i)
+                keys.emplace_back (getCellText (group.items[i], sortColumn, &group), i);
+
+            ordered (keys, [] (const auto& a, const auto& b) { return a.first.compareNatural (b.first); });
+
+            std::vector<ResultItem> sorted;
+            sorted.reserve (group.items.size());
+
+            for (const auto& key : keys)
+                sorted.push_back (std::move (group.items[key.second]));
+
+            group.items = std::move (sorted);
+        }
     }
 }
 

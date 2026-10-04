@@ -7,7 +7,8 @@
 /** Type (several can be ticked) / date / size / name filters for the results list. All filters combine (AND).
     Built on ParameterSet, so its editors and persistence come from ParametersPanel.
 */
-class FilterBar final : public juce::Component
+class FilterBar final : public juce::Component,
+                        private juce::Timer
 {
 public:
     explicit FilterBar (SettingsScope settings);
@@ -35,6 +36,7 @@ public:
 
     int getHeightForWidth (int width) const     { return panel.getHeightForWidth (width); }
 
+    /** Called when the filters changed, once typing pauses (each key would filter the whole list again). */
     std::function<void()> onChange;
 
     void resized() override                     { panel.setBounds (getLocalBounds()); }
@@ -46,6 +48,8 @@ private:
     bool recursive = true;
 
     static ParameterSet createParameters();
+
+    void timerCallback() override;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilterBar)
 };

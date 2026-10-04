@@ -14,6 +14,7 @@ namespace
     constexpr juce::int64 maxImageBytes = 64 * 1024 * 1024;
     constexpr int maxTextBytes = 64 * 1024;
     constexpr int maxListedItems = 500;
+    constexpr size_t maxArchiveEntries = 5000;      // Read from an archive for its preview (a solid archive is decompressed to list it).
     constexpr int renderPixels = 800;
     constexpr int iconPixels = 128;
     constexpr int maxTiles = 12;
@@ -94,8 +95,8 @@ namespace
         details.add ("Base.Hidden", "Hidden", entry.file.isHidden() ? "Yes" : "No");
     }
 
-    /** Builds the preview of an entry. Runs on the loader thread (COM initialised). */
-    PreviewPanel::Data load (const FileEntry& entry, juce::AudioFormatManager& formats, bool withAudioPlayer)
+    /** Builds the preview of an entry. Runs on the loader thread (COM initialised); long reads stop when `context` is cancelled. */
+    PreviewPanel::Data load (const FileEntry& entry, juce::AudioFormatManager& formats, bool withAudioPlayer, const ScanContext& context)
     {
         using Content = PreviewPanel::Content;
 
@@ -121,7 +122,7 @@ namespace
 
         if (ArchiveReader::isArchive (file))
         {
-            if (const auto entries = ArchiveReader::list (file, {}))
+            if (const auto entries = ArchiveReader::list (file, context, maxArchiveEntries))
             {
                 juce::StringArray names;
                 juce::int64 total = 0;
@@ -132,8 +133,9 @@ namespace
                     total += e.size;
                 }
 
-                data.details.add ({}, "Archived files", juce::String ((int) entries->size()));
-                data.details.add ({}, "Uncompressed size", Format::size (total));
+                const bool cut = entries->size() >= maxArchiveEntries;      // Not read to the end: these are lower bounds.
+                data.details.add ({}, "Archived files", juce::String ((int) entries->size()) + (cut ? "+" : ""));
+                data.details.add ({}, "Uncompressed size", (cut ? "at least " : "") + Format::size (total));
                 data.content = Content::text;
                 data.text = listing (names);
             }
@@ -306,6 +308,10 @@ void PreviewPanel::show (std::vector<FileEntry> entries)
     loader.cancel();    // Queued requests are dropped; a running one finishes and is ignored.
 
     audio.unload();
+
+    // Only the shown ones are asked whether they still exist (a check each, on this thread): not a whole Ctrl+A selection.
+    const int notShown = juce::jmax (0, (int) entries.size() - maxTiles);
+    entries.resize (std::min (entries.size(), (size_t) maxTiles));
     entries.erase (std::remove_if (entries.begin(), entries.end(), [] (const FileEntry& e) { return ! e.file.exists(); }), entries.end());
 
     if (entries.empty())
@@ -319,9 +325,7 @@ void PreviewPanel::show (std::vector<FileEntry> entries)
 
     setHistogramMode (false);
 
-    const int notShown = juce::jmax (0, (int) entries.size() - maxTiles);
-    entries.resize (std::min (entries.size(), (size_t) maxTiles));
-    const bool single = entries.size() == 1;
+    const bool single = entries.size() == 1 && notShown == 0;
 
     title.setText (single ? entries.front().name() + "  (loading...)" : juce::String (entries.size() + (size_t) notShown) + " items selected  (loading...)",
                    juce::dontSendNotification);
@@ -330,12 +334,15 @@ void PreviewPanel::show (std::vector<FileEntry> entries)
     {
         std::vector<Data> all;
 
+        ScanContext context;
+        context.shouldStop = [&job] { return ! job.isCurrent(); };
+
         for (const auto& item : items)
         {
             if (! job.isCurrent())
                 return;
 
-            all.push_back (load (item, formats, single));
+            all.push_back (load (item, formats, single, context));
         }
 
         job.deliver ([this, single, notShown, all = std::move (all)]() mutable

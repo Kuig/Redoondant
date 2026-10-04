@@ -129,12 +129,12 @@ namespace
     };
 }
 
-std::optional<std::vector<ArchiveReader::Entry>> ArchiveReader::list (const juce::File& file, const ScanContext& context)
+std::optional<std::vector<ArchiveReader::Entry>> ArchiveReader::list (const juce::File& file, const ScanContext& context, size_t maxEntries)
 {
     OpenArchive archive (file);
     std::vector<Entry> entries;
 
-    if (! archive.forEachFileEntry (context, [&] (const Entry& e) { entries.push_back (e); return true; }))
+    if (! archive.forEachFileEntry (context, [&] (const Entry& e) { entries.push_back (e); return entries.size() < maxEntries; }))
         return std::nullopt;
 
     return entries;

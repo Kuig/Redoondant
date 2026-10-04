@@ -3,6 +3,7 @@
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
 #include "../Core/Grouping.h"
+#include "../Metadata/ContentDate.h"
 #include "../Metadata/MetadataReader.h"
 #include <map>
 
@@ -130,7 +131,10 @@ namespace
             {
                 context.progress ((double) i / (double) files.size(), "Reading metadata of " + files[i].name());
 
-                if (auto identity = identify (files[i], readMetadata (files[i].file), minFields, strict))
+                const auto metadata = readMetadata (files[i].file);
+                files[i].contentCreated = ContentDate::oldestOf (metadata, files[i]);     // Read anyway: the date column needn't read it again.
+
+                if (auto identity = identify (files[i], metadata, minFields, strict))
                 {
                     identities[files[i].file.getFullPathName()] = std::move (*identity);
                     candidates.push_back (std::move (files[i]));

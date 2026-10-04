@@ -63,6 +63,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - The Cache Cleaner checks the real path of a folder (junctions, symbolic links and `subst` drives resolved) against the protected ones,
   and refuses `%APPDATA%\Microsoft`, `%LOCALAPPDATA%\Microsoft`, `%LOCALAPPDATA%\Packages` themselves and the folders of keys and
   credentials (`Protect`, `Credentials`, `Crypto`, `SystemCertificates`, `Vault`).
+- Big lists react much faster: the filters are evaluated once when they change (not again on every click, key or repaint), sorting by
+  name, folder or type builds each text once, and typing in a filter field refilters when the typing pauses.
+- Selecting thousands of rows (Ctrl+A) no longer checks every file on disk before the preview: only the ones shown.
+- The *Content created* dates are read faster (only the dated properties, without formatting the others; the files' dates come from the
+  scan), *Similar metadata* fills them from what it already read, and the list is re-sorted once at the end of the reading instead of at
+  every batch. A failed reading no longer leaves "reading dates" on screen.
+- The preview of a big archive (`.tar.gz`, solid 7z, zip with many entries) stops at the first 5000 entries and when another item is
+  selected, instead of blocking every later preview until the whole archive was decompressed.
+- File icons are shared by all the pages, so each is asked to Windows once.
+- `pdfium.dll` is loaded only from the program's folder, and an incompatible one is ignored (PDFs get no preview) instead of closing the
+  program at the first PDF.
 - The summary line no longer slows down on big lists of checked items (nested items are found with one sort instead of one walk up per item).
 - **The last copy is never removed.** In the groups of copies (duplicates, versions, same name, similar metadata, an archive and its folder) a
   checked item is left untouched when the copy kept in its group has been removed or changed since the analysis, for example from another

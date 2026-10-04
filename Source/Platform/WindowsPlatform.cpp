@@ -521,7 +521,7 @@ std::vector<RecycleBin::Outcome> RecycleBin::move (const std::vector<juce::File>
     return outcomes;
 }
 
-Metadata MetadataReader::readSystemProperties (const juce::File& file)
+Metadata MetadataReader::readSystemProperties (const juce::File& file, bool datesOnly)
 {
     Metadata metadata;
     ComPtr<IPropertyStore> store;
@@ -536,9 +536,22 @@ Metadata MetadataReader::readSystemProperties (const juce::File& file)
     for (DWORD i = 0; i < count; ++i)
     {
         PROPERTYKEY key {};
+
+        if (FAILED (store->GetAt (i, &key)))
+            continue;
+
+        PROPVARIANT value;
+        PropVariantInit (&value);
+
+        struct Clear { PROPVARIANT& v; ~Clear() { PropVariantClear (&v); } } clearValue { value };
+
+        // The value first: with datesOnly most properties are dropped before their description is looked up.
+        if (FAILED (store->GetValue (key, &value)) || value.vt == VT_EMPTY || (datesOnly && value.vt != VT_FILETIME))
+            continue;
+
         ComPtr<IPropertyDescription> description;
 
-        if (FAILED (store->GetAt (i, &key)) || FAILED (PSGetPropertyDescription (key, IID_PPV_ARGS (&description))))
+        if (FAILED (PSGetPropertyDescription (key, IID_PPV_ARGS (&description))))
             continue;
 
         PWSTR name = nullptr;
@@ -551,13 +564,11 @@ Metadata MetadataReader::readSystemProperties (const juce::File& file)
         if (canonical.isEmpty() || isRedundant (canonical) || (flags & PDTF_ISVIEWABLE) == 0)
             continue;
 
-        PROPVARIANT value;
-        PropVariantInit (&value);
-
-        if (SUCCEEDED (store->GetValue (key, &value)) && value.vt != VT_EMPTY)
         {
             PWSTR display = nullptr;
-            PSFormatForDisplayAlloc (key, value, PDFF_DEFAULT, &display);
+
+            if (! datesOnly)
+                PSFormatForDisplayAlloc (key, value, PDFF_DEFAULT, &display);
 
             juce::var raw;
             bool isDate = false;
@@ -578,8 +589,6 @@ Metadata MetadataReader::readSystemProperties (const juce::File& file)
 
             metadata.add (MetadataItem { canonical, labelFor (canonical), takeString (display), raw, isDate });
         }
-
-        PropVariantClear (&value);
     }
 
     return metadata;
@@ -671,7 +680,7 @@ std::vector<RecycleBin::Outcome> RecycleBin::move (const std::vector<juce::File>
 
     return outcomes;
 }
-Metadata MetadataReader::readSystemProperties (const juce::File&)         { return {}; }
+Metadata MetadataReader::readSystemProperties (const juce::File&, bool)   { return {}; }
 
 #endif
 
