@@ -76,14 +76,16 @@ System, so what is shown for a format depends on the property handlers/codecs in
 
 ```
 Source/
-  Core/       FileEntry, FileScanner (tree walk with folder sizes), Grouping helpers, DefaultSelection (check strategies),
-              ContentHasher, FileCategory, Removal (Trash/Delete/Move actions), MoveToFolder, EmptyFolders, Settings, Format
+  Core/       FileEntry, FileScanner (tree walk with folder sizes), Paths (how paths are compared), Grouping helpers,
+              DefaultSelection (check strategies), ContentHasher, FileCategory, Removal (Trash/Delete/Move actions),
+              MoveToFolder, EmptyFolders, Settings, Format
   Archives/   ArchiveReader (list / stream entries) implemented with libarchive
   Metadata/   Metadata model, MetadataReader (merges all sources), PE header reader
   Pdf/        PdfDocument: PDFium wrapper (metadata, page rendering)
-  Platform/   Windows services: COM init, shell thumbnails, Property System metadata
+  Platform/   Windows services: COM init, shell thumbnails, Property System metadata, Recycle Bin, interruptible file operations
   Criteria/   Criterion base class, Parameter declarations, one file per criterion
-  UI/         RemovalPage (checked items; its Move/Trash/Delete actions are RemovalActions), CriterionPage and
+  UI/         RemovalPage (checked items; its Move/Trash/Delete actions are RemovalActions), ProgressTask (work behind a
+              progress window with Cancel), CriterionPage and
               CleanupPage (Cache Cleaner) built on it, ContentDateLoader, LatestOnlyWorker (background jobs whose
               results only matter while they are the latest), ResultsModel/ResultsTable, ParametersPanel, FilterBar,
               PreviewPanel, TextPreview, AudioPlayer
