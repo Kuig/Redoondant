@@ -213,23 +213,16 @@ void MainComponent::setRootFolder (const juce::File& folder)
 
 void MainComponent::confirmResetSettings()
 {
-    const auto options = juce::MessageBoxOptions()
-                             .withIconType (juce::MessageBoxIconType::QuestionIcon)
-                             .withTitle ("Reset settings")
-                             .withMessage ("Delete the saved settings (folder, filters, column layout, window position, "
-                                           "the Cache Cleaner list...)?\n\n" + appSettings.file().getFullPathName()
-                                           + "\n\nRedoondant will close and start from the defaults next time. Your files are not touched.")
-                             .withButton ("Delete settings and close")
-                             .withButton ("Cancel");
-
-    juce::AlertWindow::showAsync (options, [this] (int result)
-    {
-        if (result == 1)
-        {
-            appSettings.discardAll();
-            juce::JUCEApplication::getInstance()->quit();
-        }
-    });
+    RemovalActions::confirm (*this, juce::MessageBoxIconType::QuestionIcon, "Reset settings",
+                             "Delete the saved settings (folder, filters, column layout, window position, "
+                             "the Cache Cleaner list...)?\n\n" + appSettings.file().getFullPathName()
+                             + "\n\nRedoondant will close and start from the defaults next time. Your files are not touched.",
+                             "Delete settings and close",
+                             [this]
+                             {
+                                 appSettings.discardAll();
+                                 juce::JUCEApplication::getInstance()->quit();
+                             });
 }
 
 void MainComponent::browseForFolder()

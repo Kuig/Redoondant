@@ -31,12 +31,10 @@ public:
     void paint (juce::Graphics&) override;
 
 private:
-    class AnalysisJob;
-
     const Criterion& criterion;
     ParameterSet parameters;
 
-    juce::Label title, description, status;
+    juce::Label status;
     ParametersPanel parametersPanel;
     juce::ToggleButton recursiveToggle { "Recursive (include sub-folders)" };
     juce::TextButton analyseButton { "Analyze" }, resetButton { "Reset to defaults" };

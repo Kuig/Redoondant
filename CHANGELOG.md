@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - *Multiple criteria* recognises the same item in the lists of two pages even when they spell its path with different upper/lower case.
 - Rows hidden by a filter follow the default checks too, so a filter that reveals them shows the current default instead of an older one.
 - File icons could stay missing for good in very long lists.
+- Move to Trash, Move to folder and Delete permanently act on exactly the items their confirmation described: content dates arriving while
+  the question is open (which can re-sort a list and change the item each group keeps) no longer change what is removed.
+- The Cache Cleaner's confirmation no longer counts twice a folder listed inside another checked one.
+- Cancel no longer kills an analysis or a removal after 10 seconds (which could leave a lock held or lose the report): the operation stops at
+  the next item. Closing the window while one runs is refused with a message.
 
 ## [1.1.0] - 2026-10-03
 ### Added

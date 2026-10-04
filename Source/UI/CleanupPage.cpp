@@ -7,9 +7,6 @@
 
 namespace
 {
-    constexpr int margin = 12;
-    constexpr int rowHeight = 26;
-    constexpr int gap = 8;
     const juce::String noneChecked ("-");   // Stored when the list of checked folders is empty (as opposed to never saved).
 
     void warn (const juce::String& boxTitle, const juce::String& message)
@@ -32,13 +29,8 @@ CleanupPage::Measured CleanupPage::measure (const juce::File& folder)
 CleanupPage::CleanupPage (SettingsScope s)
     : RemovalPage (s)
 {
-    title.setText ("Cache Cleaner", juce::dontSendNotification);
-    title.setFont (juce::FontOptions (20.0f, juce::Font::bold));
-    description.setText ("Empty temporary and cache folders. Checked folders keep existing, only their content is moved or deleted. "
-                         "Close the programs that use a cache first, or their files will be skipped.",
-                         juce::dontSendNotification);
-    description.setJustificationType (juce::Justification::topLeft);
-    description.setMinimumHorizontalScale (1.0f);
+    setHeading ("Cache Cleaner", "Empty temporary and cache folders. Checked folders keep existing, only their content is moved or deleted. "
+                                 "Close the programs that use a cache first, or their files will be skipped.");
 
     addButton.onClick = [this]
     {
@@ -60,7 +52,7 @@ CleanupPage::CleanupPage (SettingsScope s)
         updateButtons();
     };
 
-    for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &status, &addButton, &removeButton, &resetButton, &refreshButton })
+    for (auto* component : std::initializer_list<juce::Component*> { &status, &addButton, &removeButton, &resetButton, &refreshButton })
         addAndMakeVisible (component);
 
     loadFolders();
@@ -76,10 +68,7 @@ CleanupPage::~CleanupPage()
 void CleanupPage::resized()
 {
     auto area = getLocalBounds().reduced (margin);
-
-    title.setBounds (area.removeFromTop (28));
-    description.setBounds (area.removeFromTop (36));
-    area.removeFromTop (gap);
+    layoutHeading (area);
 
     auto actions = area.removeFromTop (rowHeight);
 
@@ -161,14 +150,14 @@ void CleanupPage::addFolder (const juce::File& folder)
 
     if (EmptyFolders::isTooBroad (folder))
     {
-        warn ("Folder too broad", "Emptying " + wrappable (folder) + " could break Windows or your programs, so it can't be added.");
+        warn ("Folder too broad", "Emptying " + Format::wrappable (folder.getFullPathName()) + " could break Windows or your programs, so it can't be added.");
         return;
     }
 
     for (const auto& existing : folders)
         if (existing.file == folder)
         {
-            warn ("Already listed", wrappable (folder) + " is already in the list.");
+            warn ("Already listed", Format::wrappable (folder.getFullPathName()) + " is already in the list.");
             return;
         }
 
@@ -197,7 +186,7 @@ void CleanupPage::removeSelected()
 
 void CleanupPage::resetToDefaults()
 {
-    confirm (juce::MessageBoxIconType::QuestionIcon, "Reset to defaults",
+    RemovalActions::confirm (*this, juce::MessageBoxIconType::QuestionIcon, "Reset to defaults",
              "Replace the list (and its checks) with the default folders?", "Reset",
              [this]
              {
@@ -317,22 +306,8 @@ std::function<std::vector<FileEntry> (std::vector<FileEntry>)> CleanupPage::remo
     };
 }
 
-juce::String CleanupPage::describeChecked() const
-{
-    const auto checked = model.getCheckedEntries();
-    return "the contents of " + Format::count (checked.size(), "folder") + " (" + Format::size (totalSize (checked)) + ")";
-}
-
 juce::String CleanupPage::failureAdvice() const
 {
     return "Items in use by a running program can't be removed: close it (Teams, Premiere, the browser...) and try again. "
            "Folders under C:\\Windows may need administrator rights.";
-}
-
-juce::String CleanupPage::summaryText (size_t checkedCount, juce::int64 checkedBytes) const
-{
-    return model.hasResult()
-             ? Format::count (model.getVisibleCount(), "folder") + " listed, "
-                 + juce::String ((int) checkedCount) + " checked (" + Format::size (checkedBytes) + ")"
-             : juce::String ("Measuring...");
 }

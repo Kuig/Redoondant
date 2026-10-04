@@ -140,6 +140,8 @@
         <FILE id="ojM9JQ" name="RemovalPage.cpp" compile="1" resource="0" file="Source/UI/RemovalPage.cpp"/>
         <FILE id="RmAct01" name="RemovalActions.cpp" compile="1" resource="0" file="Source/UI/RemovalActions.cpp"/>
         <FILE id="RmAct02" name="RemovalActions.h" compile="0" resource="0" file="Source/UI/RemovalActions.h"/>
+        <FILE id="PrgTk1" name="ProgressTask.cpp" compile="1" resource="0" file="Source/UI/ProgressTask.cpp"/>
+        <FILE id="PrgTk2" name="ProgressTask.h" compile="0" resource="0" file="Source/UI/ProgressTask.h"/>
         <FILE id="yrUWqE" name="RemovalPage.h" compile="0" resource="0" file="Source/UI/RemovalPage.h"/>
         <FILE id="3MB9n7" name="ResultsModel.cpp" compile="1" resource="0"
               file="Source/UI/ResultsModel.cpp"/>

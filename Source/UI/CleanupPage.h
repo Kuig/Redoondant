@@ -26,7 +26,7 @@ private:
         bool checkedByDefault = false;
     };
 
-    juce::Label title, description, status;
+    juce::Label status;
     juce::TextButton addButton { "Add folder..." }, removeButton { "Remove" },
                      resetButton { "Reset to defaults" }, refreshButton { "Refresh" };
     std::unique_ptr<juce::FileChooser> chooser;
@@ -54,11 +54,12 @@ private:
     void updateButtons();
 
     std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const override;
-    juce::String describeChecked() const override;
+    juce::String describe (const std::vector<FileEntry>& checked) const override    { return "the contents of " + RemovalPage::describe (checked); }
     void itemsGone (const juce::Array<juce::File>&) override    { refresh(); }
     void checksChanged() override;
     juce::String failureAdvice() const override;
-    juce::String summaryText (size_t checkedCount, juce::int64 checkedBytes) const override;
+    juce::String itemNoun() const override                      { return "folder"; }
+    juce::String noListText() const override                    { return "Measuring..."; }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CleanupPage)
 };

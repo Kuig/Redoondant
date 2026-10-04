@@ -4,17 +4,6 @@
 #include "../Core/Removal.h"
 #include "../Platform/ShellContextMenu.h"
 
-namespace
-{
-    constexpr int rowHeight = 26;
-    constexpr int gap = 8;
-}
-
-juce::String RemovalPage::wrappable (const juce::File& path)
-{
-    return Format::wrappable (path.getFullPathName());
-}
-
 RemovalPage::RemovalPage (SettingsScope s)
     : settings (s)
 {
@@ -37,7 +26,11 @@ RemovalPage::RemovalPage (SettingsScope s)
     };
     table.onSelectionChanged = [this] (std::vector<FileEntry> entries) { notifySelection (std::move (entries)); };
 
-    for (auto* component : std::initializer_list<juce::Component*> { &table, &summary, &moveButton, &trashButton, &deleteButton })
+    title.setFont (juce::FontOptions (20.0f, juce::Font::bold));
+    description.setJustificationType (juce::Justification::topLeft);
+    description.setMinimumHorizontalScale (1.0f);
+
+    for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &table, &summary, &moveButton, &trashButton, &deleteButton })
         addAndMakeVisible (component);
 
     // Red: unlike the other actions, this one can't be undone.
@@ -99,6 +92,19 @@ void RemovalPage::discardResults()
     notifySelection ({});
 }
 
+void RemovalPage::setHeading (const juce::String& titleText, const juce::String& descriptionText)
+{
+    title.setText (titleText, juce::dontSendNotification);
+    description.setText (descriptionText, juce::dontSendNotification);
+}
+
+void RemovalPage::layoutHeading (juce::Rectangle<int>& area)
+{
+    title.setBounds (area.removeFromTop (28));
+    description.setBounds (area.removeFromTop (36));
+    area.removeFromTop (gap);
+}
+
 void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
 {
     auto footer = area.removeFromBottom (rowHeight + 4);
@@ -122,18 +128,10 @@ void RemovalPage::layoutTableAndFooter (juce::Rectangle<int> area)
     table.setBounds (area);
 }
 
-juce::String RemovalPage::describeChecked() const
+juce::String RemovalPage::describe (const std::vector<FileEntry>& checked) const
 {
-    const auto checked = Removal::withoutNested (model.getCheckedEntries());
-    return Format::count (checked.size(), "item") + " (" + Format::size (totalSize (checked)) + ")";
-}
-
-juce::String RemovalPage::summaryText (size_t checkedCount, juce::int64 checkedBytes) const
-{
-    return model.hasResult()
-             ? Format::count (model.getVisibleCount(), "item") + " listed, "
-                 + juce::String ((int) checkedCount) + " checked (" + Format::size (checkedBytes) + ")"
-             : juce::String ("Press Analyze to search for candidates.");
+    const auto items = Removal::withoutNested (checked);       // As the action counts them: an item inside a checked folder goes with it.
+    return Format::count (items.size(), itemNoun()) + " (" + Format::size (totalSize (items)) + ")";
 }
 
 void RemovalPage::itemsGone (const juce::Array<juce::File>& files)
@@ -143,13 +141,7 @@ void RemovalPage::itemsGone (const juce::Array<juce::File>& files)
     updateSummary();
 }
 
-void RemovalPage::confirm (juce::MessageBoxIconType icon, const juce::String& boxTitle, const juce::String& question,
-                           const juce::String& okText, std::function<void()> action)
-{
-    RemovalActions::confirm (*this, icon, boxTitle, question, okText, std::move (action));
-}
-
-void RemovalPage::removeFromList (const juce::Array<juce::File>& files)
+void RemovalPage::removedByAction (const juce::Array<juce::File>& files)
 {
     itemsGone (files);
     notifySelection ({});
@@ -164,7 +156,7 @@ void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
             missing.add (file);
 
     if (! missing.isEmpty())
-        removeFromList (missing);
+        removedByAction (missing);
 }
 
 void RemovalPage::cycleChecks()
@@ -186,7 +178,9 @@ void RemovalPage::updateSummary()
     checksChanged();
 
     const auto checked = Removal::withoutNested (model.getCheckedEntries());
-    auto text = summaryText (checked.size(), totalSize (checked));
+    auto text = model.hasResult() ? Format::count (model.getVisibleCount(), itemNoun()) + " listed, " + juce::String ((int) checked.size())
+                                      + " checked (" + Format::size (totalSize (checked)) + ")"
+                                  : noListText();
 
     if (const auto note = progressNote(); note.isNotEmpty())
         text << "   (" << note << ")";

@@ -11,6 +11,7 @@
 
 #include <JuceHeader.h>
 #include "MainComponent.h"
+#include "UI/ProgressTask.h"
 
 //==============================================================================
 class RedoondantApplication final : public juce::JUCEApplication
@@ -44,6 +45,14 @@ public:
 
     void systemRequestedQuit() override
     {
+        // An analysis or a removal works on objects that quitting destroys (and a removal stopped half-way leaves no report).
+        if (ProgressTask::isRunning())
+        {
+            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, getApplicationName(),
+                                                    "An operation is running: wait for it to finish, or cancel it, before closing.");
+            return;
+        }
+
         quit();
     }
 

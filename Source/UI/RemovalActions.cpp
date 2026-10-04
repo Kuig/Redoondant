@@ -1,65 +1,7 @@
 #include "RemovalActions.h"
 #include "../Core/Format.h"
-#include "../Platform/ComInit.h"
+#include "ProgressTask.h"
 
-/** Runs a removal action on a background thread behind a cancellable progress window.
-    Deletes itself when done; the outcome is only reported if the page still exists.
-*/
-class RemovalActions::Job final : public juce::ThreadWithProgressWindow
-{
-public:
-    Job (RemovalActions& actionsToReport, const juce::String& windowTitle, std::vector<FileEntry> checked,
-         std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expand, Action act,
-         juce::String reportTitle, std::function<juce::String (const RemovalReport&)> describe)
-        : ThreadWithProgressWindow (windowTitle, true, true, 10000, {}, &actionsToReport.owner),
-          page (&actionsToReport.owner), actions (&actionsToReport),
-          items (std::move (checked)), expander (std::move (expand)), action (std::move (act)),
-          boxTitle (std::move (reportTitle)), done (std::move (describe))
-    {
-        setProgress (-1.0);
-    }
-
-    void run() override
-    {
-        // The action reports each item's failure itself; this only stops an exception from ending the program.
-        try
-        {
-            const ScopedComInit com;
-
-            if (expander != nullptr)
-                items = expander (std::move (items));
-
-            report = action (std::move (items), [this] (double fraction, const juce::String& item)
-            {
-                setProgress (fraction);
-                setStatusMessage (item);
-                return ! threadShouldExit();
-            });
-        }
-        catch (const std::exception& e)     { report.failures.add (juce::String ("Unexpected error: ") + e.what()); }
-        catch (...)                         { report.failures.add ("Unexpected error"); }
-    }
-
-    void threadComplete (bool) override
-    {
-        if (page != nullptr)        // The actions live as long as the page.
-            actions->finish (report, boxTitle, done (report));
-
-        delete this;
-    }
-
-private:
-    juce::Component::SafePointer<juce::Component> page;
-    RemovalActions* actions;
-    std::vector<FileEntry> items;
-    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expander;
-    Action action;
-    juce::String boxTitle;
-    std::function<juce::String (const RemovalReport&)> done;
-    RemovalReport report;
-};
-
-//==============================================================================
 RemovalActions::RemovalActions (juce::Component& ownerPage, Host& hostPage, SettingsScope s)
     : owner (ownerPage), host (hostPage), settings (s)
 {
@@ -94,43 +36,66 @@ juce::String RemovalActions::groupWarning() const
                       : juce::String();
 }
 
-void RemovalActions::run (const juce::String& windowTitle, Action action, const juce::String& boxTitle,
+void RemovalActions::run (std::vector<FileEntry> items, const juce::String& windowTitle, Action action, const juce::String& boxTitle,
                           std::function<juce::String (const RemovalReport&)> done)
 {
-    (new Job (*this, windowTitle, host.checkedEntries(), host.expander(), std::move (action), boxTitle, std::move (done)))->launchThread();
+    auto report = std::make_shared<RemovalReport>();
+
+    ProgressTask::run (owner, windowTitle,
+                       [report, items = std::move (items), expand = host.removalExpander(), action = std::move (action)] (const ScanContext& context) mutable
+                       {
+                           if (expand != nullptr)
+                               items = expand (std::move (items));
+
+                           *report = action (std::move (items), [&context] (double fraction, const juce::String& item)
+                           {
+                               context.progress (fraction, item);
+                               return ! context.isCancelled();
+                           });
+                       },
+                       [this, report, boxTitle, done = std::move (done)] (bool, const juce::String& error)
+                       {
+                           // The action reports each item's failure itself; an error here stopped it altogether.
+                           if (error.isNotEmpty())
+                               report->failures.add ("Unexpected error: " + error);
+
+                           finish (*report, boxTitle, done (*report));     // The actions live as long as the page.
+                       });
 }
 
 void RemovalActions::moveToTrash()
 {
-    // A warning alert: trashing is the more drastic action of the two.
-    auto question = "Move " + host.describeChecked() + " to the Recycle Bin?";
+    // What the question describes is what the action gets, even if the list changes while the question is open
+    // (content dates arriving can change the sort, and with it the item each group keeps).
+    auto checked = host.checkedEntries();
 
-    if (const auto without = Removal::countWithoutRecycleBin (host.checkedEntries()); without > 0)
+    // A warning alert: trashing is the more drastic action of the two.
+    auto question = "Move " + host.describe (checked) + " to the Recycle Bin?";
+
+    if (const auto without = Removal::countWithoutRecycleBin (checked); without > 0)
         question << "\n\nLeft untouched, because their drive has no usable Recycle Bin (network, removable or turned off): "
                  << juce::String (without) << ".";
 
     question << groupWarning();
 
     confirm (owner, juce::MessageBoxIconType::WarningIcon, "Move to Trash", question, "Move to Trash",
-             [this]
+             [this, checked = std::move (checked)]
              {
-                 run ("Moving to the Recycle Bin", [] (std::vector<FileEntry> items, const Removal::Progress& progress)
-                      { return Removal::toTrash (std::move (items), progress); },
-                      "Move to Trash",
+                 run (checked, "Moving to the Recycle Bin", Removal::toTrash, "Move to Trash",
                       [] (const RemovalReport& r) { return "moved to the Recycle Bin.\n" + Format::size (r.bytes) + " freed."; });
              });
 }
 
 void RemovalActions::deletePermanently()
 {
+    auto checked = host.checkedEntries();
+
     confirm (owner, juce::MessageBoxIconType::WarningIcon, "Delete permanently",
-             "Permanently delete " + host.describeChecked() + "?\n\nThey bypass the Recycle Bin and can't be restored." + groupWarning(),
+             "Permanently delete " + host.describe (checked) + "?\n\nThey bypass the Recycle Bin and can't be restored." + groupWarning(),
              "Delete permanently",
-             [this]
+             [this, checked = std::move (checked)]
              {
-                 run ("Deleting", [] (std::vector<FileEntry> items, const Removal::Progress& progress)
-                      { return Removal::deletePermanently (std::move (items), progress); },
-                      "Delete permanently",
+                 run (checked, "Deleting", Removal::deletePermanently, "Delete permanently",
                       [] (const RemovalReport& r) { return "deleted permanently.\n" + Format::size (r.bytes) + " freed."; });
              });
 }
@@ -149,15 +114,17 @@ void RemovalActions::moveToFolder()
                               if (safePage == nullptr || destination == juce::File())
                                   return;
 
+                              auto checked = host.checkedEntries();
+
                               // An info box rather than a warning: moving keeps the files, unlike the Recycle Bin.
                               confirm (owner, juce::MessageBoxIconType::InfoIcon, "Move to folder",
-                                       "Move " + host.describeChecked() + " to\n" + Format::wrappable (destination.getFullPathName()) + " ?",
+                                       "Move " + host.describe (checked) + " to\n" + Format::wrappable (destination.getFullPathName()) + " ?",
                                        "Move",
-                                       [this, destination]
+                                       [this, destination, checked = std::move (checked)]
                                        {
                                            settings.set ("moveTarget", destination.getFullPathName());
 
-                                           run ("Moving to folder",
+                                           run (checked, "Moving to folder",
                                                 [destination] (std::vector<FileEntry> items, const Removal::Progress& progress)
                                                 { return Removal::toFolder (std::move (items), destination, progress); },
                                                 "Move to folder",
@@ -172,7 +139,7 @@ void RemovalActions::moveToFolder()
 
 void RemovalActions::finish (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done)
 {
-    host.itemsGone (report.files);
+    host.removedByAction (report.files);
 
     auto message = Format::count (report.processed, "item") + " " + done;
 

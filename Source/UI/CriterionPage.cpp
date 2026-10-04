@@ -1,69 +1,6 @@
 #include "CriterionPage.h"
-#include "../Platform/ComInit.h"
+#include "ProgressTask.h"
 
-namespace
-{
-    constexpr int margin = 12;
-    constexpr int rowHeight = 26;
-    constexpr int gap = 8;
-}
-
-/** Runs an analysis on a background thread behind a cancellable progress window.
-    Deletes itself when done; the callback is only invoked if the page still exists.
-*/
-class CriterionPage::AnalysisJob final : public juce::ThreadWithProgressWindow
-{
-public:
-    AnalysisJob (CriterionPage& page, const juce::File& root)
-        : ThreadWithProgressWindow ("Analyzing " + page.criterion.getInfo().name, true, true, 10000, {}, &page),
-          owner (&page), criterion (page.criterion), parameters (page.parameters),
-          peers (page.criterion.getInfo().usesPeers && page.getPeers != nullptr ? page.getPeers() : std::vector<PeerCriterion>())
-    {
-        context.root = root;
-        context.recursive = page.recursiveToggle.getToggleState();
-        context.shouldStop = [this] { return threadShouldExit(); };
-        context.onProgress = [this] (double value, const juce::String& text)
-        {
-            setProgress (value);
-            setStatusMessage (text);
-        };
-        setProgress (-1.0);
-    }
-
-    void run() override
-    {
-        // An exception (out of memory on a huge tree, a failing codec...) must not take the whole program down.
-        try
-        {
-            const ScopedComInit com;    // Some criteria read Windows metadata.
-            result = criterion.analyse (context, parameters, peers);
-        }
-        catch (const std::exception& e)     { error = e.what(); }
-        catch (...)                         { error = "unknown error"; }
-    }
-
-    void threadComplete (bool cancelled) override
-    {
-        if (error.isNotEmpty())
-            juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Analysis failed",
-                                                    "The analysis stopped because of an error: " + error);
-        else if (owner != nullptr && ! cancelled)
-            owner->showResult (std::move (result), context.root);
-
-        delete this;
-    }
-
-private:
-    juce::Component::SafePointer<CriterionPage> owner;
-    const Criterion& criterion;
-    const ParameterSet parameters;      // Snapshot: the UI may not change it during the analysis.
-    const std::vector<PeerCriterion> peers;     // Likewise: the other criteria as they were when the analysis started.
-    ScanContext context;
-    AnalysisResult result;
-    juce::String error;
-};
-
-//==============================================================================
 CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     : RemovalPage (s),
       criterion (c),
@@ -72,11 +9,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
 {
     const auto& info = criterion.getInfo();
 
-    title.setText (info.name, juce::dontSendNotification);
-    title.setFont (juce::FontOptions (20.0f, juce::Font::bold));
-    description.setText (info.description, juce::dontSendNotification);
-    description.setJustificationType (juce::Justification::topLeft);
-    description.setMinimumHorizontalScale (1.0f);
+    setHeading (info.name, info.description);
 
     recursiveToggle.setToggleState (settings.getBool ("recursive", info.recursiveByDefault), juce::dontSendNotification);
     recursiveToggle.onClick = [this]
@@ -111,7 +44,7 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     addAndMakeVisible (*filterBar);
     updatePathFilter();
 
-    for (auto* component : std::initializer_list<juce::Component*> { &title, &description, &parametersPanel, &recursiveToggle,
+    for (auto* component : std::initializer_list<juce::Component*> { &parametersPanel, &recursiveToggle,
                                                                        &analyseButton, &resetButton, &status })
         addAndMakeVisible (component);
 }
@@ -121,10 +54,7 @@ CriterionPage::~CriterionPage() = default;
 void CriterionPage::resized()
 {
     auto area = getLocalBounds().reduced (margin);
-
-    title.setBounds (area.removeFromTop (28));
-    description.setBounds (area.removeFromTop (36));
-    area.removeFromTop (gap);
+    layoutHeading (area);
 
     if (const int h = parametersPanel.getHeightForWidth (area.getWidth()); h > 0)
     {
@@ -169,7 +99,30 @@ void CriterionPage::analyse()
         return;
     }
 
-    (new AnalysisJob (*this, root))->launchThread();
+    ScanContext settingsOfRun;
+    settingsOfRun.root = root;
+    settingsOfRun.recursive = recursiveToggle.getToggleState();
+
+    // Snapshots: the UI may change the settings and the other pages during the analysis.
+    auto peers = criterion.getInfo().usesPeers && getPeers != nullptr ? getPeers() : std::vector<PeerCriterion>();
+    auto result = std::make_shared<AnalysisResult>();
+
+    ProgressTask::run (*this, "Analyzing " + criterion.getInfo().name,
+                       [&criterion = criterion, parameters = parameters, peers = std::move (peers), settingsOfRun, result] (const ScanContext& progress)
+                       {
+                           auto context = progress;
+                           context.root = settingsOfRun.root;
+                           context.recursive = settingsOfRun.recursive;
+                           *result = criterion.analyse (context, parameters, peers);
+                       },
+                       [this, root, result] (bool cancelled, const juce::String& error)
+                       {
+                           if (error.isNotEmpty())
+                               juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Analysis failed",
+                                                                       "The analysis stopped because of an error: " + error);
+                           else if (! cancelled)
+                               showResult (std::move (*result), root);
+                       });
 }
 
 void CriterionPage::showResult (AnalysisResult result, const juce::File& root)

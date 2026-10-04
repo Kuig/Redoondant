@@ -9,10 +9,11 @@
 
 /** A page that lists items with check boxes and acts on the checked ones: the results table and the
     footer (check cycling button, summary, Move to folder / Move to Trash / Delete permanently).
-    The actions themselves are RemovalActions. Derived pages decide what is listed and what "the checked
-    items" means for the actions.
+    The actions themselves are RemovalActions, which ask the page what they need (RemovalActions::Host).
+    Derived pages decide what is listed and what "the checked items" means for the actions.
 */
-class RemovalPage : public juce::Component
+class RemovalPage : public juce::Component,
+                    protected RemovalActions::Host
 {
 public:
     /** Optional: a folder to start the "Move to folder" chooser in when none was used before. */
@@ -34,6 +35,8 @@ protected:
     explicit RemovalPage (SettingsScope settings);
     ~RemovalPage() override;
 
+    static constexpr int margin = 12, rowHeight = 26, gap = 8;
+
     SettingsScope settings;
     ResultsModel model;
     ResultsTable table { model };
@@ -50,6 +53,12 @@ protected:
     /** Empties the list, as before the first analysis (the analysed folder is no longer the current one). */
     void discardResults();
 
+    /** Shows the page's title and description at its top (see layoutHeading). */
+    void setHeading (const juce::String& title, const juce::String& description);
+
+    /** Lays out the title and description at the top of `area`, and removes them from it. */
+    void layoutHeading (juce::Rectangle<int>& area);
+
     /** Lays out the footer and the table in `area`. */
     void layoutTableAndFooter (juce::Rectangle<int> area);
 
@@ -59,22 +68,22 @@ protected:
     /** Tells the preview what is highlighted (nothing: an empty list). */
     void notifySelection (std::vector<FileEntry> entries);
 
-    /** Turns the checked entries into the items the actions operate on, e.g. a folder into its content.
-        Runs on the worker thread, so it must be self-contained (not capture the page); empty = use the checked entries as they are.
-    */
-    virtual std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const    { return {}; }
-
-    /** "12 items (340 MB)": what the check boxes currently select, as the actions see it. */
-    virtual juce::String describeChecked() const;
-
-    /** Groups in which every item is checked: the confirmations warn that nothing of them would be kept. */
-    virtual int groupsWithoutKeptItem() const                   { return 0; }
+    // What the actions ask (RemovalActions::Host); the defaults suit a plain list of items.
+    std::vector<FileEntry> checkedEntries() const override      { return model.getCheckedEntries(); }
+    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const override    { return {}; }
+    juce::String describe (const std::vector<FileEntry>& checked) const override;
+    int groupsWithoutKeptItem() const override                  { return 0; }
+    juce::String failureAdvice() const override                 { return {}; }
+    juce::File startFolder() const override                     { return getRootFolder != nullptr ? getRootFolder() : juce::File(); }
 
     /** Called with the files that are no longer where they were (moved, deleted): update the list. */
     virtual void itemsGone (const juce::Array<juce::File>& files);
 
-    /** Added to the report when some items could not be moved. */
-    virtual juce::String failureAdvice() const                  { return {}; }
+    /** What the list holds, in the summary and the confirmations: "item", "folder"... */
+    virtual juce::String itemNoun() const                       { return "item"; }
+
+    /** The summary line before there is a list. */
+    virtual juce::String noListText() const                     { return "Press Analyze to search for candidates."; }
 
     /** Called whenever the check states may have changed (before the summary is refreshed). */
     virtual void checksChanged() {}
@@ -85,46 +94,18 @@ protected:
     /** Appended to the summary line, e.g. the progress of a background read; empty for none. */
     virtual juce::String progressNote() const                   { return {}; }
 
-    /** The summary line; the default lists what is checked. */
-    virtual juce::String summaryText (size_t checkedCount, juce::int64 checkedBytes) const;
-
-    /** Asks the user before running an action on the checked items; `action` runs only on OK. */
-    void confirm (juce::MessageBoxIconType icon, const juce::String& boxTitle, const juce::String& question,
-                  const juce::String& okText, std::function<void()> action);
-
-    static juce::String wrappable (const juce::File& path);
-
 private:
-    /** Lets RemovalActions ask this page (and its overrides) what it needs. */
-    class ActionsHost final : public RemovalActions::Host
-    {
-    public:
-        explicit ActionsHost (RemovalPage& p) : page (p) {}
-
-        std::vector<FileEntry> checkedEntries() const override                                          { return page.model.getCheckedEntries(); }
-        std::function<std::vector<FileEntry> (std::vector<FileEntry>)> expander() const override         { return page.removalExpander(); }
-        juce::String describeChecked() const override                                                   { return page.describeChecked(); }
-        int groupsWithoutKeptItem() const override                                                      { return page.groupsWithoutKeptItem(); }
-        juce::String failureAdvice() const override                                                     { return page.failureAdvice(); }
-        void itemsGone (const juce::Array<juce::File>& files) override                                  { page.removeFromList (files); }
-        juce::File startFolder() const override                                                         { return page.getRootFolder != nullptr ? page.getRootFolder() : juce::File(); }
-
-    private:
-        RemovalPage& page;
-    };
-
-    juce::Label summary;
+    juce::Label title, description, summary;
     juce::ComboBox selectionBox;
     DefaultSelection initialSelection = DefaultSelection::none;
     juce::TextButton moveButton { "Move to folder" }, trashButton { "Move to Trash" }, deleteButton { "Delete permanently" };
-    ActionsHost actionsHost { *this };
-    RemovalActions removal { *this, actionsHost, settings };
+    RemovalActions removal { *this, *this, settings };
 
     void cycleChecks();
     void selectDefault (DefaultSelection selection);
 
     /** Drops the files from the list (itemsGone) and clears the preview. */
-    void removeFromList (const juce::Array<juce::File>& files);
+    void removedByAction (const juce::Array<juce::File>& files) final;
 
     /** Drops the files that no longer exist (e.g. deleted from the context menu) from the list. */
     void forgetMissing (const juce::Array<juce::File>& files);
