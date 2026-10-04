@@ -22,7 +22,7 @@ namespace
 
     juce::String dates (const Histogram::Stats& s)
     {
-        return s.oldest.toMilliseconds() == 0 ? juce::String() : Format::date (s.oldest).substring (0, 10) + " - " + Format::date (s.newest).substring (0, 10);
+        return s.oldest.toMilliseconds() == 0 ? juce::String() : Format::day (s.oldest) + " - " + Format::day (s.newest);
     }
 }
 

@@ -27,10 +27,7 @@ namespace
             FileScanner::Options options;
             options.shouldDescend = [&] (const FileEntry& e) { return ! isJunk (e); };
 
-            auto entries = FileScanner::scanAndFilter (context, options, isJunk);
-            std::sort (entries.begin(), entries.end(), Orderings::largestFirst);
-
-            return AnalysisResult::flat (std::move (entries));
+            return AnalysisResult::flatSorted (FileScanner::scanAndFilter (context, options, isJunk), Orderings::largestFirst);
         }
     };
 }

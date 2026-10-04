@@ -28,6 +28,12 @@ namespace
             return std::move (results);
         }
 
+        /** The size, file count and completeness of a folder's whole content, without listing it. */
+        Totals measure (const juce::File& folder)
+        {
+            return walk (folder, false);
+        }
+
     private:
         const ScanContext& context;
         const FileScanner::Options& options;
@@ -64,10 +70,12 @@ namespace
                 entry.modified = item.getModificationTime();
                 entry.created = item.getCreationTime();
 
-                if (entry.isDirectory && file.isSymbolicLink())
+                const bool isLink = entry.isDirectory && file.isSymbolicLink();     // One file-system query per folder.
+
+                if (isLink)
                     entry.contentUnknown = true;        // Not followed: what it leads to isn't counted.
 
-                if (entry.isDirectory && ! file.isSymbolicLink())
+                if (entry.isDirectory && ! isLink)
                 {
                     const bool emitGrandChildren = emitChildren && recursive
                                                    && (options.shouldDescend == nullptr || options.shouldDescend (entry));
@@ -118,11 +126,6 @@ std::vector<FileEntry> FileScanner::filesOnly (std::vector<FileEntry> entries)
     return keepIf (std::move (entries), [] (const FileEntry& e) { return ! e.isDirectory; });
 }
 
-std::vector<FileEntry> FileScanner::foldersOnly (std::vector<FileEntry> entries)
-{
-    return keepIf (std::move (entries), [] (const FileEntry& e) { return e.isDirectory; });
-}
-
 std::vector<FileEntry> FileScanner::scanFiles (const ScanContext& context)
 {
     return filesOnly (scan (context, Options { false }));
@@ -143,11 +146,11 @@ FileEntry FileScanner::makeEntry (const juce::File& file)
 
     if (entry.isDirectory)
     {
-        for (const auto& child : FileScanner::filesOnly (FileScanner::scanTree (file, {})))
-        {
-            entry.size += child.size;
-            ++entry.fileCount;
-        }
+        const ScanContext context;
+        const auto totals = Walker (context, {}, true).measure (file);
+        entry.size = totals.size;
+        entry.fileCount = totals.fileCount;
+        entry.contentUnknown = totals.contentUnknown || file.isSymbolicLink();
     }
     else
     {

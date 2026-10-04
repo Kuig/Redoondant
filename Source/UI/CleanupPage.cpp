@@ -2,6 +2,7 @@
 #include "../Core/EmptyFolders.h"
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
+#include "../Core/Paths.h"
 #include <map>
 
 namespace
@@ -127,13 +128,13 @@ void CleanupPage::loadFolders()
     {
         for (const auto& stored : settings.getList ("checked"))
             if (stored != noneChecked)
-                checkedPaths.insert (juce::File (EmptyFolders::expand (stored)).getFullPathName());
+                checkedPaths.insert (Paths::key (juce::File (EmptyFolders::expand (stored))));
     }
     else
     {
         for (const auto& folder : folders)
             if (folder.checkedByDefault)
-                checkedPaths.insert (folder.file.getFullPathName());
+                checkedPaths.insert (Paths::key (folder.file));
     }
 }
 
@@ -145,7 +146,7 @@ void CleanupPage::saveFolders()
     {
         stored.add (folder.stored);
 
-        if (checkedPaths.count (folder.file.getFullPathName()) > 0)
+        if (checkedPaths.count (Paths::key (folder.file)) > 0)
             checked.add (folder.stored);
     }
 
@@ -185,7 +186,7 @@ void CleanupPage::removeSelected()
                                        if (! selected.contains (f.file))
                                            return false;
 
-                                       checkedPaths.erase (f.file.getFullPathName());
+                                       checkedPaths.erase (Paths::key (f.file));
                                        return true;
                                    }),
                    folders.end());
@@ -242,7 +243,7 @@ void CleanupPage::showMeasured (std::vector<Measured> measured)
     for (size_t i = 0; i < measured.size(); ++i)
     {
         files.push_back (measured[i].entry.file);
-        indexOf[measured[i].entry.file.getFullPathName()] = i;
+        indexOf[Paths::key (measured[i].entry.file)] = i;
     }
 
     AnalysisResult result;
@@ -261,11 +262,11 @@ void CleanupPage::showMeasured (std::vector<Measured> measured)
 
     model.setResult (std::move (result), {}, true, [&] (ResultItem& item)
     {
-        const auto index = indexOf.at (item.file.getFullPathName());
+        const auto index = indexOf.at (Paths::key (item.file));
         item.missing = measured[index].missing;
         item.selected = ! item.missing && folders[index].checkedByDefault;
     });
-    model.checkWhere ([this] (const FileEntry& e) { return checkedPaths.count (e.file.getFullPathName()) > 0; });
+    model.checkWhere ([this] (const FileEntry& e) { return checkedPaths.count (Paths::key (e.file)) > 0; });
     table.refresh();
 
     status.setText (Format::size (total) + " in these folders, measured at " + juce::Time::getCurrentTime().formatted ("%H:%M"),
@@ -284,7 +285,7 @@ void CleanupPage::checksChanged()
             if (item.missing)
                 continue;       // Keeps its saved state in case the folder appears later.
 
-            const auto path = item.file.getFullPathName();
+            const auto path = Paths::key (item.file);
             changed |= item.selected ? checkedPaths.insert (path).second : checkedPaths.erase (path) > 0;
         }
 

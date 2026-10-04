@@ -5,12 +5,15 @@
 /** Human-readable formatting shared by the whole UI. */
 namespace Format
 {
+    constexpr double bytesPerMB = 1024.0 * 1024.0;
+
     inline juce::String size (juce::int64 bytes)       { return juce::File::descriptionOfSizeInBytes (bytes); }
     inline juce::String date (juce::Time time)         { return time.toMilliseconds() > 0 ? time.formatted ("%Y-%m-%d %H:%M") : juce::String(); }
+    inline juce::String day (juce::Time time)          { return time.toMilliseconds() > 0 ? time.formatted ("%Y-%m-%d") : juce::String(); }
 
     inline juce::String dateRange (juce::Time from, juce::Time to)
     {
-        return from.formatted ("%Y-%m-%d") == to.formatted ("%Y-%m-%d")
+        return day (from) == day (to)
                  ? date (from) + " - " + to.formatted ("%H:%M")
                  : date (from) + " - " + date (to);
     }

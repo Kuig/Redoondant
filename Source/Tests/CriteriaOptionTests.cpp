@@ -31,29 +31,6 @@ public:
     }
 
 private:
-    static juce::StringArray names (const ListedResult& result)
-    {
-        juce::StringArray found;
-
-        for (const auto& group : result.groups)
-            for (const auto& item : group.items)
-                found.add (item.name());
-
-        found.sort (true);
-        return found;
-    }
-
-    static void writeZip (const juce::File& zip, const juce::File& base, const juce::StringArray& relativePaths, const juce::String& rootName = {})
-    {
-        juce::ZipFile::Builder builder;
-
-        for (const auto& path : relativePaths)
-            builder.addFile (base.getChildFile (path), 9, rootName.isEmpty() ? path : rootName + "/" + path);
-
-        juce::FileOutputStream out (zip);
-        builder.writeToStream (out, nullptr);
-    }
-
     void testInstallersAndJunk()
     {
         beginTest ("Installers & junk: each list can be switched off");
@@ -66,7 +43,7 @@ private:
             const auto criterion = Criteria::createInstallersAndJunkFiles();
             const auto matches = [&] (bool installers, bool junk)
             {
-                return names (run (*criterion, temp.root, false, [&] (ParameterSet& p)
+                return namesOf (run (*criterion, temp.root, false, [&] (ParameterSet& p)
                 {
                     for (auto& parameter : p.all())
                         parameter.enabled = parameter.id == "installerPatterns" ? installers : junk;
@@ -81,11 +58,8 @@ private:
 
         beginTest ("Toggleable lists are persisted and reset");
         {
-            TempFolder temp;
-            juce::PropertiesFile::Options options;
-            options.filenameSuffix = ".settings";
-            juce::PropertiesFile file (temp.root.getChildFile ("t.settings"), options);
-            SettingsScope scope (file, "installers.param");
+            TempSettings temp;
+            auto scope = temp.scope ("installers.param");
 
             auto parameters = Criteria::createInstallersAndJunkFiles()->createParameters();
             expect (parameters.isEnabled ("junkPatterns"));
@@ -158,7 +132,7 @@ private:
             {
                 const auto result = run (*criterion, temp.root, true, [&] (ParameterSet& p) { setParameter (p, "algorithm", algorithm); });
                 expectEquals ((int) result.groups.size(), 1);
-                expectEquals (names (result).joinIntoString (","), juce::String ("a.txt,b copy.txt"));
+                expectEquals (namesOf (result).joinIntoString (","), juce::String ("a.txt,b copy.txt"));
                 expect (findItem (result.groups[0], "b copy.txt")->selected);
             }
 
@@ -184,8 +158,8 @@ private:
             const auto criterion = Criteria::createLargeFiles();
             const auto tweak = [] (bool folders) { return [folders] (ParameterSet& p) { setParameter (p, "minSize", 2000.0 / 1048576.0); setParameter (p, "folders", folders); }; };
 
-            expectEquals (names (run (*criterion, temp.root, true, tweak (false))).joinIntoString (","), juce::String ("big.bin"));
-            expectEquals (names (run (*criterion, temp.root, true, tweak (true))).joinIntoString (","), juce::String ("big.bin,dir"));
+            expectEquals (namesOf (run (*criterion, temp.root, true, tweak (false))).joinIntoString (","), juce::String ("big.bin"));
+            expectEquals (namesOf (run (*criterion, temp.root, true, tweak (true))).joinIntoString (","), juce::String ("big.bin,dir"));
         }
     }
 
@@ -215,7 +189,7 @@ private:
             const auto criterion = Criteria::createOldFiles();
             const auto olderThan = [&] (int kind, double days)
             {
-                return names (run (*criterion, temp.root, false, [&] (ParameterSet& p)
+                return namesOf (run (*criterion, temp.root, false, [&] (ParameterSet& p)
                 {
                     setParameter (p, "dateKind", kind);
                     setParameter (p, "days", days);
@@ -251,7 +225,7 @@ private:
                 return m;
             };
 
-            const auto contentOld = names (run (*Criteria::createOldFiles (fake), temp.root, false, [] (ParameterSet& p)
+            const auto contentOld = namesOf (run (*Criteria::createOldFiles (fake), temp.root, false, [] (ParameterSet& p)
             {
                 setParameter (p, "dateKind", (int) DateKind::content);
                 setParameter (p, "days", 800);

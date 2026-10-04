@@ -11,10 +11,7 @@ namespace
 {
     FileEntry entry (const juce::String& name, juce::Time modified = {})
     {
-        FileEntry e;
-        e.file = juce::File::getCurrentWorkingDirectory().getChildFile (name);
-        e.modified = modified;
-        return e;
+        return entryAt (juce::File::getCurrentWorkingDirectory().getChildFile (name), 0, modified);
     }
 }
 
@@ -65,12 +62,7 @@ public:
     {
         beginTest ("Nested and duplicate entries are removed");
         const auto root = juce::File::getCurrentWorkingDirectory();
-        const auto make = [&] (const juce::String& path)
-        {
-            FileEntry e;
-            e.file = root.getChildFile (path);
-            return e;
-        };
+        const auto make = [&] (const juce::String& path) { return entryAt (root.getChildFile (path)); };
 
         const auto kept = Removal::withoutNested ({ make ("a"), make ("a/b.txt"), make ("a/c/d"), make ("a b"), make ("a b"), make ("e.txt") });
         expectEquals ((int) kept.size(), 3);
@@ -151,13 +143,7 @@ public:
 
             if (mklink.start (command) && mklink.waitForProcessToFinish (10000) && link.isSymbolicLink())
             {
-                const auto result = run (*Criteria::createEmptyItems(), temp.root, true);
-                juce::StringArray names;
-
-                for (const auto& item : result.groups[0].items)
-                    names.add (item.name());
-
-                expectEquals (names.joinIntoString ("|"), juce::String ("truly empty"));
+                expectEquals (namesOf (run (*Criteria::createEmptyItems(), temp.root, true)).joinIntoString ("|"), juce::String ("truly empty"));
             }
             else
             {
@@ -174,13 +160,7 @@ public:
             temp.write ("Photos/a.txt", "alpha");
             temp.write ("Photos/sub/b.txt", "beta");
 
-            juce::ZipFile::Builder builder;
-            builder.addFile (temp.root.getChildFile ("Photos/a.txt"), 9, "Photos/a.txt");
-            builder.addFile (temp.root.getChildFile ("Photos/sub/b.txt"), 9, "Photos/sub/b.txt");
-            {
-                juce::FileOutputStream out (temp.root.getChildFile ("Photos.zip"));
-                builder.writeToStream (out, nullptr);
-            }
+            writeZip (temp.root.getChildFile ("Photos.zip"), temp.root, { "Photos/a.txt", "Photos/sub/b.txt" });
 
             auto result = run (*Criteria::createArchiveMirrors(), temp.root);
             expectEquals ((int) result.groups.size(), 1);

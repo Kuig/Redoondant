@@ -1,5 +1,6 @@
 #include "EmptyFolders.h"
 #include "FileScanner.h"
+#include "Paths.h"
 #include <map>
 
 namespace
@@ -14,8 +15,6 @@ namespace
     const char* const variables[] = { "LOCALAPPDATA", "APPDATA", "PROGRAMDATA", "USERPROFILE", "WINDIR" };
 
     juce::String variable (const juce::String& name)    { return juce::SystemStats::getEnvironmentVariable (name, {}); }
-
-    bool isRoot (const juce::File& f)                   { return f == f.getParentDirectory(); }
 
     std::vector<juce::File> protectedFolders()
     {
@@ -148,7 +147,7 @@ juce::String EmptyFolders::contract (const juce::String& path)
 
 bool EmptyFolders::isTooBroad (const juce::File& folder)
 {
-    if (isRoot (folder))
+    if (Paths::isRoot (folder))
         return true;
 
     for (const auto& p : protectedFolders())
@@ -164,13 +163,13 @@ bool EmptyFolders::isTooBroad (const juce::File& folder)
 
 std::vector<EmptyFolders::Group> EmptyFolders::groupByCommonParent (const std::vector<juce::File>& folders)
 {
-    std::map<juce::String, Group> groups;    // Keyed by the lower-case path: Windows paths are case-insensitive.
+    std::map<juce::String, Group> groups;    // Keyed by Paths::key.
 
     for (size_t i = 0; i < folders.size(); ++i)
     {
         auto parent = folders[i].getParentDirectory();
 
-        for (auto candidate = parent; ! isRoot (candidate); candidate = candidate.getParentDirectory())
+        for (auto candidate = parent; ! Paths::isRoot (candidate); candidate = candidate.getParentDirectory())
         {
             const bool sharedWithAnother = [&]
             {
@@ -188,7 +187,7 @@ std::vector<EmptyFolders::Group> EmptyFolders::groupByCommonParent (const std::v
             }
         }
 
-        auto& group = groups[parent.getFullPathName().toLowerCase()];
+        auto& group = groups[Paths::key (parent)];
         group.parent = parent;
         group.members.push_back (i);
     }

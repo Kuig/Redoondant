@@ -88,6 +88,9 @@ private:
 /** One parameter's widgets: an optional label, the editing widget and an optional unit. */
 struct ParametersPanel::Editor
 {
+    explicit Editor (Parameter& p) : parameter (p) {}
+
+    Parameter& parameter;
     juce::Label label, suffix;
     std::unique_ptr<juce::ToggleButton> enableToggle;     ///< Only for parameters with hasToggle.
     std::unique_ptr<juce::Component> widget;
@@ -115,7 +118,7 @@ ParametersPanel::~ParametersPanel() = default;
 
 std::unique_ptr<ParametersPanel::Editor> ParametersPanel::createEditor (Parameter& parameter)
 {
-    auto editor = std::make_unique<Editor>();
+    auto editor = std::make_unique<Editor> (parameter);
     editor->widgetWidth = parameter.editorWidth;
     editor->suffix.setText (parameter.suffix, juce::dontSendNotification);
 
@@ -226,9 +229,7 @@ void ParametersPanel::addEnableToggle (Parameter& parameter, Editor& editor)
         parameter.enabled = e->enableToggle->getToggleState();
         settings.set (parameter.id + ".on", parameter.enabled);
         e->widget->setEnabled (parameter.enabled);
-
-        if (onChange != nullptr)
-            onChange();
+        notify();
     };
 
     auto refreshValue = std::move (editor.refresh);
@@ -245,16 +246,20 @@ void ParametersPanel::changed (Parameter& parameter, const juce::var& newValue)
 {
     parameter.value = newValue;
     settings.set (parameter.id, newValue);
+    notify();
+}
 
+void ParametersPanel::notify()
+{
     if (onChange != nullptr)
         onChange();
 }
 
 void ParametersPanel::setValues (const std::vector<std::pair<juce::String, juce::var>>& values)
 {
-    for (size_t i = 0; i < editors.size(); ++i)
+    for (auto& editor : editors)
     {
-        auto& parameter = parameters.all()[i];
+        auto& parameter = editor->parameter;
         const auto found = std::find_if (values.begin(), values.end(), [&] (const auto& v) { return v.first == parameter.id; });
 
         if (found == values.end())
@@ -262,26 +267,23 @@ void ParametersPanel::setValues (const std::vector<std::pair<juce::String, juce:
 
         parameter.value = found->second;
         settings.set (parameter.id, parameter.value);
-        editors[i]->refresh();
+        editor->refresh();
     }
 
-    if (onChange != nullptr)
-        onChange();
+    notify();
 }
 
 void ParametersPanel::setHidden (const juce::String& id, bool shouldBeHidden)
 {
-    for (size_t i = 0; i < editors.size(); ++i)
+    for (auto& editor : editors)
     {
-        auto& parameter = parameters.all()[i];
-
-        if (parameter.id != id)
+        if (editor->parameter.id != id)
             continue;
 
-        parameter.hidden = shouldBeHidden;
+        editor->parameter.hidden = shouldBeHidden;
 
-        for (auto* component : std::initializer_list<juce::Component*> { editors[i]->enableToggle.get(), &editors[i]->label,
-                                                                           editors[i]->widget.get(), &editors[i]->suffix })
+        for (auto* component : std::initializer_list<juce::Component*> { editor->enableToggle.get(), &editor->label,
+                                                                           editor->widget.get(), &editor->suffix })
             if (component != nullptr)
                 component->setVisible (! shouldBeHidden);
     }
@@ -291,18 +293,17 @@ void ParametersPanel::setHidden (const juce::String& id, bool shouldBeHidden)
 
 void ParametersPanel::resetToDefaults()
 {
-    for (size_t i = 0; i < editors.size(); ++i)
+    for (auto& editor : editors)
     {
-        auto& parameter = parameters.all()[i];
+        auto& parameter = editor->parameter;
         parameter.value = parameter.defaultValue;
         parameter.enabled = parameter.defaultEnabled;
         settings.remove (parameter.id);
         settings.remove (parameter.id + ".on");
-        editors[i]->refresh();
+        editor->refresh();
     }
 
-    if (onChange != nullptr)
-        onChange();
+    notify();
 }
 
 int ParametersPanel::getHeightForWidth (int width) const
@@ -322,12 +323,11 @@ int ParametersPanel::layout (int width, bool apply) const
 
     int x = 0, y = 0;
 
-    for (size_t i = 0; i < editors.size(); ++i)
+    for (const auto& editor : editors)
     {
-        if (parameters.all()[i].hidden)
+        if (editor->parameter.hidden)
             continue;
 
-        const auto& editor = editors[i];
         const int w = editor->getWidth();
 
         if (x > 0 && x + w > width)

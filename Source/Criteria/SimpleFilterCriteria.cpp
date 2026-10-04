@@ -2,29 +2,16 @@
 
 #include "AllCriteria.h"
 #include "../Core/FileScanner.h"
+#include "../Core/Format.h"
 #include "../Core/DateKind.h"
+#include "../Core/Paths.h"
 #include "../Metadata/ContentDate.h"
 #include <set>
 
 namespace
 {
-    using Predicate = std::function<bool (const FileEntry&)>;
-    using Ordering  = std::function<bool (const FileEntry&, const FileEntry&)>;
-
-    /** Scans, keeps the entries accepted by the predicate and orders them. */
-    AnalysisResult filterScan (const ScanContext& context, const FileScanner::Options& options,
-                               const Predicate& accept, const Ordering& order)
-    {
-        auto entries = FileScanner::scanAndFilter (context, options, accept);
-        std::sort (entries.begin(), entries.end(), order);
-        return AnalysisResult::flat (std::move (entries));
-    }
-
     const FileScanner::Options filesOnlyScan { false };
     const FileScanner::Options fullScan {};
-
-    const Ordering largestFirst = Orderings::largestFirst;
-    const Ordering byName       = Orderings::byName;
 
     //==============================================================================
     class LargeElements final : public Criterion
@@ -43,12 +30,12 @@ namespace
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet& parameters) const override
         {
-            const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * 1024.0 * 1024.0);
+            const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * Format::bytesPerMB);
             const bool folders = parameters.getBool ("folders");
 
-            return filterScan (context, folders ? fullScan : filesOnlyScan,
-                               [=] (const FileEntry& e) { return (folders || ! e.isDirectory) && e.size >= minBytes; },
-                               largestFirst);
+            return AnalysisResult::flatSorted (FileScanner::scanAndFilter (context, folders ? fullScan : filesOnlyScan,
+                                                                           [=] (const FileEntry& e) { return (folders || ! e.isDirectory) && e.size >= minBytes; }),
+                                               Orderings::largestFirst);
         }
     };
 
@@ -56,7 +43,7 @@ namespace
     class OldFiles final : public Criterion
     {
     public:
-        explicit OldFiles (Criteria::MetadataSource source)
+        explicit OldFiles (MetadataSource source)
             : Criterion ({ "oldFiles", "Old files", "Files whose creation, modification or content date (from the metadata: photo taken, "
                                                     "document created...) is older than the given number of days, oldest first." }),
               readMetadata (std::move (source)) {}
@@ -85,12 +72,11 @@ namespace
                 return date.toMilliseconds() != 0 && date < cutoff;
             });
 
-            std::sort (entries.begin(), entries.end(), [kind] (const FileEntry& a, const FileEntry& b) { return dateOf (a, kind) < dateOf (b, kind); });
-            return AnalysisResult::flat (std::move (entries));
+            return AnalysisResult::flatSorted (std::move (entries), [kind] (const FileEntry& a, const FileEntry& b) { return dateOf (a, kind) < dateOf (b, kind); });
         }
 
     private:
-        Criteria::MetadataSource readMetadata;
+        MetadataSource readMetadata;
     };
 
     //==============================================================================
@@ -115,15 +101,14 @@ namespace
 
             for (const auto& e : items)
                 if (e.isDirectory)
-                    emptyFolders.insert (e.file.getFullPathName());
+                    emptyFolders.insert (Paths::key (e.file));
 
             items = FileScanner::keepIf (std::move (items), [&] (const FileEntry& e)
             {
-                return emptyFolders.count (e.file.getParentDirectory().getFullPathName()) == 0;
+                return emptyFolders.count (Paths::key (e.file.getParentDirectory())) == 0;
             });
 
-            std::sort (items.begin(), items.end(), Orderings::byName);
-            return AnalysisResult::flat (std::move (items));
+            return AnalysisResult::flatSorted (std::move (items), Orderings::byName);
         }
     };
 
@@ -163,14 +148,13 @@ namespace
                     for (const auto& pattern : parameters.getList (list.id))
                         wildcards.add (pattern.containsAnyOf ("*?") ? pattern : "*." + pattern.trimCharactersAtStart ("."));
 
-            return filterScan (context, filesOnlyScan,
-                               [&] (const FileEntry& e)
-                               {
-                                   return ! e.isDirectory
-                                       && std::any_of (wildcards.begin(), wildcards.end(),
-                                                       [&] (const juce::String& w) { return e.name().matchesWildcard (w, true); });
-                               },
-                               largestFirst);
+            return AnalysisResult::flatSorted (FileScanner::scanAndFilter (context, filesOnlyScan, [&] (const FileEntry& e)
+                                               {
+                                                   return ! e.isDirectory
+                                                       && std::any_of (wildcards.begin(), wildcards.end(),
+                                                                       [&] (const juce::String& w) { return e.name().matchesWildcard (w, true); });
+                                               }),
+                                               Orderings::largestFirst);
         }
 
     private:
@@ -189,7 +173,7 @@ namespace
 
         AnalysisResult analyse (const ScanContext& context, const ParameterSet&) const override
         {
-            return filterScan (context, fullScan, [] (const FileEntry&) { return true; }, byName);
+            return AnalysisResult::flatSorted (FileScanner::scan (context, fullScan), Orderings::byName);
         }
     };
 }

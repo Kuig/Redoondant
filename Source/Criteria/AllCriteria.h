@@ -6,8 +6,6 @@
 /** Factories of the built-in criteria (each implemented in its own .cpp file). */
 namespace Criteria
 {
-    using MetadataSource = ::MetadataSource;
-
     std::unique_ptr<Criterion> createDuplicateFiles();
     std::unique_ptr<Criterion> createVersionedFiles();
     std::unique_ptr<Criterion> createJunkFolders();

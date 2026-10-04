@@ -32,19 +32,11 @@ private:
     {
         beginTest ("Filter bar: exclude by words of the path, not of the name");
 
-        TempFolder temp;
-        juce::PropertiesFile::Options options;
-        options.filenameSuffix = ".settings";
-        juce::PropertiesFile file (temp.root.getChildFile ("p.settings"), options);
-        SettingsScope scope (file, "filter");
+        TempSettings temp;
+        auto scope = temp.scope ("filter");
         scope.set ("excludePath", "Node_Modules; build");
 
-        const auto entry = [&] (const juce::String& path)
-        {
-            FileEntry e;
-            e.file = temp.root.getChildFile (path);
-            return e;
-        };
+        const auto entry = [&] (const juce::String& path) { return entryAt (temp.root.getChildFile (path)); };
 
         FilterBar bar (scope);
         bar.setRoot (temp.root);
@@ -67,18 +59,9 @@ private:
         for (const char* fileName : { "a.m", "paper.tex", "refs.BIB" })
             expect (FileCategories::of (juce::File (fileName), false) == FileCategory::text, fileName);
 
-        TempFolder temp;
-        juce::PropertiesFile::Options options;
-        options.filenameSuffix = ".settings";
-        juce::PropertiesFile file (temp.root.getChildFile ("t.settings"), options);
-        SettingsScope scope (file, "filter");
-
-        const auto entry = [] (const juce::String& fileName)
-        {
-            FileEntry e;
-            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
-            return e;
-        };
+        TempSettings temp;
+        auto scope = temp.scope ("filter");
+        const auto entry = [] (const juce::String& fileName) { return tempEntry (fileName); };
 
         const auto accepted = [&]
         {

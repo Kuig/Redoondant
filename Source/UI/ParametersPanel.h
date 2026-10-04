@@ -46,6 +46,7 @@ private:
     /** The enable check box of parameters that have one (hasToggle). */
     void addEnableToggle (Parameter& parameter, Editor& editor);
     void changed (Parameter& parameter, const juce::var& newValue);
+    void notify();      ///< Calls onChange.
 
     /** Places editors in lines; returns the total height. */
     int layout (int width, bool apply) const;

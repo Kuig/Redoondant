@@ -85,13 +85,13 @@ namespace
     class SameContentDifferentFormat final : public Criterion
     {
     public:
-        explicit SameContentDifferentFormat (Criteria::MetadataSource source)
+        explicit SameContentDifferentFormat (MetadataSource source)
             : Criterion ({ "sameContent", "Similar metadata",
                            "Media and documents with matching metadata (artist, title, album; date taken, camera; title, author) "
                            "but a different format, such as FLAC and MP3 or DOCX and PDF. By default the largest file of each group is kept.",
                            Trait::grouped },
                         { DefaultSelection::followsSort, Column::size, false }),
-              readMetadata (source != nullptr ? std::move (source) : Criteria::MetadataSource (MetadataReader::read)) {}
+              readMetadata (source != nullptr ? std::move (source) : MetadataSource (MetadataReader::read)) {}
 
         ParameterSet createParameters() const override
         {
@@ -141,7 +141,7 @@ namespace
         }
 
     private:
-        Criteria::MetadataSource readMetadata;
+        MetadataSource readMetadata;
     };
 }
 

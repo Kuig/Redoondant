@@ -10,7 +10,7 @@ namespace
     class DateClusters final : public Criterion
     {
     public:
-        explicit DateClusters (Criteria::MetadataSource source)
+        explicit DateClusters (MetadataSource source)
             : Criterion ({ "dateClusters", "Date clusters",
                            "Files and folders grouped by creation or modification date, or by the date written in the content's metadata "
                            "(photo taken, document created...; folders and files without one are left out). "
@@ -54,7 +54,7 @@ namespace
         }
 
     private:
-        Criteria::MetadataSource readMetadata;
+        MetadataSource readMetadata;
     };
 }
 

@@ -1,6 +1,7 @@
 #include "ResultsModel.h"
 #include "../Core/Format.h"
 #include "../Core/Histogram.h"
+#include "../Core/Paths.h"
 #include <limits>
 #include <map>
 #include <set>
@@ -35,16 +36,7 @@ void ResultsModel::setResult (AnalysisResult newResult, const juce::File& scanne
     analysed = true;
     applySort();
     sortGroups();
-
-    if (defaultSelection)
-    {
-        DefaultSelections::apply (*defaultSelection, result.groups, [this] (const FileEntry& e) { return isVisible (e); });
-
-        for (auto& group : result.groups)
-            for (auto& item : group.items)
-                item.selected = item.selectedByDefault;
-    }
-
+    updateDefaults();
     rebuildRows();
 }
 
@@ -61,11 +53,11 @@ void ResultsModel::updateDefaults()
 
     DefaultSelections::apply (*defaultSelection, result.groups, [this] (const FileEntry& e) { return isVisible (e); });
 
+    // Hidden items follow too (they are never acted on), so they show the current defaults when a filter reveals them.
     for (auto& group : result.groups)
         if (group.phase == BulkCheck::defaults)
             for (auto& item : group.items)
-                if (isVisible (item))
-                    item.selected = item.selectedByDefault;
+                item.selected = item.selectedByDefault;
 }
 
 void ResultsModel::clear()
@@ -288,11 +280,11 @@ void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce
     std::map<juce::String, juce::Time> byPath;
 
     for (const auto& [file, time] : dates)
-        byPath[file.getFullPathName()] = time;
+        byPath[Paths::key (file)] = time;
 
     for (auto& group : result.groups)
         for (auto& item : group.items)
-            if (const auto found = byPath.find (item.file.getFullPathName()); found != byPath.end())
+            if (const auto found = byPath.find (Paths::key (item.file)); found != byPath.end())
                 item.contentCreated = found->second;
 
     if (sortColumn == Column::contentCreated || filterUsesContentDate)     // The new dates can change the order and what the filter lets through.
@@ -339,17 +331,10 @@ void ResultsModel::remove (const juce::Array<juce::File>& files)
     std::set<juce::String> removed;
 
     for (const auto& f : files)
-        removed.insert (f.getFullPathName());
+        removed.insert (Paths::key (f));
 
-    const auto isRemoved = [&] (const FileEntry& e)
-    {
-        // Also drop entries living inside a removed folder.
-        for (auto f = e.file; f != f.getParentDirectory(); f = f.getParentDirectory())
-            if (removed.count (f.getFullPathName()) > 0)
-                return true;
-
-        return false;
-    };
+    // Also drop entries living inside a removed folder.
+    const auto isRemoved = [&] (const FileEntry& e) { return removed.count (Paths::key (e.file)) > 0 || Paths::hasAncestorIn (e.file, removed); };
 
     std::vector<ListedGroup> kept;
 

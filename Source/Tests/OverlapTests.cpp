@@ -77,6 +77,25 @@ public:
             expectEquals ((int) model.getCheckedEntries().size(), 2);
         }
 
+        beginTest ("Hidden items follow the default checks, as shown when a filter reveals them");
+        {
+            TempFolder temp;
+            ResultsModel model;
+            model.setDefaultSelection (DefaultSelection::all);
+            model.setFilter ([] (const FileEntry& e) { return e.name() == "a.txt"; });
+            model.setResult (AnalysisResult::flat ({ FileScanner::makeEntry (temp.write ("a.txt", "a")), FileScanner::makeEntry (temp.write ("b.txt", "b")) }),
+                             temp.root, false);
+            model.setDefaultSelection (DefaultSelection::none);
+            model.setDefaultSelection (DefaultSelection::all);
+            model.setFilter ({});
+            expectEquals ((int) model.getCheckedEntries().size(), 2);
+
+            model.setFilter ([] (const FileEntry& e) { return e.name() == "a.txt"; });
+            model.setDefaultSelection (DefaultSelection::none);
+            model.setFilter ({});
+            expectEquals ((int) model.getCheckedEntries().size(), 0);     // Before, b.txt stayed checked while hidden.
+        }
+
         TempFolder temp;
         const auto x = temp.write ("a/x.txt", "1234");
         const auto y = temp.write ("a/y.txt", "1234");
@@ -147,6 +166,23 @@ public:
             betaRoot = temp.root.getChildFile ("b");
             expect (analyse ({}).groups.empty());
             betaRoot = temp.root;
+        }
+
+        beginTest ("The same path spelled differently by two pages is one item");
+        if (! juce::File::areFileNamesCaseSensitive())
+        {
+            FakeCriterion upper ("Upper", { mark (juce::File (x.getFullPathName().toUpperCase()), true) });
+            std::vector<PeerCriterion> list { { &alpha, {}, alpha.items, alpha.checked, temp.root, DefaultSelection::all },
+                                              { &upper, {}, upper.items, upper.checked, temp.root, DefaultSelection::all } };
+
+            const auto result = run (*itemsCriterion, temp.root, false, [] (ParameterSet& p)
+            {
+                setParameter (p, "marked", (int) OverlapMarked::checkedItems);
+                setParameter (p, "minCriteria", 2);
+            }, list);
+
+            expectEquals ((int) allItems (result).size(), 1);
+            expect (result.groups[0].title.startsWith ("Alpha + Upper"));
         }
 
         beginTest ("Folders only: top folders by count");

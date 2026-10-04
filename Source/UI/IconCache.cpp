@@ -55,8 +55,8 @@ juce::Image IconCache::get (const FileEntry& entry)
         if (const auto found = shared->icons.find (key); found != shared->icons.end())
             return found->second;
 
-        if (! shared->requested.insert (key).second || shared->requested.size() > maxCachedIcons)
-            return {};
+        if (shared->requested.size() >= maxCachedIcons || ! shared->requested.insert (key).second)
+            return {};      // Already on its way, or the cache is full (then nothing is recorded, so nothing waits forever).
     }
 
     loader.addJob ([state = shared, file = entry.file, key, owner = this]

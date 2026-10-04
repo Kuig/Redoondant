@@ -2,6 +2,7 @@
 #include "../Core/FileScanner.h"
 #include "../Core/Format.h"
 #include "../Core/Grouping.h"
+#include "../Core/Paths.h"
 #include "ParameterChoices.h"
 #include <map>
 
@@ -9,14 +10,16 @@ namespace
 {
     using namespace ParameterChoices;
 
-    /** Which criteria mark each path (directly, not through a parent folder). */
+    /** Which criteria mark each path (directly, not through a parent folder). Keyed by Paths::key: the lists of
+        different pages may spell the same path differently.
+    */
     struct Marks
     {
         std::map<juce::String, std::pair<FileEntry, juce::StringArray>> byPath;
 
         void add (const FileEntry& entry, const juce::String& criterion)
         {
-            auto& mark = byPath[entry.file.getFullPathName()];
+            auto& mark = byPath[Paths::key (entry.file)];
             mark.first = entry;
             mark.second.addIfNotAlreadyThere (criterion);
         }
@@ -28,7 +31,7 @@ namespace
 
             for (auto f = file; f != root && f != f.getParentDirectory(); f = f.getParentDirectory())
             {
-                const auto found = byPath.find (f.getFullPathName());
+                const auto found = byPath.find (Paths::key (f));
 
                 if (found != byPath.end())
                     names.mergeArray (found->second.second);
@@ -141,7 +144,7 @@ namespace
         {
             if (entry.isDirectory)
             {
-                folders.emplace (entry.file.getFullPathName(), std::move (entry));
+                folders.emplace (Paths::key (entry.file), std::move (entry));
                 continue;
             }
 
@@ -149,7 +152,7 @@ namespace
 
             for (auto dir = entry.file.getParentDirectory(); dir != root && dir.isAChildOf (root); dir = dir.getParentDirectory())
             {
-                auto& tally = tallies[dir.getFullPathName()];
+                auto& tally = tallies[Paths::key (dir)];
                 ++tally.files;
                 tally.bytes += entry.size;
 
@@ -190,8 +193,9 @@ namespace
             {
                 bool outermost = true;
 
-                for (auto dir = juce::File (path).getParentDirectory(); dir != root && dir.isAChildOf (root); dir = dir.getParentDirectory())
-                    outermost = outermost && ! qualifies (dir.getFullPathName());
+                for (auto dir = folders.count (path) > 0 ? folders.at (path).file.getParentDirectory() : root;
+                     dir != root && dir.isAChildOf (root); dir = dir.getParentDirectory())
+                    outermost = outermost && ! qualifies (Paths::key (dir));
 
                 if (outermost && qualifies (path) && folders.count (path) > 0)
                     selected.emplace_back (folders.at (path), tally);

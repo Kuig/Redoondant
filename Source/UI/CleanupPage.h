@@ -32,7 +32,7 @@ private:
     std::unique_ptr<juce::FileChooser> chooser;
 
     std::vector<Folder> folders;
-    std::set<juce::String> checkedPaths;    ///< Full paths of the checked folders.
+    std::set<juce::String> checkedPaths;    ///< Paths::key of the checked folders.
     LatestOnlyWorker measurer;
 
     void loadFolders();

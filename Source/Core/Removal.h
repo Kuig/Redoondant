@@ -23,9 +23,6 @@ namespace Removal
     */
     using Progress = std::function<bool (double fraction, const juce::String& currentItem)>;
 
-    /** The key to compare paths with: lower case where file names are case-insensitive (Windows). */
-    juce::String pathKey (const juce::File& file);
-
     /** Removes duplicates and entries contained in another entry's folder,
         so nothing is counted (or moved) twice.
     */

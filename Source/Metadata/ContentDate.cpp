@@ -1,5 +1,6 @@
 #include "ContentDate.h"
 #include "MetadataReader.h"
+#include "../Core/Paths.h"
 #include <map>
 #include <mutex>
 
@@ -39,7 +40,7 @@ juce::Time ContentDate::of (const juce::File& file, const MetadataSource& source
     static std::mutex lock;
     static std::map<juce::String, Cached> cache;
 
-    const auto key = file.getFullPathName();
+    const auto key = Paths::key (file);
     const auto modified = file.getLastModificationTime();
 
     {

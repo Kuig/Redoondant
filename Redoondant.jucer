@@ -41,6 +41,7 @@
         <FILE id="kDyr7O" name="Settings.h" compile="0" resource="0" file="Source/Core/Settings.h"/>
         <FILE id="SJoRu1" name="Removal.cpp" compile="1" resource="0" file="Source/Core/Removal.cpp"/>
         <FILE id="XXdo0c" name="Removal.h" compile="0" resource="0" file="Source/Core/Removal.h"/>
+        <FILE id="PthsH1" name="Paths.h" compile="0" resource="0" file="Source/Core/Paths.h"/>
       </GROUP>
       <GROUP id="{Zuzren}" name="Criteria">
         <FILE id="68K4Tu" name="AllCriteria.h" compile="0" resource="0" file="Source/Criteria/AllCriteria.h"/>

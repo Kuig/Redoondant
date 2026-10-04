@@ -1,11 +1,7 @@
 #include "FilterBar.h"
 #include "../Core/FileCategory.h"
+#include "../Core/Format.h"
 #include "../Core/Histogram.h"
-
-namespace
-{
-    constexpr double bytesPerMB = 1024.0 * 1024.0;
-}
 
 ParameterSet FilterBar::createParameters()
 {
@@ -64,8 +60,8 @@ ResultsModel::Filter FilterBar::createFilter() const
 
     const auto kind = parameters.getEnum<DateKind> ("dateKind");
     const int dateBucket = parameters.getChoice ("age") - 1;        // -1: any date.
-    const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * bytesPerMB);
-    const auto maxBytes = (juce::int64) (parameters.getNumber ("maxSize") * bytesPerMB);
+    const auto minBytes = (juce::int64) (parameters.getNumber ("minSize") * Format::bytesPerMB);
+    const auto maxBytes = (juce::int64) (parameters.getNumber ("maxSize") * Format::bytesPerMB);
     const auto now = juce::Time::getCurrentTime();
     const auto base = root;
 

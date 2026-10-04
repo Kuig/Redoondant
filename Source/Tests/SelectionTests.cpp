@@ -33,12 +33,7 @@ private:
     {
         beginTest ("Group check boxes cycle default -> all -> none");
 
-        const auto entry = [] (const juce::String& fileName)
-        {
-            FileEntry e;
-            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
-            return e;
-        };
+        const auto entry = [] (const juce::String& fileName) { return tempEntry (fileName); };
 
         AnalysisResult result;
         result.groups.push_back ({ "first", { entry ("a"), entry ("b"), entry ("gone") } });
@@ -71,14 +66,7 @@ private:
     {
         beginTest ("Default selection strategies");
 
-        const auto entry = [] (const juce::String& fileName, juce::int64 size = 1, bool folder = false)
-        {
-            FileEntry e;
-            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
-            e.size = size;
-            e.isDirectory = folder;
-            return e;
-        };
+        const auto entry = [] (const juce::String& fileName, juce::int64 size = 1, bool folder = false) { return tempEntry (fileName, size, {}, folder); };
 
         const auto makeResult = [&]
         {
@@ -160,11 +148,7 @@ private:
 
         const auto entry = [] (const juce::String& fileName, juce::int64 size, int daysAgo)
         {
-            FileEntry e;
-            e.file = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (fileName);
-            e.size = size;
-            e.modified = juce::Time::getCurrentTime() - juce::RelativeTime::days (daysAgo);
-            return e;
+            return tempEntry (fileName, size, juce::Time::getCurrentTime() - juce::RelativeTime::days (daysAgo));
         };
 
         AnalysisResult result;

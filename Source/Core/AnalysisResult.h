@@ -39,4 +39,12 @@ struct AnalysisResult
         result.groups.push_back ({ {}, std::move (items) });
         return result;
     }
+
+    /** flat() of the items sorted by `order` (a strict weak ordering of entries). */
+    template <typename Order>
+    static AnalysisResult flatSorted (std::vector<FileEntry> items, Order&& order)
+    {
+        std::sort (items.begin(), items.end(), std::forward<Order> (order));
+        return flat (std::move (items));
+    }
 };

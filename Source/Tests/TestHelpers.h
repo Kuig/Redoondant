@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/FileScanner.h"
+#include "../Core/Settings.h"
 #include "../Criteria/Criterion.h"
 #include "../Criteria/Peers.h"
 #include "../UI/ResultsModel.h"
@@ -24,6 +25,66 @@ namespace TestHelpers
 
         juce::File root;
     };
+
+    /** A temporary folder with a settings file in it. */
+    struct TempSettings : TempFolder
+    {
+        TempSettings() : file (root.getChildFile ("t.settings"), options()) {}
+
+        SettingsScope scope (const juce::String& prefix)    { return SettingsScope (file, prefix); }
+
+        juce::PropertiesFile file;
+
+    private:
+        static juce::PropertiesFile::Options options()
+        {
+            juce::PropertiesFile::Options o;
+            o.filenameSuffix = ".settings";
+            return o;
+        }
+    };
+
+    /** A synthetic entry (nothing is read from the disk). */
+    inline FileEntry entryAt (const juce::File& file, juce::int64 size = 0, juce::Time modified = {}, bool folder = false)
+    {
+        FileEntry e;
+        e.file = file;
+        e.size = size;
+        e.modified = modified;
+        e.isDirectory = folder;
+        return e;
+    }
+
+    /** entryAt() for a name in the temporary directory. */
+    inline FileEntry tempEntry (const juce::String& path, juce::int64 size = 0, juce::Time modified = {}, bool folder = false)
+    {
+        return entryAt (juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile (path), size, modified, folder);
+    }
+
+    /** The names of every item of a list, sorted. */
+    inline juce::StringArray namesOf (const ListedResult& result)
+    {
+        juce::StringArray names;
+
+        for (const auto& group : result.groups)
+            for (const auto& item : group.items)
+                names.add (item.name());
+
+        names.sort (true);
+        return names;
+    }
+
+    /** Zips files of `base` (relative paths), optionally all inside a root folder of the archive. */
+    inline void writeZip (const juce::File& zip, const juce::File& base, const juce::StringArray& relativePaths, const juce::String& rootName = {})
+    {
+        juce::ZipFile::Builder builder;
+
+        for (const auto& path : relativePaths)
+            builder.addFile (base.getChildFile (path), 9, rootName.isEmpty() ? path : rootName + "/" + path);
+
+        juce::FileOutputStream out (zip);
+        builder.writeToStream (out, nullptr);
+    }
 
     /** Runs a criterion with its default parameters (optionally tweaked), then sorts and checks the result
         the way a page does at start: the criterion's default sort and default selection.

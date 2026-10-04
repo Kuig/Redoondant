@@ -1,35 +1,20 @@
 #include "Removal.h"
 #include "MoveToFolder.h"
+#include "Paths.h"
 #include "../Platform/RecycleBin.h"
-#include <set>
-
-juce::String Removal::pathKey (const juce::File& file)
-{
-    const auto path = file.getFullPathName();
-    return juce::File::areFileNamesCaseSensitive() ? path : path.toLowerCase();
-}
 
 std::vector<FileEntry> Removal::withoutNested (std::vector<FileEntry> entries)
 {
     std::set<juce::String> paths;
 
     for (const auto& entry : entries)
-        paths.insert (pathKey (entry.file));
-
-    const auto hasSelectedAncestor = [&] (const juce::File& file)
-    {
-        for (auto parent = file.getParentDirectory(); parent != parent.getParentDirectory(); parent = parent.getParentDirectory())
-            if (paths.count (pathKey (parent)) > 0)
-                return true;
-
-        return false;
-    };
+        paths.insert (Paths::key (entry.file));
 
     std::set<juce::String> kept;
     std::vector<FileEntry> result;
 
     for (auto& entry : entries)
-        if (! hasSelectedAncestor (entry.file) && kept.insert (pathKey (entry.file)).second)
+        if (! Paths::hasAncestorIn (entry.file, paths) && kept.insert (Paths::key (entry.file)).second)
             result.push_back (std::move (entry));
 
     return result;

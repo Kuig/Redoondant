@@ -151,11 +151,8 @@ private:
 
         beginTest ("Lists in settings");
         {
-            TempFolder temp;
-            juce::PropertiesFile::Options options;
-            options.filenameSuffix = ".settings";
-            juce::PropertiesFile file (temp.root.getChildFile ("t.settings"), options);
-            SettingsScope scope (file, "cleanup");
+            TempSettings temp;
+            auto scope = temp.scope ("cleanup");
 
             expect (! scope.has ("folders"));
             scope.setList ("folders", { "%TEMP%", "D:\\a b\\c" });

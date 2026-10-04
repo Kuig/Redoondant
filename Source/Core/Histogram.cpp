@@ -1,11 +1,12 @@
 #include "Histogram.h"
 #include "FileCategory.h"
+#include "Format.h"
 #include <map>
 
 namespace
 {
     constexpr int maxFolders = 10;
-    constexpr double bytesPerMB = 1024.0 * 1024.0;
+    using Format::bytesPerMB;
 }
 
 const juce::StringArray& Histogram::propertyNames()

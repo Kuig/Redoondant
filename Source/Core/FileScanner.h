@@ -38,9 +38,8 @@ namespace FileScanner
         return entries;
     }
 
-    /** Keeps only files (or only folders) from a list of entries. */
+    /** Keeps only the files of a list of entries. */
     std::vector<FileEntry> filesOnly (std::vector<FileEntry> entries);
-    std::vector<FileEntry> foldersOnly (std::vector<FileEntry> entries);
 
     /** The files of context.root (and of its sub-folders if context.recursive), without computing folder sizes: the cheap scan. */
     std::vector<FileEntry> scanFiles (const ScanContext& context);

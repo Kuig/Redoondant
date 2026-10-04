@@ -54,7 +54,6 @@ public:
     DefaultSelection getDefaultSelection() const    { return defaultSelection.value_or (DefaultSelection::none); }
 
     bool hasResult() const noexcept                 { return analysed; }
-    bool isGrouped() const noexcept                 { return grouped; }
 
     int getNumRows() const noexcept                 { return (int) rows.size(); }
     const Row* getRow (int index) const;

@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the histogram is refreshed at most every quarter of a second and the folder filters are cheaper.
 - Changing the folder to analyze now discards the results of every criterion; they used to stay on screen
   although they described the previous folder.
+- *Multiple criteria* recognises the same item in the lists of two pages even when they spell its path with different upper/lower case.
+- Rows hidden by a filter follow the default checks too, so a filter that reveals them shows the current default instead of an older one.
+- File icons could stay missing for good in very long lists.
 
 ## [1.1.0] - 2026-10-03
 ### Added
