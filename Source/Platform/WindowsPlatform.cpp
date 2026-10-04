@@ -23,6 +23,7 @@
 #endif
 
 #include "ComInit.h"
+#include "FileSystem.h"
 #include "RecycleBin.h"
 #include "ShellContextMenu.h"
 #include "ShellIcon.h"
@@ -409,7 +410,43 @@ Metadata MetadataReader::readSystemProperties (const juce::File& file)
     return metadata;
 }
 
+//==============================================================================
+FileSystem::Rename FileSystem::rename (const juce::File& source, const juce::File& target)
+{
+    // No MOVEFILE_COPY_ALLOWED: a move that can't be a rename is reported, and the caller copies with its own checks.
+    if (MoveFileExW (source.getFullPathName().toWideCharPointer(), target.getFullPathName().toWideCharPointer(), 0))
+        return Rename::done;
+
+    return GetLastError() == ERROR_NOT_SAME_DEVICE ? Rename::otherVolume : Rename::failed;
+}
+
+namespace
+{
+    DWORD CALLBACK copyProgress (LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, LARGE_INTEGER, DWORD, DWORD, HANDLE, HANDLE, LPVOID data)
+    {
+        const auto& shouldStop = *static_cast<const FileSystem::ShouldStop*> (data);
+        return shouldStop != nullptr && shouldStop() ? PROGRESS_CANCEL : PROGRESS_CONTINUE;     // Cancel also deletes the partial copy.
+    }
+}
+
+bool FileSystem::copyFile (const juce::File& source, const juce::File& target, const ShouldStop& shouldStop)
+{
+    BOOL cancel = FALSE;
+    return CopyFileExW (source.getFullPathName().toWideCharPointer(), target.getFullPathName().toWideCharPointer(),
+                        copyProgress, const_cast<ShouldStop*> (&shouldStop), &cancel, COPY_FILE_FAIL_IF_EXISTS) != 0;
+}
+
 #else
+
+FileSystem::Rename FileSystem::rename (const juce::File& source, const juce::File& target)
+{
+    return source.moveFileTo (target) ? Rename::done : Rename::otherVolume;
+}
+
+bool FileSystem::copyFile (const juce::File& source, const juce::File& target, const ShouldStop&)
+{
+    return ! target.exists() && source.copyFileTo (target);
+}
 
 ScopedComInit::ScopedComInit()  {}
 ScopedComInit::~ScopedComInit() {}
@@ -422,3 +459,37 @@ bool RecycleBin::move (const juce::File& file)                            { retu
 Metadata MetadataReader::readSystemProperties (const juce::File&)         { return {}; }
 
 #endif
+
+//==============================================================================
+FileSystem::Deletion FileSystem::deleteTree (const juce::File& file, const ShouldStop& shouldStop)
+{
+    Deletion result;
+
+    std::function<void (const juce::File&)> remove = [&] (const juce::File& item)
+    {
+        if (shouldStop != nullptr && shouldStop())
+        {
+            result.stopped = true;
+            return;
+        }
+
+        if (item.isDirectory() && ! item.isSymbolicLink())
+        {
+            for (const auto& child : item.findChildFiles (juce::File::findFilesAndDirectories, false, "*",
+                                                          juce::File::FollowSymlinks::no))
+            {
+                remove (child);
+
+                if (result.stopped)
+                    return;
+            }
+        }
+
+        // A read-only attribute is no reason to keep an item the user deletes (Explorer asks once and goes on).
+        const bool deleted = item.deleteFile() || (item.setReadOnly (false) && item.deleteFile());
+        ++(deleted ? result.deleted : result.failed);
+    };
+
+    remove (file);
+    return result;
+}

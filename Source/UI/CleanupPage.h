@@ -53,9 +53,10 @@ private:
     void showMeasured (std::vector<Measured> measured);
     void updateButtons();
 
-    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const override;
+    Expander removalExpander() const override;
     juce::String describe (const std::vector<FileEntry>& checked) const override    { return "the contents of " + RemovalPage::describe (checked); }
     void itemsGone (const juce::Array<juce::File>&) override    { refresh(); }
+    void itemsChanged (const std::vector<FileEntry>&) override  {}      // itemsGone measures everything again.
     void checksChanged() override;
     juce::String failureAdvice() const override;
     juce::String itemNoun() const override                      { return "folder"; }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ListedResult.h"
+#include "../Core/Removal.h"
 #include <optional>
 
 enum class CheckState { none, some, all };
@@ -104,6 +105,12 @@ public:
         with fewer than 2 are dropped (a single remaining file is no longer a duplicate, a version...).
     */
     void remove (const juce::Array<juce::File>& files);
+
+    /** Replaces the scan data (size, dates...) of the listed items that are in `entries`, keeping their state and content date. */
+    void update (const std::vector<FileEntry>& entries);
+
+    /** For each group with some of `acted`: the group's other items, which stay (see Removal::Keepers). */
+    Removal::Keepers keepersOf (const std::vector<FileEntry>& acted) const;
 
 private:
     ListedResult result;

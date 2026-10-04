@@ -1,7 +1,27 @@
 #include "Removal.h"
+#include "Format.h"
+#include "FileScanner.h"
 #include "MoveToFolder.h"
 #include "Paths.h"
+#include "../Platform/FileSystem.h"
 #include "../Platform/RecycleBin.h"
+
+void Removal::Keepers::add (const std::vector<FileEntry>& acted, std::vector<FileEntry> kept)
+{
+    if (acted.empty() || kept.empty())
+        return;
+
+    for (const auto& entry : acted)
+        groupOf[Paths::key (entry.file)] = groups.size();
+
+    groups.push_back (std::move (kept));
+}
+
+const std::vector<FileEntry>* Removal::Keepers::keptWith (const juce::File& file) const
+{
+    const auto found = groupOf.find (Paths::key (file));
+    return found != groupOf.end() ? &groups[found->second] : nullptr;
+}
 
 std::vector<FileEntry> Removal::withoutNested (std::vector<FileEntry> entries)
 {
@@ -34,32 +54,48 @@ int Removal::countWithoutRecycleBin (std::vector<FileEntry> entries)
 namespace
 {
     /** What an action did with one item: skipped items are left alone without being failures;
-        leftBehind ones were copied but their original couldn't be removed completely.
+        leftBehind ones were copied but their original couldn't be removed completely; partial ones were deleted in part.
     */
-    enum class Outcome { done, failed, skipped, leftBehind };
+    enum class Outcome { done, failed, skipped, leftBehind, partial };
 
     struct ItemResult
     {
         Outcome outcome = Outcome::failed;
-        juce::String message;       // What to say after the path, for failed and leftBehind.
+        juce::String message;       // What to say after the path, for failed, leftBehind and partial.
     };
 
-    /** True if the file was modified since the analysis listed it: it may no longer be what the user reviewed
-        (a duplicate that was edited, a folder that got new files). Entries without a recorded date can't be compared.
+    /** True if the item was modified since the analysis listed it: it may no longer be what the user reviewed
+        (a duplicate that was edited, a folder that got new files, even deep inside). Entries without a recorded date can't be compared.
     */
     bool changedSinceAnalysis (const FileEntry& entry)
     {
         if (entry.modified.toMilliseconds() <= 0)
             return false;
 
-        return entry.file.getLastModificationTime() != entry.modified
-                || (! entry.isDirectory && entry.file.getSize() != entry.size);
+        if (entry.file.getLastModificationTime() != entry.modified)
+            return true;
+
+        if (! entry.isDirectory)
+            return entry.file.getSize() != entry.size;
+
+        // A folder's date only changes with its direct children: measure its whole content again.
+        const auto now = FileScanner::makeEntry (entry.file);
+        return now.size != entry.size || now.fileCount != entry.fileCount;
+    }
+
+    /** True if one of the items kept in the entry's group is still there as analysed (or the group has no guard). */
+    bool keptCopyRemains (const FileEntry& entry, const Removal::Keepers& keepers)
+    {
+        const auto* kept = keepers.keptWith (entry.file);
+
+        return kept == nullptr
+            || std::any_of (kept->begin(), kept->end(), [] (const FileEntry& k) { return k.file.exists() && ! changedSinceAnalysis (k); });
     }
 
     /** Runs `act` on each item (after withoutNested) with progress and cancellation, and fills the report.
         Items that don't exist any more are counted apart: they are gone from the list but not "removed" by us.
     */
-    RemovalReport forEachItem (std::vector<FileEntry> entries, const Removal::Progress& progress,
+    RemovalReport forEachItem (std::vector<FileEntry> entries, const ScanContext& context, const Removal::Keepers& keepers,
                                const std::function<ItemResult (const FileEntry&)>& act)
     {
         RemovalReport report;
@@ -73,9 +109,9 @@ namespace
         for (size_t i = 0; i < items.size(); ++i)
         {
             const auto& entry = items[i];
-            const double fraction = totalBytes > 0 ? (double) doneBytes / (double) totalBytes : (double) i / (double) items.size();
+            context.progress (totalBytes > 0 ? (double) doneBytes / (double) totalBytes : (double) i / (double) items.size(), entry.name());
 
-            if (progress != nullptr && ! progress (fraction, entry.name()))
+            if (context.isCancelled())
             {
                 report.cancelled = true;
                 break;
@@ -93,6 +129,13 @@ namespace
             if (changedSinceAnalysis (entry))
             {
                 report.failures.add (entry.file.getFullPathName() + "  (changed since the analysis: left untouched)");
+                continue;
+            }
+
+            if (! keptCopyRemains (entry, keepers))
+            {
+                report.failures.add (entry.file.getFullPathName() + "  (the item kept in its group is gone or changed since the analysis: "
+                                                                    "left untouched, so a copy remains)");
                 continue;
             }
 
@@ -115,19 +158,34 @@ namespace
                     report.files.add (entry.file);
                     break;
 
+                case Outcome::partial:
+                {
+                    auto now = FileScanner::makeEntry (entry.file);
+                    report.bytes += juce::jmax ((juce::int64) 0, entry.size - now.size);
+                    report.partlyDeleted.add (described);
+                    report.shrunk.push_back (std::move (now));
+                    break;
+                }
+
                 case Outcome::failed:       report.failures.add (described); break;
                 case Outcome::leftBehind:   report.leftBehind.add (described); break;
                 case Outcome::skipped:      break;
             }
         }
 
+        report.cancelled = report.cancelled || context.isCancelled();
         return report;
+    }
+
+    FileSystem::ShouldStop stopperOf (const ScanContext& context)
+    {
+        return [&context] { return context.isCancelled(); };
     }
 }
 
-RemovalReport Removal::toTrash (std::vector<FileEntry> entries, const Progress& progress)
+RemovalReport Removal::toTrash (std::vector<FileEntry> entries, const ScanContext& context, const Keepers& keepers)
 {
-    return forEachItem (std::move (entries), progress, [] (const FileEntry& entry)
+    return forEachItem (std::move (entries), context, keepers, [] (const FileEntry& entry)
     {
         ItemResult result;
 
@@ -144,21 +202,33 @@ RemovalReport Removal::toTrash (std::vector<FileEntry> entries, const Progress& 
     });
 }
 
-RemovalReport Removal::deletePermanently (std::vector<FileEntry> entries, const Progress& progress)
+RemovalReport Removal::deletePermanently (std::vector<FileEntry> entries, const ScanContext& context, const Keepers& keepers)
 {
-    return forEachItem (std::move (entries), progress, [] (const FileEntry& entry)
+    return forEachItem (std::move (entries), context, keepers, [&context] (const FileEntry& entry)
     {
         ItemResult result;
-        const auto& f = entry.file;
+        const auto deletion = FileSystem::deleteTree (entry.file, stopperOf (context));
 
-        if (f.isDirectory() ? f.deleteRecursively() : f.deleteFile())
+        if (deletion.complete())
+        {
             result.outcome = Outcome::done;
+        }
+        else if (deletion.deleted > 0 && entry.file.exists())
+        {
+            result.outcome = Outcome::partial;
+            result.message = deletion.stopped ? "stopped half-way" : Format::count (deletion.failed, "item") + " could not be deleted (in use?)";
+        }
+        else
+        {
+            result.message = "in use, or no permission?";
+        }
 
         return result;
     });
 }
 
-RemovalReport Removal::toFolder (std::vector<FileEntry> entries, const juce::File& destination, const Progress& progress)
+RemovalReport Removal::toFolder (std::vector<FileEntry> entries, const juce::File& destination, const ScanContext& context,
+                                 const Keepers& keepers)
 {
     if (! destination.isDirectory())
     {
@@ -167,7 +237,7 @@ RemovalReport Removal::toFolder (std::vector<FileEntry> entries, const juce::Fil
         return report;
     }
 
-    return forEachItem (std::move (entries), progress, [&] (const FileEntry& entry)
+    return forEachItem (std::move (entries), context, keepers, [&] (const FileEntry& entry)
     {
         ItemResult result;
         const auto& file = entry.file;
@@ -184,7 +254,7 @@ RemovalReport Removal::toFolder (std::vector<FileEntry> entries, const juce::Fil
             return result;
         }
 
-        switch (MoveToFolder::moveItem (file, MoveToFolder::uniqueTarget (destination, file.getFileName())))
+        switch (MoveToFolder::moveItem (file, MoveToFolder::uniqueTarget (destination, file.getFileName()), false, stopperOf (context)))
         {
             case MoveToFolder::Outcome::moved:
                 result.outcome = Outcome::done;
@@ -196,10 +266,15 @@ RemovalReport Removal::toFolder (std::vector<FileEntry> entries, const juce::Fil
                 break;
 
             case MoveToFolder::Outcome::containsLinks:
-                result.message = "contains links (junctions or symbolic links), which can't be copied between drives";
+                result.message = "is or contains links (junctions or symbolic links), which can't be copied between drives";
+                break;
+
+            case MoveToFolder::Outcome::stopped:
+                result.message = "stopped during the copy: left untouched";
                 break;
 
             case MoveToFolder::Outcome::failed:
+                result.message = "could not be moved (in use, or no permission?)";
                 break;
         }
 

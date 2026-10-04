@@ -89,7 +89,7 @@ namespace
             : Criterion ({ "sameContent", "Similar metadata",
                            "Media and documents with matching metadata (artist, title, album; date taken, camera; title, author) "
                            "but a different format, such as FLAC and MP3 or DOCX and PDF. By default the largest file of each group is kept.",
-                           Trait::grouped },
+                           Trait::grouped | Trait::groupsOfCopies },
                         { DefaultSelection::followsSort, Column::size, false }),
               readMetadata (source != nullptr ? std::move (source) : MetadataSource (MetadataReader::read)) {}
 

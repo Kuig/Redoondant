@@ -40,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Move to Trash, Move to folder and Delete permanently act on exactly the items their confirmation described: content dates arriving while
   the question is open (which can re-sort a list and change the item each group keeps) no longer change what is removed.
 - The Cache Cleaner's confirmation no longer counts twice a folder listed inside another checked one.
+- **The last copy is never removed.** In the groups of copies (duplicates, versions, same name, similar metadata, an archive and its folder) a
+  checked item is left untouched when the copy kept in its group has been removed or changed since the analysis, for example from another
+  page or in Explorer; and what an action removes now leaves the lists of the other pages too.
+- A folder changed deep inside since the analysis (a new file in a sub-folder) is left untouched: only changes of its direct content were noticed.
+- Delete permanently removes read-only files too, and a folder deleted only in part (a file in use) is reported as such and shown with its
+  new size, instead of "could not be removed".
+- Move to folder no longer copies an item whose rename failed on the same drive (a file in use): that left a second copy and a half-deleted
+  original. A link (junction, symbolic link) is not copied to another drive.
+- Cancel stops copies between drives and deletions in the middle of a big item, and the Cache Cleaner while it lists the folders to empty.
 - Cancel no longer kills an analysis or a removal after 10 seconds (which could leave a lock held or lose the report): the operation stops at
   the next item. Closing the window while one runs is refused with a message.
 

@@ -1,4 +1,5 @@
 #include "MoveToFolder.h"
+#include "../Platform/FileSystem.h"
 
 juce::File MoveToFolder::uniqueTarget (const juce::File& destination, const juce::String& name)
 {
@@ -66,8 +67,8 @@ namespace
         return total;
     }
 
-    /** Copies a folder tree without following links; false if anything could not be copied. */
-    bool copyTree (const juce::File& source, const juce::File& target)
+    /** Copies a folder tree without following links; false if anything could not be copied (or shouldStop said so). */
+    bool copyTree (const juce::File& source, const juce::File& target, const FileSystem::ShouldStop& shouldStop)
     {
         if (! target.createDirectory())
             return false;
@@ -78,7 +79,7 @@ namespace
             const auto file = entry.getFile();
             const auto copy = target.getChildFile (file.getFileName());
 
-            if (entry.isDirectory() ? ! copyTree (file, copy) : ! file.copyFileTo (copy))
+            if (entry.isDirectory() ? ! copyTree (file, copy, shouldStop) : ! FileSystem::copyFile (file, copy, shouldStop))
                 return false;
         }
 
@@ -86,20 +87,31 @@ namespace
     }
 }
 
-MoveToFolder::Outcome MoveToFolder::moveItem (const juce::File& source, const juce::File& target, bool forceCopy)
+MoveToFolder::Outcome MoveToFolder::moveItem (const juce::File& source, const juce::File& target, bool forceCopy,
+                                              const std::function<bool()>& shouldStop)
 {
     if (target.exists())
-        return Outcome::failed;     // moveFileTo would delete it.
+        return Outcome::failed;     // Never overwrite.
 
-    if (! forceCopy && source.moveFileTo (target))
-        return Outcome::moved;
+    if (! forceCopy)
+    {
+        const auto renamed = FileSystem::rename (source, target);
+
+        if (renamed != FileSystem::Rename::otherVolume)
+            return renamed == FileSystem::Rename::done ? Outcome::moved : Outcome::failed;
+    }
+
+    if (source.isSymbolicLink())
+        return Outcome::containsLinks;      // Copying would copy what it leads to, then delete only the link.
+
+    const auto stopped = [&] { return shouldStop != nullptr && shouldStop(); };
 
     if (! source.isDirectory())
     {
-        if (! source.copyFileTo (target))
-            return Outcome::failed;
+        if (! FileSystem::copyFile (source, target, shouldStop))
+            return stopped() ? Outcome::stopped : Outcome::failed;
 
-        return source.deleteFile() ? Outcome::moved : Outcome::copiedOriginalKept;
+        return FileSystem::deleteTree (source).complete() ? Outcome::moved : Outcome::copiedOriginalKept;
     }
 
     // Folders can't be renamed across drives: copy, check the copy, and only then remove the original.
@@ -108,14 +120,14 @@ MoveToFolder::Outcome MoveToFolder::moveItem (const juce::File& source, const ju
     if (before.hasLinks)
         return Outcome::containsLinks;
 
-    const auto copiedWell = copyTree (source, target);
+    const auto copiedWell = copyTree (source, target, shouldStop);
     const auto after = copiedWell ? measure (target) : TreeSize();
 
     if (! copiedWell || after.items != before.items || after.bytes != before.bytes)
     {
-        target.deleteRecursively();     // Don't leave a partial copy behind.
-        return Outcome::failed;
+        FileSystem::deleteTree (target);    // Don't leave a partial copy behind.
+        return stopped() ? Outcome::stopped : Outcome::failed;
     }
 
-    return source.deleteRecursively() ? Outcome::moved : Outcome::copiedOriginalKept;
+    return FileSystem::deleteTree (source).complete() ? Outcome::moved : Outcome::copiedOriginalKept;
 }

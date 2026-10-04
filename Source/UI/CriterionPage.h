@@ -47,6 +47,11 @@ private:
     juce::String progressNote() const override;
     int groupsWithoutKeptItem() const override          { return criterion.getInfo().grouped ? model.countGroupsFullyChecked() : 0; }
 
+    Removal::Keepers keepersOf (const std::vector<FileEntry>& checked) const override
+    {
+        return criterion.getInfo().groupsOfCopies ? model.keepersOf (checked) : Removal::Keepers();
+    }
+
     void analyse();
     void applyFilter();             ///< The filter bar changed: refilter the list.
     void showResult (AnalysisResult result, const juce::File& root);

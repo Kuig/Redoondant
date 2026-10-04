@@ -353,6 +353,51 @@ void ResultsModel::remove (const juce::Array<juce::File>& files)
     rebuildRows();
 }
 
+void ResultsModel::update (const std::vector<FileEntry>& entries)
+{
+    std::map<juce::String, const FileEntry*> byPath;
+
+    for (const auto& entry : entries)
+        byPath[Paths::key (entry.file)] = &entry;
+
+    for (auto& group : result.groups)
+        for (auto& item : group.items)
+            if (const auto found = byPath.find (Paths::key (item.file)); found != byPath.end())
+            {
+                const auto contentCreated = item.contentCreated;
+                static_cast<FileEntry&> (item) = *found->second;
+                item.contentCreated = contentCreated;
+            }
+
+    applySort();
+    rebuildRows();
+}
+
+Removal::Keepers ResultsModel::keepersOf (const std::vector<FileEntry>& acted) const
+{
+    std::set<juce::String> actedPaths;
+
+    for (const auto& entry : acted)
+        actedPaths.insert (Paths::key (entry.file));
+
+    Removal::Keepers keepers;
+
+    for (const auto& group : result.groups)
+    {
+        std::vector<FileEntry> inAction, kept;
+
+        for (const auto& item : group.items)
+            if (actedPaths.count (Paths::key (item.file)) > 0)
+                inAction.push_back (item);
+            else if (! item.missing)
+                kept.push_back (item);
+
+        keepers.add (inAction, std::move (kept));
+    }
+
+    return keepers;
+}
+
 void ResultsModel::applySort()
 {
     if (sortColumn == Column::check)

@@ -141,8 +141,26 @@ void RemovalPage::itemsGone (const juce::Array<juce::File>& files)
     updateSummary();
 }
 
-void RemovalPage::removedByAction (const juce::Array<juce::File>& files)
+void RemovalPage::itemsChanged (const std::vector<FileEntry>& entries)
 {
+    model.update (entries);
+    table.refresh();
+    updateSummary();
+}
+
+void RemovalPage::actionDone (const RemovalReport& report)
+{
+    if (! report.shrunk.empty())
+        itemsChanged (report.shrunk);
+
+    removed (report.files);
+}
+
+void RemovalPage::removed (const juce::Array<juce::File>& files)
+{
+    if (onItemsRemoved != nullptr && ! files.isEmpty())
+        onItemsRemoved (files);
+
     itemsGone (files);
     notifySelection ({});
 }
@@ -156,7 +174,7 @@ void RemovalPage::forgetMissing (const juce::Array<juce::File>& files)
             missing.add (file);
 
     if (! missing.isEmpty())
-        removedByAction (missing);
+        removed (missing);
 }
 
 void RemovalPage::cycleChecks()

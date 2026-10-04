@@ -21,7 +21,11 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
    **Delete permanently** (bypasses the Recycle Bin, with a strong warning). All three run behind a progress window with a Cancel button.
    Items inside an already-checked folder are not counted twice. Moving to a folder never
    overwrites: on a name clash the moved item becomes `name (2).ext`; folders moved across drives
-   are copied first and the original is deleted only after the copy succeeded.
+   are copied first and the original is deleted only after the copy succeeded (an item that can't be renamed on
+   the same drive, e.g. a file in use, is left where it is rather than copied). Cancel stops at the next file, also in the
+   middle of a long copy or deletion. Items changed since the analysis (for folders: anything inside them) are left untouched,
+   and so are items of a group of copies (duplicates, versions, an archive and its folder...) whose kept copy is gone or changed:
+   the last copy is never removed. What an action removes also leaves the lists of the other pages.
 
 ### Cache Cleaner
 

@@ -40,18 +40,16 @@ void RemovalActions::run (std::vector<FileEntry> items, const juce::String& wind
                           std::function<juce::String (const RemovalReport&)> done)
 {
     auto report = std::make_shared<RemovalReport>();
+    auto keepers = host.keepersOf (items);
 
     ProgressTask::run (owner, windowTitle,
-                       [report, items = std::move (items), expand = host.removalExpander(), action = std::move (action)] (const ScanContext& context) mutable
+                       [report, items = std::move (items), keepers = std::move (keepers), expand = host.removalExpander(),
+                        action = std::move (action)] (const ScanContext& context) mutable
                        {
                            if (expand != nullptr)
-                               items = expand (std::move (items));
+                               items = expand (std::move (items), context);
 
-                           *report = action (std::move (items), [&context] (double fraction, const juce::String& item)
-                           {
-                               context.progress (fraction, item);
-                               return ! context.isCancelled();
-                           });
+                           *report = action (std::move (items), context, keepers);
                        },
                        [this, report, boxTitle, done = std::move (done)] (bool, const juce::String& error)
                        {
@@ -125,8 +123,8 @@ void RemovalActions::moveToFolder()
                                            settings.set ("moveTarget", destination.getFullPathName());
 
                                            run (checked, "Moving to folder",
-                                                [destination] (std::vector<FileEntry> items, const Removal::Progress& progress)
-                                                { return Removal::toFolder (std::move (items), destination, progress); },
+                                                [destination] (std::vector<FileEntry> items, const ScanContext& context, const Removal::Keepers& keepers)
+                                                { return Removal::toFolder (std::move (items), destination, context, keepers); },
                                                 "Move to folder",
                                                 [destination] (const RemovalReport& r)
                                                 {
@@ -139,7 +137,7 @@ void RemovalActions::moveToFolder()
 
 void RemovalActions::finish (const RemovalReport& report, const juce::String& boxTitle, const juce::String& done)
 {
-    host.removedByAction (report.files);
+    host.actionDone (report);
 
     auto message = Format::count (report.processed, "item") + " " + done;
 
@@ -158,12 +156,17 @@ void RemovalActions::finish (const RemovalReport& report, const juce::String& bo
             message << "\n\n" << advice;
     }
 
+    if (! report.partlyDeleted.isEmpty())
+        message << "\n\n" << Format::count (report.partlyDeleted.size(), "folder") << " deleted only in part:\n"
+                << Format::wrappable (report.partlyDeleted.joinIntoString ("\n"));
+
     if (! report.leftBehind.isEmpty())
         message << "\n\n" << Format::count (report.leftBehind.size(), "item")
                 << " copied to the destination, but the original could not be removed completely (a file may be in use). "
                    "Both copies exist:\n" << Format::wrappable (report.leftBehind.joinIntoString ("\n"));
 
-    juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() && report.leftBehind.isEmpty() ? juce::MessageBoxIconType::InfoIcon
+    juce::AlertWindow::showMessageBoxAsync (report.failures.isEmpty() && report.leftBehind.isEmpty() && report.partlyDeleted.isEmpty()
+                                              ? juce::MessageBoxIconType::InfoIcon
                                                                                                      : juce::MessageBoxIconType::WarningIcon,
                                             boxTitle, message);
 }

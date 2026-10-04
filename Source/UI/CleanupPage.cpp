@@ -287,18 +287,22 @@ void CleanupPage::updateButtons()
     removeButton.setEnabled (! table.getSelectedFiles().isEmpty());
 }
 
-std::function<std::vector<FileEntry> (std::vector<FileEntry>)> CleanupPage::removalExpander() const
+RemovalActions::Host::Expander CleanupPage::removalExpander() const
 {
-    return [] (std::vector<FileEntry> folders)
+    return [] (std::vector<FileEntry> folders, const ScanContext& context)
     {
         std::vector<FileEntry> contents;
 
         for (const auto& folder : folders)
         {
+            if (context.isCancelled())
+                return std::vector<FileEntry>();     // Nothing is done rather than part of it.
+
             if (EmptyFolders::isTooBroad (folder.file))
                 continue;
 
-            auto children = EmptyFolders::contentsOf (folder.file);
+            context.progress (-1.0, "Listing " + folder.file.getFullPathName() + "...");
+            auto children = EmptyFolders::contentsOf (folder.file, context);
             contents.insert (contents.end(), children.begin(), children.end());
         }
 

@@ -13,7 +13,7 @@ namespace
                            "Files in the same folder, with the same extension, whose names start the same way but end "
                            "differently (e.g. report.pdf, report (1).pdf, report_final.pdf). "
                            "By default the most recently modified file of each group is kept.",
-                           Trait::grouped },
+                           Trait::grouped | Trait::groupsOfCopies },
                         { DefaultSelection::followsSort, Column::modified, false }) {}
 
         ParameterSet createParameters() const override

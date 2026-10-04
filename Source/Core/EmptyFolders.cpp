@@ -212,10 +212,11 @@ std::vector<EmptyFolders::Group> EmptyFolders::groupByCommonParent (const std::v
     return result;
 }
 
-std::vector<FileEntry> EmptyFolders::contentsOf (const juce::File& folder)
+std::vector<FileEntry> EmptyFolders::contentsOf (const juce::File& folder, const ScanContext& context)
 {
-    ScanContext context;
-    context.root = folder;
-    context.recursive = false;
-    return FileScanner::scan (context);
+    auto children = context;
+    children.root = folder;
+    children.recursive = false;
+    children.onProgress = nullptr;      // The caller reports which folder it lists.
+    return FileScanner::scan (children);
 }

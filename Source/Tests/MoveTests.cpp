@@ -4,6 +4,29 @@
 #include "../Core/MoveToFolder.h"
 #include "../Core/Removal.h"
 
+#if JUCE_WINDOWS
+ #ifndef NOMINMAX
+  #define NOMINMAX
+ #endif
+ #include <windows.h>
+
+namespace
+{
+    /** Keeps a file open the way a running program does: readable, but it can't be deleted or renamed. */
+    struct FileInUse
+    {
+        explicit FileInUse (const juce::File& file)
+            : handle (CreateFileW (file.getFullPathName().toWideCharPointer(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr)) {}
+        ~FileInUse()                        { if (isOpen()) CloseHandle (handle); }
+        bool isOpen() const noexcept        { return handle != INVALID_HANDLE_VALUE; }
+
+        HANDLE handle;
+    };
+}
+#endif
+
+
 class MoveTests final : public juce::UnitTest
 {
 public:
@@ -132,6 +155,7 @@ public:
         }
 #endif
 
+#if JUCE_WINDOWS
         beginTest ("A source that can't be removed completely is reported, not lost");
         {
             TempFolder temp;
@@ -140,16 +164,91 @@ public:
             const auto tree = temp.root.getChildFile ("src/tree");
             const auto target = temp.root.getChildFile ("moved-tree");
 
-            if (stuck.setReadOnly (true))      // A read-only file can't be deleted: stands in for a file in use.
             {
+                const FileInUse inUse (stuck);
+                expect (inUse.isOpen());
                 expect (MoveToFolder::moveItem (tree, target, true) == MoveToFolder::Outcome::copiedOriginalKept);
                 expect (target.getChildFile ("stuck.txt").existsAsFile());
                 expect (target.getChildFile ("free.txt").existsAsFile());
                 expect (stuck.existsAsFile());
-
-                stuck.setReadOnly (false);
-                target.getChildFile ("stuck.txt").setReadOnly (false);
             }
+        }
+
+        beginTest ("A rename that fails is not turned into a copy");
+        {
+            TempFolder temp;
+            const auto file = temp.write ("busy.txt", "b");
+            const auto target = temp.root.getChildFile ("elsewhere.txt");
+
+            const FileInUse inUse (file);
+            expect (MoveToFolder::moveItem (file, target) == MoveToFolder::Outcome::failed);
+            expect (! target.exists());
+        }
+#endif
+
+        beginTest ("Read-only items are deleted; a file in use leaves a folder deleted in part");
+        {
+            TempFolder temp;
+            const auto readOnly = temp.write ("tree/locked.txt", "r");
+            temp.write ("tree/plain.txt", "p");
+            readOnly.setReadOnly (true);
+
+            auto report = Removal::deletePermanently ({ FileScanner::makeEntry (temp.root.getChildFile ("tree")) });
+            expectEquals (report.processed, 1);
+            expect (! temp.root.getChildFile ("tree").exists());
+
+#if JUCE_WINDOWS
+            const auto busy = temp.write ("other/busy.txt", "busy");
+            temp.write ("other/free.txt", "free");
+            const auto other = FileScanner::makeEntry (temp.root.getChildFile ("other"));
+            {
+                const FileInUse inUse (busy);
+                report = Removal::deletePermanently ({ other });
+            }
+
+            expectEquals (report.processed, 0);
+            expectEquals (report.partlyDeleted.size(), 1);
+
+            if (report.shrunk.size() == 1)
+                expectEquals (report.shrunk[0].fileCount, 1);
+            else
+                expect (false, "the folder deleted in part was not measured again");
+
+            expect (busy.existsAsFile() && ! temp.root.getChildFile ("other/free.txt").exists());
+#endif
+        }
+
+        beginTest ("A folder changed deep inside since the analysis is left untouched");
+        {
+            TempFolder temp;
+            temp.write ("tree/sub/deeper/a.txt", "a");
+            const auto entry = FileScanner::makeEntry (temp.root.getChildFile ("tree"));
+            temp.write ("tree/sub/deeper/new.txt", "added after the analysis");     // Only "deeper" changes its date.
+
+            const auto report = Removal::deletePermanently ({ entry });
+            expectEquals (report.processed, 0);
+            expect (temp.root.getChildFile ("tree/sub/deeper/new.txt").existsAsFile());
+        }
+
+        beginTest ("The last copy of a group is never removed");
+        {
+            TempFolder temp;
+            const auto kept = FileScanner::makeEntry (temp.write ("keep.txt", "same"));
+            const auto copy = FileScanner::makeEntry (temp.write ("copy.txt", "same"));
+
+            Removal::Keepers keepers;
+            keepers.add ({ copy }, { kept });
+
+            kept.file.deleteFile();     // Removed meanwhile, e.g. from another page.
+            auto report = Removal::deletePermanently ({ copy }, {}, keepers);
+            expectEquals (report.processed, 0);
+            expect (copy.file.existsAsFile());
+
+            const auto keptAgain = FileScanner::makeEntry (temp.write ("keep.txt", "same"));
+            Removal::Keepers present;
+            present.add ({ copy }, { keptAgain });
+            report = Removal::deletePermanently ({ copy }, {}, present);
+            expectEquals (report.processed, 1);
         }
 
         beginTest ("Items changed since the analysis are left untouched");
@@ -201,12 +300,14 @@ private:
         std::vector<double> fractions;
         juce::StringArray seen;
 
-        const auto report = Removal::deletePermanently (entries, [&] (double fraction, const juce::String& itemName)
+        ScanContext reporting;
+        reporting.onProgress = [&] (double fraction, const juce::String& itemName)
         {
             fractions.push_back (fraction);
             seen.add (itemName);
-            return true;
-        });
+        };
+
+        const auto report = Removal::deletePermanently (entries, reporting);
 
         expectEquals (report.processed, 4);
         expect (! report.cancelled);
@@ -224,7 +325,10 @@ private:
         const auto dest = temp.root.getChildFile ("dest");
         dest.createDirectory();
         int calls = 0;
-        const auto partial = Removal::toFolder (more, dest, [&] (double, const juce::String&) { return ++calls <= 2; });
+        ScanContext stopping;
+        stopping.onProgress = [&] (double, const juce::String&) { ++calls; };
+        stopping.shouldStop = [&] { return calls > 2; };
+        const auto partial = Removal::toFolder (more, dest, stopping);
 
         expect (partial.cancelled);
         expectEquals (partial.processed, 2);

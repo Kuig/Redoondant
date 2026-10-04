@@ -15,7 +15,7 @@ namespace
             : Criterion ({ "duplicates", "Duplicate files",
                            "Files with identical content: same size then same bytes, or the same SHA-256 checksum (slower, reads every file). "
                            "By default the file with the shortest name of each group is kept and the others are checked.",
-                           Trait::grouped },
+                           Trait::grouped | Trait::groupsOfCopies },
                         { DefaultSelection::shortestName, Column::name }) {}
 
         ParameterSet createParameters() const override

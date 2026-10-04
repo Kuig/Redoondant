@@ -25,6 +25,12 @@ public:
     /** Called when the list, the filters or the checks changed (for the histogram of the preview). */
     std::function<void()> onListChanged;
 
+    /** Called with the files an action of this page (or the Explorer menu) removed or moved: other pages forget them too. */
+    std::function<void (const juce::Array<juce::File>&)> onItemsRemoved;
+
+    /** Another page removed or moved these files: they leave this list. */
+    void forgetRemoved (const juce::Array<juce::File>& files)    { itemsGone (files); }
+
     /** What the histogram sums up: every entry, the visible ones (filters) and the checked ones. */
     Histogram::Input getHistogramInput() const;
 
@@ -70,7 +76,8 @@ protected:
 
     // What the actions ask (RemovalActions::Host); the defaults suit a plain list of items.
     std::vector<FileEntry> checkedEntries() const override      { return model.getCheckedEntries(); }
-    std::function<std::vector<FileEntry> (std::vector<FileEntry>)> removalExpander() const override    { return {}; }
+    Expander removalExpander() const override                   { return {}; }
+    Removal::Keepers keepersOf (const std::vector<FileEntry>&) const override  { return {}; }
     juce::String describe (const std::vector<FileEntry>& checked) const override;
     int groupsWithoutKeptItem() const override                  { return 0; }
     juce::String failureAdvice() const override                 { return {}; }
@@ -78,6 +85,9 @@ protected:
 
     /** Called with the files that are no longer where they were (moved, deleted): update the list. */
     virtual void itemsGone (const juce::Array<juce::File>& files);
+
+    /** Called with items that changed (folders deleted in part, measured again): update them in the list. */
+    virtual void itemsChanged (const std::vector<FileEntry>& entries);
 
     /** What the list holds, in the summary and the confirmations: "item", "folder"... */
     virtual juce::String itemNoun() const                       { return "item"; }
@@ -104,8 +114,10 @@ private:
     void cycleChecks();
     void selectDefault (DefaultSelection selection);
 
-    /** Drops the files from the list (itemsGone) and clears the preview. */
-    void removedByAction (const juce::Array<juce::File>& files) final;
+    void actionDone (const RemovalReport& report) final;
+
+    /** Drops the files from this list and the others (itemsGone, onItemsRemoved) and clears the preview. */
+    void removed (const juce::Array<juce::File>& files);
 
     /** Drops the files that no longer exist (e.g. deleted from the context menu) from the list. */
     void forgetMissing (const juce::Array<juce::File>& files);

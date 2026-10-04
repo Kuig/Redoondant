@@ -91,6 +91,7 @@
         <FILE id="ZoQalL" name="ShellContextMenu.h" compile="0" resource="0"
               file="Source/Platform/ShellContextMenu.h"/>
         <FILE id="RcBin1" name="RecycleBin.h" compile="0" resource="0" file="Source/Platform/RecycleBin.h"/>
+        <FILE id="FlSys1" name="FileSystem.h" compile="0" resource="0" file="Source/Platform/FileSystem.h"/>
         <FILE id="b0oKxQ" name="ShellIcon.h" compile="0" resource="0" file="Source/Platform/ShellIcon.h"/>
         <FILE id="HDLDFV" name="ShellThumbnail.h" compile="0" resource="0"
               file="Source/Platform/ShellThumbnail.h"/>

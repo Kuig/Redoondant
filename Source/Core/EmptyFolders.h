@@ -1,6 +1,7 @@
 #pragma once
 
 #include "FileEntry.h"
+#include "ScanContext.h"
 
 /** Folders whose content can be emptied without harm (temporary files, caches): the default
     list, path helpers (environment variables) and the grouping used to present them.
@@ -38,6 +39,6 @@ namespace EmptyFolders
     */
     std::vector<Group> groupByCommonParent (const std::vector<juce::File>& folders);
 
-    /** The direct children of a folder (the things that "emptying" it moves), with sizes. */
-    std::vector<FileEntry> contentsOf (const juce::File& folder);
+    /** The direct children of a folder (the things that "emptying" it moves), with sizes; stops early when `context` is cancelled. */
+    std::vector<FileEntry> contentsOf (const juce::File& folder, const ScanContext& context = {});
 }

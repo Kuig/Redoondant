@@ -181,6 +181,14 @@ void MainComponent::wirePage (RemovalPage& page)
     page.getRootFolder = [this] { return getRootFolder(); };
     page.onSelectionChanged = [this] (std::vector<FileEntry> entries) { preview.show (std::move (entries)); };
     page.onListChanged = [this, &page] { if (currentPage == &page) preview.refreshHistogram(); };
+
+    // What one page removed is gone for all: another page must not offer it again, nor keep the copy of a group that no longer exists.
+    page.onItemsRemoved = [this, &page] (const juce::Array<juce::File>& files)
+    {
+        for (auto& entry : entries)
+            if (entry.page.get() != &page)
+                entry.page->forgetRemoved (files);
+    };
     addChildComponent (page);
 }
 
