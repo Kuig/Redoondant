@@ -144,8 +144,8 @@ MainComponent::MainComponent (Settings& appSettings, const juce::File& folderToO
         settings.set ("layout.right", preview.getWidth());
     };
 
-    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &resetSettingsButton, &helpButton, &sidebar,
-                                                               &leftBar, &rightBar, &preview })
+    for (auto* c : std::initializer_list<juce::Component*> { &folderLabel, &folderEditor, &browseButton, &explorerMenuButton, &resetSettingsButton,
+                                                               &helpButton, &sidebar, &leftBar, &rightBar, &preview })
         addAndMakeVisible (c);
 
     int selected = 0;
