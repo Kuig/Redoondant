@@ -88,9 +88,10 @@ void RemovalActions::deletePermanently()
 {
     auto checked = host.checkedEntries();
 
-    confirm (owner, juce::MessageBoxIconType::WarningIcon, "Delete permanently",
-             "Permanently delete " + host.describe (checked) + "?\n\nThey bypass the Recycle Bin and can't be restored." + groupWarning(),
-             "Delete permanently",
+    // Written before the call: the order of its arguments is unspecified, and the action moves `checked` away.
+    const auto question = "Permanently delete " + host.describe (checked) + "?\n\nThey bypass the Recycle Bin and can't be restored." + groupWarning();
+
+    confirm (owner, juce::MessageBoxIconType::WarningIcon, "Delete permanently", question, "Delete permanently",
              [this, checked = std::move (checked)]
              {
                  run (checked, "Deleting", Removal::deletePermanently, "Delete permanently",
@@ -113,11 +114,10 @@ void RemovalActions::moveToFolder()
                                   return;
 
                               auto checked = host.checkedEntries();
+                              const auto question = "Move " + host.describe (checked) + " to\n" + Format::wrappable (destination.getFullPathName()) + " ?";
 
                               // An info box rather than a warning: moving keeps the files, unlike the Recycle Bin.
-                              confirm (owner, juce::MessageBoxIconType::InfoIcon, "Move to folder",
-                                       "Move " + host.describe (checked) + " to\n" + Format::wrappable (destination.getFullPathName()) + " ?",
-                                       "Move",
+                              confirm (owner, juce::MessageBoxIconType::InfoIcon, "Move to folder", question, "Move",
                                        [this, destination, checked = std::move (checked)]
                                        {
                                            settings.set ("moveTarget", destination.getFullPathName());
