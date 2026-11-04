@@ -57,6 +57,18 @@ private:
             { "Drums/long take.wav", 20 * mb, ContentKind::samples },
             { "120bpm groove.aiff", 20 * mb, ContentKind::samples },
             { "Screenshot.wav", 20 * mb, ContentKind::music },          // "shot" counts as a word only on its own.
+            { "deck.pptx", 1000, ContentKind::slides },
+            { "budget.xlsx", 1000, ContentKind::administration },
+            { "export.csv", 1000, ContentKind::data },
+            { "novel.epub", 1000, ContentKind::books },
+            { "scan.pdf", 25 * mb, ContentKind::books },
+            { "paper.pdf", mb, ContentKind::documents },
+            { "Title 978-0-13-468599-1.pdf", mb, ContentKind::books },
+            { "Title 978-0-13-468599-2.pdf", mb, ContentKind::documents },     // Wrong check digit.
+            { "0-306-40615-2 Title.pdf", mb, ContentKind::books },
+            { "export 1699999999.pdf", mb, ContentKind::documents },           // Ten bare digits: a timestamp, not an ISBN.
+            { "Books/a.pdf", mb, ContentKind::books },
+            { "invoice 2024.pdf", mb, ContentKind::documents },
             { "app.ts", 10000, ContentKind::sourceCode },
             { "clip.ts", 5 * mb, ContentKind::video },
             { "Folder\\name.mp4", 1000, ContentKind::video } };
@@ -93,6 +105,25 @@ private:
             expectKind (classify (temp.root.getChildFile ("unknown")), ContentKind::other, "nothing recognised");
             expectKind (classify (temp.root.getChildFile ("empty")), ContentKind::other, "empty");
             expectKind (classify (temp.root.getChildFile ("installer/readme.txt")), ContentKind::documents, "a single file");
+        }
+
+        beginTest ("Spreadsheets bring their documents and pictures; slides and long PDFs have kinds of their own");
+        {
+            for (const auto* path : { "admin/budget.xlsx", "admin/a.pdf", "admin/b.pdf", "admin/c.pdf", "admin/scan1.jpg", "admin/scan2.jpg",
+                                      "lesson/a.pdf", "lesson/b.pdf", "lesson/deck.pptx",
+                                      "talks/a.pptx", "talks/b.pptx", "talks/c.pptx", "talks/notes.pdf",
+                                      "library/long.pdf", "library/short.pdf", "library/longer.pdf" })
+                temp.write (path, "x");
+
+            expectKind (classify (temp.root.getChildFile ("admin")), ContentKind::administration, "admin");
+            expectKind (classify (temp.root.getChildFile ("lesson")), ContentKind::documents, "lesson");
+            expectKind (classify (temp.root.getChildFile ("talks")), ContentKind::slides, "talks");
+
+            const auto pages = [] (const juce::File& f) { return f.getFileName().startsWith ("long") ? 300 : 10; };
+            ContentKinds::Classifier counting ({}, pages);
+            expectKind (counting.of (FileScanner::makeEntry (temp.root.getChildFile ("library/long.pdf"))), ContentKind::books, "long.pdf");
+            expectKind (counting.of (FileScanner::makeEntry (temp.root.getChildFile ("library/short.pdf"))), ContentKind::documents, "short.pdf");
+            expectKind (counting.of (FileScanner::makeEntry (temp.root.getChildFile ("library"))), ContentKind::books, "library");
         }
 
         beginTest ("Archives are listed; archives inside them are not opened");

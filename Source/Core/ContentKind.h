@@ -22,6 +22,9 @@ enum class ContentKind
     music,
     samples,
     mediaProject,
+    slides,
+    administration,     ///< Spreadsheets, with the documents and pictures that go with them.
+    books,
     documents,
     data,
     other           ///< Nothing recognised in it.
@@ -41,8 +44,9 @@ namespace ContentKinds
 
     /** Classifies items by their content. Each file recognised counts one point for its kind; a marker (a project file,
         a `.git` folder, an installer at most one level down, a plugin bundle, a project of a media application) gives its
-        kind more points than the files examined, so it decides unless another kind has one too. The highest score wins,
-        ties go to the kind that comes first in all(); nothing recognised is `other`.
+        kind more points than the files examined, so it decides unless another kind has one too. An item with a spreadsheet
+        also counts its documents and pictures for administration. The highest score wins, ties go to the kind that comes
+        first in all(); nothing recognised is `other`. A PDF on disk with many pages is a book.
 
         Folders are read one level at a time and their tallies are kept for the life of the classifier, so classifying a
         folder and then one inside it reads nothing twice. Archives are listed, archives inside them are not opened.
@@ -51,8 +55,13 @@ namespace ContentKinds
     class Classifier
     {
     public:
-        /** The context only tells when to stop (see ScanContext::isCancelled). */
-        explicit Classifier (ScanContext context);
+        /** The number of pages of a PDF, or -1 if it can't be read. */
+        using PageCounter = std::function<int (const juce::File&)>;
+
+        /** The context only tells when to stop (see ScanContext::isCancelled). Without `pagesOf`, PDFium counts the pages
+            (see PdfDocument::pageCount).
+        */
+        explicit Classifier (ScanContext context, PageCounter pagesOf = {});
 
         ContentKind of (const FileEntry& entry);
 
@@ -75,7 +84,11 @@ namespace ContentKinds
 
     private:
         ScanContext context;
+        PageCounter pagesOf;
         std::map<juce::String, Tally> folders;      // Paths::key -> tally of the folder's whole content.
+
+        /** ContentKinds::ofFile(), then for a PDF that its name and size leave among the documents, its number of pages. */
+        ContentKind kindOnDisk (const juce::File& file, const juce::String& path, juce::int64 size) const;
 
         const Tally& folderTally (const juce::File& folder);
         Tally archiveTally (const juce::File& archive);

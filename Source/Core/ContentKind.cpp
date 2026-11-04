@@ -3,6 +3,7 @@
 #include "FileScanner.h"
 #include "Paths.h"
 #include "../Archives/ArchiveReader.h"
+#include "../Pdf/PdfDocument.h"
 #include <optional>
 
 namespace
@@ -11,6 +12,8 @@ namespace
 
     constexpr juce::int64 maxSampleBytes = 10 * 1024 * 1024;    // Uncompressed audio smaller than this is a sample: a song takes more.
     constexpr juce::int64 minVideoStreamBytes = 1024 * 1024;    // A .ts file larger than this is a video stream, not TypeScript.
+    constexpr juce::int64 minBookBytes = 20 * 1024 * 1024;      // A PDF this large is a book (or a scanned one).
+    constexpr int minBookPages = 150;
 
     struct KindInfo
     {
@@ -19,7 +22,7 @@ namespace
         const char* extensions;     ///< Space separated, lowercase, without dots.
     };
 
-    // .ts, .wav, .aif and .aiff depend on more than the extension: see ContentKinds::ofFile.
+    // .ts, .wav, .aif, .aiff and .pdf depend on more than the extension: see ContentKinds::ofFile.
     const KindInfo kindTable[] =
     {
         { ContentKind::sourceCode,   "Source code",       "c cc cpp cxx h hh hpp m mm cs java kt py ipynb rb go rs swift js mjs cjs tsx jsx vue php "
@@ -33,7 +36,10 @@ namespace
         { ContentKind::music,        "Music",             "mp3 m4a aac ogg opus wma flac alac ape" },
         { ContentKind::samples,      "Samples",           "sf2 sfz nki" },
         { ContentKind::mediaProject, "Media projects",    "prproj aep cpr npr als rpp ptx logicx band flp maxpat pd dorico sib musx aup aup3 veg drp" },
-        { ContentKind::documents,    "Documents",         "pdf doc docx xls xlsx ppt pptx odt ods odp rtf epub mobi txt md tex bib chm pages key numbers" },
+        { ContentKind::slides,       "Slides",            "ppt pptx pptm pps ppsx pot potx odp key" },
+        { ContentKind::administration, "Administration",  "xls xlsx xlsm ods numbers" },
+        { ContentKind::books,        "Books",             "epub mobi azw azw3 kfx fb2 djvu cbz cbr ibooks chm" },
+        { ContentKind::documents,    "Documents",         "doc docx odt rtf txt md tex bib pages" },
         { ContentKind::data,         "Data",              "csv tsv json mat parquet h5 hdf5 npy npz pkl feather arff sqlite db sav" },
         { ContentKind::other,        "Other",             "" },
     };
@@ -66,12 +72,15 @@ namespace
         return found != byExtension.end() ? std::optional<ContentKind> (found->second) : std::nullopt;
     }
 
-    /** Whether a word of the path (letters only, so "120bpm" and "Kick_01" count) says it is a sample. */
-    bool namesSamples (const juce::String& path)
+    const juce::StringArray sampleWords { "sample", "samples", "loop", "loops", "kick", "kicks", "snare", "snares", "hat", "hats",
+                                          "hihat", "hihats", "ir", "irs", "impulse", "impulses", "bpm", "kit", "kits",
+                                          "oneshot", "oneshots", "shot", "shots", "drum", "drums" };
+
+    const juce::StringArray bookWords { "ebook", "ebooks", "edition", "isbn", "book", "books", "libri", "libro", "epub" };
+
+    /** Whether the path has one of `words` as a word of its own (letters only, so "120bpm" and "Kick_01" count). */
+    bool hasWord (const juce::String& path, const juce::StringArray& words)
     {
-        static const juce::StringArray words { "sample", "samples", "loop", "loops", "kick", "kicks", "snare", "snares", "hat", "hats",
-                                               "hihat", "hihats", "ir", "irs", "impulse", "impulses", "bpm", "kit", "kits",
-                                               "oneshot", "oneshots", "shot", "shots", "drum", "drums" };
         const auto lower = path.toLowerCase();
         juce::String letters;
 
@@ -83,6 +92,60 @@ namespace
                 return true;
 
         return false;
+    }
+
+    /** Whether the name holds an ISBN with a valid check digit: 13 digits starting with 978 or 979, or 10 written with
+        hyphens (bare, 10 digits are more often a timestamp). Hyphens are ignored.
+    */
+    bool hasIsbn (const juce::String& name)
+    {
+        const juce::String digitChars ("0123456789");
+
+        const auto isValid = [&] (const juce::String& digits)
+        {
+            int sum = 0;
+
+            if (digits.length() == 13)
+            {
+                if (! digits.containsOnly (digitChars) || ! (digits.startsWith ("978") || digits.startsWith ("979")))
+                    return false;
+
+                for (int i = 0; i < 13; ++i)
+                    sum += (digits[i] - '0') * (i % 2 == 0 ? 1 : 3);
+
+                return sum % 10 == 0;
+            }
+
+            if (! digits.substring (0, 9).containsOnly (digitChars) || ! (digitChars + "x").containsChar (digits[9]))
+                return false;
+
+            for (int i = 0; i < 10; ++i)
+                sum += (digits[i] == 'x' ? 10 : digits[i] - '0') * (10 - i);
+
+            return sum % 11 == 0;
+        };
+
+        const auto lower = name.toLowerCase();
+        juce::String runs;
+
+        for (auto p = lower.getCharPointer(); ! p.isEmpty(); ++p)
+            runs += (digitChars + "-x").containsChar (*p) ? *p : (juce::juce_wchar) ' ';
+
+        for (const auto& run : juce::StringArray::fromTokens (runs, " ", {}))
+        {
+            const auto digits = run.removeCharacters ("-");
+
+            if ((digits.length() == 13 || (digits.length() == 10 && run.containsChar ('-'))) && isValid (digits))
+                return true;
+        }
+
+        return false;
+    }
+
+    /** What makes a PDF a book without opening it: its size, an ISBN in its name, or a word such as "ebook" in its path. */
+    bool looksLikeBook (const juce::String& path, juce::int64 size)
+    {
+        return size >= minBookBytes || hasIsbn (path.fromLastOccurrenceOf ("/", false, false)) || hasWord (path, bookWords);
     }
 
     bool isInstaller (const juce::String& name)
@@ -108,12 +171,12 @@ namespace
         return std::nullopt;
     }
 
-    /** Counts a file `depth` levels below the item (0: directly inside it). */
-    void countFile (Tally& tally, const juce::String& path, juce::int64 size, int depth)
+    /** Counts a file of the given kind `depth` levels below the item (0: directly inside it). */
+    void countFile (Tally& tally, const juce::String& path, ContentKind kind, int depth)
     {
         ++tally.files;
 
-        if (const auto kind = ContentKinds::ofFile (path, size); kind != ContentKind::other)
+        if (kind != ContentKind::other)
             ++tally.points[(size_t) kind];
 
         const auto name = path.fromLastOccurrenceOf ("/", false, false);
@@ -159,7 +222,10 @@ ContentKind ContentKinds::ofFile (const juce::String& relativePath, juce::int64 
         return size > minVideoStreamBytes ? ContentKind::video : ContentKind::sourceCode;
 
     if (extension == "wav" || extension == "aif" || extension == "aiff")
-        return size < maxSampleBytes || namesSamples (path) ? ContentKind::samples : ContentKind::music;
+        return size < maxSampleBytes || hasWord (path, sampleWords) ? ContentKind::samples : ContentKind::music;
+
+    if (extension == "pdf")
+        return looksLikeBook (path, size) ? ContentKind::books : ContentKind::documents;
 
     return kindOfExtension (extension).value_or (ContentKind::other);
 }
@@ -186,7 +252,11 @@ ContentKind ContentKinds::Classifier::Tally::winner() const
     {
         const auto i = (size_t) kind;
         const bool isMarked = marked[i] || (kind == ContentKind::application && (installerAtTop || installerBelow));
-        const int score = points[i] + (isMarked ? files + 1 : 0);      // More than any kind without a marker can have.
+        auto score = points[i] + (isMarked ? files + 1 : 0);      // More than any kind without a marker can have.
+
+        // Spreadsheets bring the documents and pictures that go with them (invoices, receipts, scans).
+        if (kind == ContentKind::administration && points[i] > 0)
+            score += points[(size_t) ContentKind::documents] + points[(size_t) ContentKind::pictures];
 
         if (kind != ContentKind::other && score > bestScore)
         {
@@ -198,7 +268,18 @@ ContentKind ContentKinds::Classifier::Tally::winner() const
     return best;
 }
 
-ContentKinds::Classifier::Classifier (ScanContext c) : context (std::move (c)) {}
+ContentKinds::Classifier::Classifier (ScanContext c, PageCounter counter)
+    : context (std::move (c)), pagesOf (counter != nullptr ? std::move (counter) : PageCounter (PdfDocument::pageCount)) {}
+
+ContentKind ContentKinds::Classifier::kindOnDisk (const juce::File& file, const juce::String& path, juce::int64 size) const
+{
+    const auto kind = ofFile (path, size);
+
+    if (kind == ContentKind::documents && PdfDocument::isPdf (file) && pagesOf (file) >= minBookPages)
+        return ContentKind::books;
+
+    return kind;
+}
 
 ContentKind ContentKinds::Classifier::of (const FileEntry& entry)
 {
@@ -209,7 +290,8 @@ ContentKind ContentKinds::Classifier::of (const FileEntry& entry)
         return archiveTally (entry.file).winner();
 
     Tally tally;
-    countFile (tally, entry.file.getParentDirectory().getFileName() + "/" + entry.name(), entry.size, 0);
+    const auto path = entry.file.getParentDirectory().getFileName() + "/" + entry.name();
+    countFile (tally, path, kindOnDisk (entry.file, path, entry.size), 0);
     return tally.winner();
 }
 
@@ -238,7 +320,10 @@ const ContentKinds::Classifier::Tally& ContentKinds::Classifier::folderTally (co
             const auto file = item.getFile();
 
             if (! item.isDirectory())
-                countFile (tally, name + "/" + file.getFileName(), item.getFileSize(), 0);
+            {
+                const auto path = name + "/" + file.getFileName();
+                countFile (tally, path, kindOnDisk (file, path, item.getFileSize()), 0);
+            }
             else if (! file.isSymbolicLink())
                 tally.addFolder (folderTally (file));
         }
@@ -263,7 +348,7 @@ ContentKinds::Classifier::Tally ContentKinds::Classifier::archiveTally (const ju
             if (const auto marker = markerOf (segments[i], true))
                 tally.marked[(size_t) *marker] = true;
 
-        countFile (tally, entry.path, entry.size, juce::jmax (0, segments.size() - 1));
+        countFile (tally, entry.path, ofFile (entry.path, entry.size), juce::jmax (0, segments.size() - 1));
     }
 
     return tally;

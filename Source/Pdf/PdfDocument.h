@@ -15,6 +15,9 @@ namespace PdfDocument
     /** Title, author, dates, producer, PDF version, page count and size (canonical keys where they exist). */
     Metadata readMetadata (const juce::File& file);
 
+    /** The number of pages, or -1 if PDFium is missing or the file can't be read (cheaper than readMetadata). */
+    int pageCount (const juce::File& file);
+
     /** Renders a page on a white background, scaled so that its longest side is maxPixels.
         Returns an invalid image on failure.
     */

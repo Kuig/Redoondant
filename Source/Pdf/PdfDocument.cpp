@@ -216,6 +216,17 @@ Metadata PdfDocument::readMetadata (const juce::File& file)
     return metadata;
 }
 
+int PdfDocument::pageCount (const juce::File& file)
+{
+    std::lock_guard<std::mutex> lock (pdfiumLock);
+
+    if (! ensureInitialised())
+        return -1;
+
+    Document document (file);
+    return document.get() != nullptr ? FPDF_GetPageCount (document.get()) : -1;
+}
+
 juce::Image PdfDocument::renderPage (const juce::File& file, int pageIndex, int maxPixels)
 {
     std::lock_guard<std::mutex> lock (pdfiumLock);

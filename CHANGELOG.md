@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 - *Content kind*: a new criterion, after *Manual inspection*, that groups every item of the folder by what it holds, judged from the files
   inside folders and archives: source code, applications, audio plugins, fonts, pictures, graphics & design, video, music, samples,
-  media projects, documents, data or other. Project files, `.git` folders, installers, plugin bundles and media projects decide the kind.
+  media projects, slides, administration, books, documents, data or other. Project files, `.git` folders, installers, plugin bundles and
+  media projects decide the kind; an item with a spreadsheet counts its documents and pictures for administration; long PDFs are books.
   It is not recursive and checks nothing.
 - *Content kind* column, filter and histogram property on every criterion page, filled in the background after each analysis.
+
+### Fixed
+- *Move to folder* and *Delete permanently*: the confirmation said "0 items (0 bytes)"; the action already got the right items.
 
 ## [1.2.0] - 2026-10-04
 ### Added
