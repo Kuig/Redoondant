@@ -12,7 +12,8 @@
 class MainComponent final : public juce::Component
 {
 public:
-    explicit MainComponent (Settings& settings);
+    /** folderToOpen: the folder to analyze instead of the saved one (from "Open in Redoondant"), if valid. */
+    MainComponent (Settings& settings, const juce::File& folderToOpen = {});
     ~MainComponent() override;
 
     void paint (juce::Graphics&) override;
@@ -65,6 +66,7 @@ private:
     juce::Label folderLabel { {}, "Folder:" };
     juce::TextEditor folderEditor;
     juce::TextButton browseButton { "Browse..." };
+    juce::ToggleButton explorerMenuButton { "Explorer menu" };
     juce::TextButton resetSettingsButton { "Reset settings" };
     juce::TextButton helpButton { "?" };
     juce::TooltipWindow tooltipWindow { this };      // Shows the tooltips of all child components.
@@ -99,6 +101,7 @@ private:
     void setRootFolder (const juce::File& folder);
     void browseForFolder();
     void confirmResetSettings();
+    void setExplorerMenu (bool shouldBeInstalled);
     void showPage (int index);
     void showCleanupPage();
     void setCurrentPage (RemovalPage* page);

@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   media projects decide the kind; an item with a spreadsheet counts its documents and pictures for administration; long PDFs are books.
   It is not recursive and checks nothing.
 - *Content kind* column, filter and histogram property on every criterion page, filled in the background after each analysis.
+- *Explorer menu* check box in the top bar: adds *Open in Redoondant* to the right-click menu of folders in Explorer (and of the empty
+  space inside a folder; on Windows 11 under *Show more options*), for the current user only. Redoondant opens on the folder passed on
+  the command line. *Reset settings* removes the entry too.
 
 ### Fixed
 - *Move to folder* and *Delete permanently*: the confirmation said "0 items (0 bytes)"; the action already got the right items.

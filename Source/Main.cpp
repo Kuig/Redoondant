@@ -12,6 +12,7 @@
 #include <JuceHeader.h>
 #include "MainComponent.h"
 #include "UI/ProgressTask.h"
+#include "Platform/ExplorerMenu.h"
 
 //==============================================================================
 class RedoondantApplication final : public juce::JUCEApplication
@@ -29,8 +30,10 @@ public:
             return;
         }
 
+        ExplorerMenu::repairIfMoved();
         settings = std::make_unique<Settings>();
-        mainWindow = std::make_unique<MainWindow> (getApplicationName() + " " + getApplicationVersion(), *settings);
+        mainWindow = std::make_unique<MainWindow> (getApplicationName() + " " + getApplicationVersion(), *settings,
+                                                   ExplorerMenu::folderFromCommandLine (commandLine));
     }
 
     void shutdown() override
@@ -60,7 +63,8 @@ public:
     class MainWindow final : public juce::DocumentWindow
     {
     public:
-        MainWindow (const juce::String& name, Settings& s)
+        /** folderToOpen: the folder chosen in Explorer ("Open in Redoondant"), or invalid to open the saved one. */
+        MainWindow (const juce::String& name, Settings& s, const juce::File& folderToOpen)
             : DocumentWindow (name,
                               juce::Desktop::getInstance().getDefaultLookAndFeel()
                                                           .findColour (juce::ResizableWindow::backgroundColourId),
@@ -68,7 +72,7 @@ public:
               settings (s.root())
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent (s), true);
+            setContentOwned (new MainComponent (s, folderToOpen), true);
             setResizable (true, true);
             setResizeLimits (900, 500, 10000, 10000);
 

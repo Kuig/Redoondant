@@ -7,6 +7,10 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
 ## Usage
 
 1. Choose the folder to analyze (top bar; defaults to `~/Downloads`). The **?** button opens the project page on GitHub.
+   With **Explorer menu** checked, right-clicking a folder in Explorer (or the empty space inside one) offers **Open in Redoondant**,
+   which starts Redoondant on that folder (on Windows 11 the entry is under *Show more options*). The entry is registered for the
+   current user only (no administrator rights); unchecking the box, or *Reset settings*, takes it away. If Redoondant is moved, the
+   next start points the entry at the new location.
 2. Pick a criterion on the left, adjust its settings, optionally enable **Recursive**.
 3. Press **Analyze**. Every page has filters (name contains / doesn't contain, folder, words to exclude if the path contains them (`;` separated; only for recursive analyses), type and content kind with several choices, date of a chosen kind - modified, created or content created - in buckets from today to more than 2 years ago, size) that hide rows; hidden rows are never checked or acted on. Candidates are listed with size and dates; grouped criteria show
    a separator row per group (a drop-down on the right orders the groups: analysis order, name, most items, largest, newest, oldest; its checkbox cycles the group: default checks, all, none).

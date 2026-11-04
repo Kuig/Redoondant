@@ -7,6 +7,7 @@
 #include "../Platform/RecycleBin.h"
 #include "../Criteria/AllCriteria.h"
 #include "../Platform/ComInit.h"
+#include "../Platform/ExplorerMenu.h"
 
 namespace
 {
@@ -362,7 +363,39 @@ public:
     }
 };
 
+//==============================================================================
+class ExplorerMenuTests final : public juce::UnitTest
+{
+public:
+    ExplorerMenuTests() : UnitTest ("Explorer menu", "Redoondant") {}
+
+    void runTest() override
+    {
+        TempFolder temp;
+        const auto folder = temp.root.getChildFile ("With spaces");
+        folder.createDirectory();
+        const auto file = temp.write ("file.txt", "x");
+
+        beginTest ("The folder Explorer passes is found, quoted or not");
+        expectEquals (ExplorerMenu::folderFromCommandLine (folder.getFullPathName().quoted()).getFullPathName(), folder.getFullPathName());
+        expectEquals (ExplorerMenu::folderFromCommandLine (temp.root.getFullPathName()).getFullPathName(), temp.root.getFullPathName());
+        expectEquals (ExplorerMenu::folderFromCommandLine ("--flag " + folder.getFullPathName().quoted()).getFullPathName(), folder.getFullPathName());
+
+        beginTest ("A drive root keeps its closing quote after the backslash");
+        const auto drive = temp.root.getFullPathName().substring (0, 3);       // "C:\"
+        expectEquals (ExplorerMenu::folderFromCommandLine (drive.quoted()).getFullPathName(), juce::File (drive).getFullPathName());
+
+        beginTest ("No folder: files, missing paths, relative paths and options are ignored");
+        expect (ExplorerMenu::folderFromCommandLine ({}) == juce::File());
+        expect (ExplorerMenu::folderFromCommandLine ("--test") == juce::File());
+        expect (ExplorerMenu::folderFromCommandLine (file.getFullPathName().quoted()) == juce::File());
+        expect (ExplorerMenu::folderFromCommandLine (temp.root.getChildFile ("missing").getFullPathName().quoted()) == juce::File());
+        expect (ExplorerMenu::folderFromCommandLine ("With spaces") == juce::File());
+    }
+};
+
 static GroupingTests groupingTests;
 static RegistryTests registryTests;
 static RemovalTests removalTests;
 static CriteriaTests criteriaTests;
+static ExplorerMenuTests explorerMenuTests;

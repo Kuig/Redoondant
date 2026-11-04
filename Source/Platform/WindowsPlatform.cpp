@@ -1,5 +1,5 @@
 /*  Windows-specific services: COM initialisation, shell thumbnails, Explorer context menus,
-    the Recycle Bin and Property System metadata.
+    the "Open in Redoondant" entry of the Explorer menu, the Recycle Bin and Property System metadata.
     Other platforms get no-op fallbacks.
 */
 
@@ -23,6 +23,7 @@
 #endif
 
 #include "ComInit.h"
+#include "ExplorerMenu.h"
 #include "FileSystem.h"
 #include "RecycleBin.h"
 #include "ShellContextMenu.h"
@@ -645,6 +646,66 @@ juce::File FileSystem::finalPath (const juce::File& file)
     return juce::File (path);
 }
 
+//==============================================================================
+namespace
+{
+    // Under HKEY_CURRENT_USER\Software\Classes: a verb for this user only, on the folder itself (%1) and on the empty space inside it (%V).
+    struct MenuVerb { const char* key; const char* argument; };
+    const MenuVerb menuVerbs[] = { { "Directory\\shell\\Redoondant",            "%1" },
+                                   { "Directory\\Background\\shell\\Redoondant", "%V" } };
+    const juce::String classesKey ("HKEY_CURRENT_USER\\Software\\Classes\\");
+
+    juce::File thisExecutable()
+    {
+        return juce::File::getSpecialLocation (juce::File::currentExecutableFile);
+    }
+}
+
+bool ExplorerMenu::isInstalled()
+{
+    return juce::WindowsRegistry::keyExists (classesKey + menuVerbs[0].key + "\\command");
+}
+
+bool ExplorerMenu::install()
+{
+    const auto exe = thisExecutable().getFullPathName();
+    bool ok = true;
+
+    for (const auto& verb : menuVerbs)
+    {
+        const auto key = classesKey + verb.key + "\\";
+        ok = juce::WindowsRegistry::setValue (key, "Open in Redoondant") && ok;      // The trailing backslash names the default value.
+        ok = juce::WindowsRegistry::setValue (key + "Icon", exe.quoted() + ",0") && ok;
+        ok = juce::WindowsRegistry::setValue (key + "command\\", exe.quoted() + " " + juce::String (verb.argument).quoted()) && ok;
+    }
+
+    return ok;
+}
+
+bool ExplorerMenu::uninstall()
+{
+    bool ok = true;
+
+    for (const auto& verb : menuVerbs)
+        if (juce::WindowsRegistry::keyExists (classesKey + verb.key))
+            ok = juce::WindowsRegistry::deleteKey (classesKey + verb.key) && ok;
+
+    return ok;
+}
+
+void ExplorerMenu::repairIfMoved()
+{
+    if (! isInstalled())
+        return;
+
+    // Another copy that still exists (e.g. a second build) keeps the entry: only a missing executable is replaced.
+    const auto command = juce::WindowsRegistry::getValue (classesKey + menuVerbs[0].key + "\\command\\");
+    const juce::File registered (command.fromFirstOccurrenceOf ("\"", false, false).upToFirstOccurrenceOf ("\"", false, false));
+
+    if (! registered.existsAsFile())
+        install();
+}
+
 #else
 
 juce::File FileSystem::finalPath (const juce::File& file)
@@ -681,8 +742,30 @@ std::vector<RecycleBin::Outcome> RecycleBin::move (const std::vector<juce::File>
     return outcomes;
 }
 Metadata MetadataReader::readSystemProperties (const juce::File&, bool)   { return {}; }
+bool ExplorerMenu::isInstalled()                                          { return false; }
+bool ExplorerMenu::install()                                              { return false; }
+bool ExplorerMenu::uninstall()                                            { return true; }
+void ExplorerMenu::repairIfMoved()                                        {}
 
 #endif
+
+//==============================================================================
+juce::File ExplorerMenu::folderFromCommandLine (const juce::String& commandLine)
+{
+    // No escapes: Explorer passes a drive root as "C:\" and the backslash must not hide the closing quote.
+    for (const auto& token : juce::StringArray::fromTokens (commandLine, true))
+    {
+        const auto argument = token.unquoted().trim();
+
+        if (argument.isEmpty() || argument.startsWith ("-") || ! juce::File::isAbsolutePath (argument))
+            continue;
+
+        if (const juce::File folder (argument); folder.isDirectory())
+            return folder;
+    }
+
+    return {};
+}
 
 //==============================================================================
 FileSystem::Deletion FileSystem::deleteTree (const juce::File& file, const ShouldStop& shouldStop)

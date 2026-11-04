@@ -1,5 +1,6 @@
 #include "MainComponent.h"
 #include "Criteria/AllCriteria.h"
+#include "Platform/ExplorerMenu.h"
 
 namespace
 {
@@ -85,7 +86,7 @@ void MainComponent::Sidebar::resized()
 }
 
 //==============================================================================
-MainComponent::MainComponent (Settings& appSettings)
+MainComponent::MainComponent (Settings& appSettings, const juce::File& folderToOpen)
     : appSettings (appSettings),
       settings (appSettings.root()),
       preview (settings.child ("preview"))
@@ -111,10 +112,15 @@ MainComponent::MainComponent (Settings& appSettings)
     cacheEntry.onClick = [this] { showCleanupPage(); };
 
     const juce::File savedFolder (settings.get ("folder"));
-    setRootFolder (savedFolder.isDirectory() ? savedFolder : defaultFolder());
+    setRootFolder (folderToOpen.isDirectory() ? folderToOpen : savedFolder.isDirectory() ? savedFolder : defaultFolder());
     folderEditor.onReturnKey = [this] { commitFolderText(); };
     folderEditor.onFocusLost = folderEditor.onReturnKey;
     browseButton.onClick = [this] { browseForFolder(); };
+
+    explorerMenuButton.setTooltip ("Add \"Open in Redoondant\" to the right-click menu of folders in Explorer "
+                                   "(on Windows 11, under \"Show more options\")");
+    explorerMenuButton.setToggleState (ExplorerMenu::isInstalled(), juce::dontSendNotification);
+    explorerMenuButton.onClick = [this] { setExplorerMenu (explorerMenuButton.getToggleState()); };
 
     resetSettingsButton.setTooltip ("Delete the saved settings of Redoondant from this computer");
     resetSettingsButton.onClick = [this] { confirmResetSettings(); };
@@ -223,14 +229,27 @@ void MainComponent::confirmResetSettings()
 {
     RemovalActions::confirm (*this, juce::MessageBoxIconType::QuestionIcon, "Reset settings",
                              "Delete the saved settings (folder, filters, column layout, window position, "
-                             "the Cache Cleaner list...)?\n\n" + appSettings.file().getFullPathName()
+                             "the Cache Cleaner list...) and the \"Open in Redoondant\" entry of the Explorer menu?\n\n"
+                             + appSettings.file().getFullPathName()
                              + "\n\nRedoondant will close and start from the defaults next time. Your files are not touched.",
                              "Delete settings and close",
                              [this]
                              {
                                  appSettings.discardAll();
+                                 ExplorerMenu::uninstall();
                                  juce::JUCEApplication::getInstance()->quit();
                              });
+}
+
+void MainComponent::setExplorerMenu (bool shouldBeInstalled)
+{
+    if (shouldBeInstalled ? ExplorerMenu::install() : ExplorerMenu::uninstall())
+        return;
+
+    explorerMenuButton.setToggleState (ExplorerMenu::isInstalled(), juce::dontSendNotification);
+    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Explorer menu",
+                                            juce::String ("Windows did not allow ") + (shouldBeInstalled ? "adding" : "removing")
+                                            + " the \"Open in Redoondant\" entry of the folder menu.");
 }
 
 void MainComponent::browseForFolder()
@@ -288,6 +307,8 @@ void MainComponent::resized()
     helpButton.setBounds (folderBar.removeFromRight (28));
     folderBar.removeFromRight (8);
     resetSettingsButton.setBounds (folderBar.removeFromRight (120));
+    folderBar.removeFromRight (8);
+    explorerMenuButton.setBounds (folderBar.removeFromRight (120));
     folderBar.removeFromRight (8);
     browseButton.setBounds (folderBar.removeFromRight (100));
     folderBar.removeFromRight (8);
