@@ -1,4 +1,5 @@
 #include "Histogram.h"
+#include "ContentKind.h"
 #include "FileCategory.h"
 #include "Format.h"
 #include <map>
@@ -11,7 +12,7 @@ namespace
 
 const juce::StringArray& Histogram::propertyNames()
 {
-    static const juce::StringArray names { "Folder", "Size", "Modified", "Created", "Content created", "Type" };
+    static const juce::StringArray names { "Folder", "Size", "Modified", "Created", "Content created", "Type", "Content kind" };
     return names;
 }
 
@@ -167,6 +168,22 @@ std::vector<Histogram::Bin> Histogram::compute (const Input& input, Property pro
             };
             break;
 
+        case Property::contentKind:
+        {
+            const auto& kinds = ContentKinds::all();
+
+            for (size_t i = 0; i < kinds.size(); ++i)
+                addBin (ContentKinds::nameOf (kinds[i]), (int) i);
+
+            addBin ("Not classified", (int) kinds.size(), false);     // Classifying goes on in the background.
+
+            binOf = [&kinds] (const FileEntry& e)
+            {
+                return (int) (std::find (kinds.begin(), kinds.end(), e.contentKind) - kinds.begin());
+            };
+            break;
+        }
+
         case Property::folder:
         {
             std::map<juce::String, Stats> byFolder;
@@ -218,10 +235,11 @@ std::vector<Histogram::Bin> Histogram::compute (const Input& input, Property pro
     fill (input.visible, &Bin::filtered);
     fill (input.checked, &Bin::checked);
 
-    // Types and the unknown date are only listed when something is in them; the folders are already limited.
+    // Types, kinds and the unknown date are only listed when something is in them; the folders are already limited.
     bins.erase (std::remove_if (bins.begin(), bins.end(), [property] (const Bin& b)
     {
-        const bool optional = property == Property::type || (dateKindOf (property) && b.key == Buckets::unknownDate);
+        const bool optional = property == Property::type || property == Property::contentKind
+                               || (dateKindOf (property) && b.key == Buckets::unknownDate);
         return optional && b.total.count == 0;
     }), bins.end());
 

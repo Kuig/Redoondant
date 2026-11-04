@@ -22,6 +22,7 @@ namespace
         { Column::created,  "Created",  125 },
         { Column::contentCreated, "Content created", 125 },
         { Column::type,     "Type",     60 },
+        { Column::contentKind, "Content kind", 110 },
     };
 }
 

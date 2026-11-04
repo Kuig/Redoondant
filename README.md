@@ -8,7 +8,7 @@ ones to the Recycle Bin, reporting how many items were removed and how much spac
 
 1. Choose the folder to analyze (top bar; defaults to `~/Downloads`). The **?** button opens the project page on GitHub.
 2. Pick a criterion on the left, adjust its settings, optionally enable **Recursive**.
-3. Press **Analyze**. Every page has filters (name contains / doesn't contain, folder, words to exclude if the path contains them (`;` separated; only for recursive analyses), type with several choices, date of a chosen kind - modified, created or content created - in buckets from today to more than 2 years ago, size) that hide rows; hidden rows are never checked or acted on. Candidates are listed with size and dates; grouped criteria show
+3. Press **Analyze**. Every page has filters (name contains / doesn't contain, folder, words to exclude if the path contains them (`;` separated; only for recursive analyses), type and content kind with several choices, date of a chosen kind - modified, created or content created - in buckets from today to more than 2 years ago, size) that hide rows; hidden rows are never checked or acted on. Candidates are listed with size and dates; grouped criteria show
    a separator row per group (a drop-down on the right orders the groups: analysis order, name, most items, largest, newest, oldest; its checkbox cycles the group: default checks, all, none).
 4. Check/uncheck items (click the checkbox column, or select rows and press Space; the
    check box in the table header cycles all rows through *default checks*, *check all* and *uncheck all*),
@@ -62,12 +62,14 @@ filters, panel sizes, window position, volume) are saved in
 | Multiple criteria: items | Items marked by at least N criteria, grouped by combination (e.g. "Duplicate files + Old files"); a folder's mark covers its content. Data: existing results of the other pages (with your checks) or re-run all criteria; marked = checked or listed | None |
 | Multiple criteria: folders | The folders with most candidates, from the same marks and settings: top folders by number of marked files, or outermost folders with at least X% of their bytes marked | None |
 | Manual inspection | Everything, sortable by any column (files and folders mixed), filterable by name, type, date and size | None |
+| Content kind | Every item of the folder (not recursive), grouped by what it holds, judged from the files inside folders and archives (archives inside them are not opened): source code, applications, audio plugins, fonts, pictures, graphics & design, video, music, samples, media projects, documents, data, other. Each file found counts for its kind and the kind with most files wins; a marker decides instead: a project file or a `.git` folder (source code), an installer at most one level down (applications), a plugin bundle, a project of a media application. Uncompressed audio is a sample when it is under 10 MB or its name or folder says so (`kick`, `loop`, `IR`, `bpm`...) | None |
 
-**Histogram.** While nothing is selected, the preview area sums up one property of the listed items (folder, size, modified, created, content created or type) as vertical bars, by number of items or by total size. Each bar has three layers: all the items (dim), the ones that pass the filters (brighter) and the checked ones (another colour). A light grid shows the scale (even steps, or decades with the *log* check box). Hover a bar for its statistics (items, size, average, largest item, dates); click it to set the filters so that only its items are shown (click again to take them off). The date and size bars are exactly the buckets of the date and size filters.
+**Histogram.** While nothing is selected, the preview area sums up one property of the listed items (folder, size, modified, created, content created, type or content kind) as vertical bars, by number of items or by total size. Each bar has three layers: all the items (dim), the ones that pass the filters (brighter) and the checked ones (another colour). A light grid shows the scale (even steps, or decades with the *log* check box). Hover a bar for its statistics (items, size, average, largest item, dates); click it to set the filters so that only its items are shown (click again to take them off). The date and size bars are exactly the buckets of the date and size filters.
 
 **Default selection.** The drop-down at the bottom left of every list (except Cache Cleaner) chooses what the *default checks* state means: *none*, *all*, *keep first (follows sort)* (in each group the first visible row, in the current sort order, is the only one left unchecked: it follows column sorting and filters), *keep longest name*, *keep shortest name* (grouped criteria) and *folders only* / *files only* (criteria that list folders). Changing it updates the check boxes unless you cycled them to *all* or *none*; it is remembered per page. The column of the table above says what each criterion starts with; criteria that keep one item per group also start sorted so that it is the one to keep (versions: newest first; same content: largest first; duplicates: by name). *Reset to defaults* restores both.
 
 The *Content created* column (visible by default) is filled in the background after each analysis; files without a real metadata date stay empty.
+The *Content kind* column is filled in the background too, on every page, with the same classes as the *Content kind* criterion; it can be filtered and summed up in the histogram.
 
 Encrypted archives are reported as unreadable. Metadata comes from the Windows Property
 System, so what is shown for a format depends on the property handlers/codecs installed.
@@ -77,7 +79,7 @@ System, so what is shown for a format depends on the property handlers/codecs in
 ```
 Source/
   Core/       FileEntry, FileScanner (tree walk with folder sizes), Paths (how paths are compared), Grouping helpers,
-              DefaultSelection (check strategies), ContentHasher, FileCategory, Removal (Trash/Delete/Move actions),
+              DefaultSelection (check strategies), ContentHasher, FileCategory, ContentKind (what an item holds), Removal (Trash/Delete/Move actions),
               MoveToFolder, EmptyFolders, Settings, Format
   Archives/   ArchiveReader (list / stream entries) implemented with libarchive
   Metadata/   Metadata model, MetadataReader (merges all sources), PE header reader
@@ -86,7 +88,7 @@ Source/
   Criteria/   Criterion base class, Parameter declarations, one file per criterion
   UI/         RemovalPage (checked items; its Move/Trash/Delete actions are RemovalActions), ProgressTask (work behind a
               progress window with Cancel), CriterionPage and
-              CleanupPage (Cache Cleaner) built on it, ContentDateLoader, LatestOnlyWorker (background jobs whose
+              CleanupPage (Cache Cleaner) built on it, BackgroundLoader (content dates and kinds), LatestOnlyWorker (background jobs whose
               results only matter while they are the latest), ResultsModel/ResultsTable, ParametersPanel, FilterBar,
               PreviewPanel, TextPreview, AudioPlayer
   Tests/      juce::UnitTest suites

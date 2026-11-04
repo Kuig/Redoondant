@@ -84,6 +84,10 @@ namespace
     {
         details.add (pathKey, "Path", entry.file.getFullPathName());
         details.add ("Base.Type", "Type", entry.isDirectory ? juce::String ("Folder") : FileCategories::nameOf (FileCategories::of (entry)));
+
+        if (entry.contentKind != ContentKind::unknown)
+            details.add ("Base.ContentKind", "Content kind", ContentKinds::nameOf (entry.contentKind));
+
         details.add ("Base.Size", "Size", Format::size (entry.size) + " (" + juce::String (entry.size) + " bytes)");
 
         if (entry.isDirectory)

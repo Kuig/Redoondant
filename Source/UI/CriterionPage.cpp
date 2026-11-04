@@ -1,5 +1,6 @@
 #include "CriterionPage.h"
 #include "ProgressTask.h"
+#include "../Metadata/ContentDate.h"
 
 CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     : RemovalPage (s),
@@ -47,6 +48,36 @@ CriterionPage::CriterionPage (const Criterion& c, SettingsScope s)
     for (auto* component : std::initializer_list<juce::Component*> { &parametersPanel, &recursiveToggle,
                                                                        &analyseButton, &resetButton, &status })
         addAndMakeVisible (component);
+
+    recursiveToggle.setVisible (! info.topLevelOnly);
+}
+
+BackgroundLoader<juce::Time>::Source CriterionPage::contentDates()
+{
+    return { [this] { return table.isColumnVisible (Column::contentCreated); },
+             [this] { return model.filesNeedingContentDate(); },
+             [] (const ScanContext&) { return [] (const FileEntry& e) { return ContentDate::of (e); }; },
+             [this] (const BackgroundLoader<juce::Time>::Batch& batch, bool last)
+             {
+                 model.setContentDates (batch, last);
+                 table.refresh();
+             } };
+}
+
+BackgroundLoader<ContentKind>::Source CriterionPage::contentKinds()
+{
+    return { [] { return true; },
+             [this] { return model.itemsNeedingContentKind(); },
+             [] (const ScanContext& context)
+             {
+                 auto classifier = std::make_shared<ContentKinds::Classifier> (context);
+                 return [classifier] (const FileEntry& e) { return classifier->of (e); };
+             },
+             [this] (const BackgroundLoader<ContentKind>::Batch& batch, bool last)
+             {
+                 model.setContentKinds (batch, last);
+                 table.refresh();
+             } };
 }
 
 CriterionPage::~CriterionPage() = default;
@@ -63,7 +94,10 @@ void CriterionPage::resized()
     }
 
     auto actions = area.removeFromTop (rowHeight);
-    recursiveToggle.setBounds (actions.removeFromLeft (230));
+
+    if (recursiveToggle.isVisible())
+        recursiveToggle.setBounds (actions.removeFromLeft (230));
+
     analyseButton.setBounds (actions.removeFromLeft (100));
     actions.removeFromLeft (gap);
     resetButton.setBounds (actions.removeFromLeft (130));
@@ -101,7 +135,7 @@ void CriterionPage::analyse()
 
     ScanContext settingsOfRun;
     settingsOfRun.root = root;
-    settingsOfRun.recursive = recursiveToggle.getToggleState();
+    settingsOfRun.recursive = isRecursive();
 
     // Snapshots: the UI may change the settings and the other pages during the analysis.
     auto peers = criterion.getInfo().usesPeers && getPeers != nullptr ? getPeers() : std::vector<PeerCriterion>();
@@ -128,31 +162,40 @@ void CriterionPage::analyse()
 void CriterionPage::showResult (AnalysisResult result, const juce::File& root)
 {
     filterBar->setRoot (root);
-    model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
+    model.setFilter (filterBar->createFilter(), filterBar->uses());
     const bool grouped = criterion.getInfo().grouped || result.nestedGroups;
     model.setResult (std::move (result), root, criterion.getInfo().grouped);
     groupOrderBox.setVisible (grouped);
     resized();
     checks = BulkCheck::defaults;
     table.refresh();
-    status.setText ("Analyzed \"" + root.getFileName() + "\"" + (recursiveToggle.getToggleState() ? " recursively" : "")
+    status.setText ("Analyzed \"" + root.getFileName() + "\"" + (isRecursive() ? " recursively" : "")
                       + " at " + juce::Time::getCurrentTime().formatted ("%H:%M"),
                     juce::dontSendNotification);
     status.setTooltip (root.getFullPathName());
     updateSummary();
     dates.load (true);
+    kinds.load (true);
 }
 
 void CriterionPage::applyFilter()
 {
-    model.setFilter (filterBar->createFilter(), filterBar->usesContentDate());
+    model.setFilter (filterBar->createFilter(), filterBar->uses());
     table.refresh();
     updateSummary();
 }
 
 juce::String CriterionPage::progressNote() const
 {
-    return dates.pending() > 0 ? "reading dates: " + juce::String (dates.pending()) + " left" : juce::String();
+    juce::StringArray notes;
+
+    if (kinds.pending() > 0)
+        notes.add ("classifying: " + juce::String (kinds.pending()) + " left");
+
+    if (dates.pending() > 0)
+        notes.add ("reading dates: " + juce::String (dates.pending()) + " left");
+
+    return notes.joinIntoString (", ");
 }
 
 void CriterionPage::updatePathFilter()
@@ -160,7 +203,7 @@ void CriterionPage::updatePathFilter()
     if (filterBar == nullptr)
         return;
 
-    filterBar->setRecursive (recursiveToggle.getToggleState());
+    filterBar->setRecursive (isRecursive());
     applyFilter();
     resized();
 }
@@ -185,6 +228,7 @@ void CriterionPage::resetToDefaults()
 void CriterionPage::forgetResults()
 {
     dates.cancel();
+    kinds.cancel();
     discardResults();
     status.setText ({}, juce::dontSendNotification);
     status.setTooltip ({});

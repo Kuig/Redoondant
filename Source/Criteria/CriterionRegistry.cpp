@@ -17,6 +17,7 @@ std::vector<std::unique_ptr<Criterion>> Criteria::createAll()
     all.push_back (createInstallersAndJunkFiles());
     all.push_back (createOldFiles());
     all.push_back (createManualInspection());
+    all.push_back (createContentKind());
     all.push_back (createMultipleCriteriaItems());
     all.push_back (createMultipleCriteriaFolders());
 

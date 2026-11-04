@@ -18,6 +18,8 @@
               file="Source/Core/AnalysisResult.h"/>
         <FILE id="9Wvgfy" name="ContentHasher.cpp" compile="1" resource="0"
               file="Source/Core/ContentHasher.cpp"/>
+        <FILE id="CnKnd1" name="ContentKind.cpp" compile="1" resource="0" file="Source/Core/ContentKind.cpp"/>
+        <FILE id="CnKnd2" name="ContentKind.h" compile="0" resource="0" file="Source/Core/ContentKind.h"/>
         <FILE id="gw2wMq" name="ContentHasher.h" compile="0" resource="0" file="Source/Core/ContentHasher.h"/>
         <FILE id="zsO1xM" name="DateKind.h" compile="0" resource="0" file="Source/Core/DateKind.h"/>
         <FILE id="yvOCqJ" name="DefaultSelection.h" compile="0" resource="0" file="Source/Core/DefaultSelection.h"/>
@@ -47,6 +49,8 @@
         <FILE id="68K4Tu" name="AllCriteria.h" compile="0" resource="0" file="Source/Criteria/AllCriteria.h"/>
         <FILE id="nPFz46" name="ArchiveMirrorsCriterion.cpp" compile="1" resource="0"
               file="Source/Criteria/ArchiveMirrorsCriterion.cpp"/>
+        <FILE id="CnKdCr" name="ContentKindCriterion.cpp" compile="1" resource="0"
+              file="Source/Criteria/ContentKindCriterion.cpp"/>
         <FILE id="PDjqip" name="Criterion.h" compile="0" resource="0" file="Source/Criteria/Criterion.h"/>
         <FILE id="VJIqVL" name="CriterionRegistry.cpp" compile="1" resource="0"
               file="Source/Criteria/CriterionRegistry.cpp"/>
@@ -102,6 +106,7 @@
         <FILE id="2QcTtX" name="ArchiveTests.cpp" compile="1" resource="0"
               file="Source/Tests/ArchiveTests.cpp"/>
         <FILE id="Fx9Ghc" name="CleanupTests.cpp" compile="1" resource="0" file="Source/Tests/CleanupTests.cpp"/>
+        <FILE id="CnKdTs" name="ContentKindTests.cpp" compile="1" resource="0" file="Source/Tests/ContentKindTests.cpp"/>
         <FILE id="vhsBkD" name="CoreTests.cpp" compile="1" resource="0" file="Source/Tests/CoreTests.cpp"/>
         <FILE id="CrOpTs" name="CriteriaOptionTests.cpp" compile="1" resource="0" file="Source/Tests/CriteriaOptionTests.cpp"/>
         <FILE id="FlBrTs" name="FilterBarTests.cpp" compile="1" resource="0" file="Source/Tests/FilterBarTests.cpp"/>
@@ -118,8 +123,7 @@
         <FILE id="3Ot1OG" name="AudioPlayer.h" compile="0" resource="0" file="Source/UI/AudioPlayer.h"/>
         <FILE id="W2rj7m" name="CleanupPage.cpp" compile="1" resource="0" file="Source/UI/CleanupPage.cpp"/>
         <FILE id="pN4YUG" name="CleanupPage.h" compile="0" resource="0" file="Source/UI/CleanupPage.h"/>
-        <FILE id="CDLoad1" name="ContentDateLoader.cpp" compile="1" resource="0" file="Source/UI/ContentDateLoader.cpp"/>
-        <FILE id="CDLoad2" name="ContentDateLoader.h" compile="0" resource="0" file="Source/UI/ContentDateLoader.h"/>
+        <FILE id="BgLoad" name="BackgroundLoader.h" compile="0" resource="0" file="Source/UI/BackgroundLoader.h"/>
         <FILE id="MmjxWk" name="CriterionPage.cpp" compile="1" resource="0"
               file="Source/UI/CriterionPage.cpp"/>
         <FILE id="I9X7H6" name="CriterionPage.h" compile="0" resource="0" file="Source/UI/CriterionPage.h"/>

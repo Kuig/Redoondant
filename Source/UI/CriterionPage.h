@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../Criteria/Peers.h"
-#include "ContentDateLoader.h"
+#include "BackgroundLoader.h"
 #include "FilterBar.h"
 #include "ParametersPanel.h"
 #include "RemovalPage.h"
@@ -41,7 +41,11 @@ private:
     std::unique_ptr<FilterBar> filterBar;
     juce::ComboBox groupOrderBox;
     int separatorY = 0;        ///< Where the line between the analysis controls and the filters is drawn.
-    ContentDateLoader dates { model, table, [this] { updateSummary(); } };
+    BackgroundLoader<juce::Time> dates { contentDates(), [this] { updateSummary(); }, true };   // Reading dates uses the Windows Property System.
+    BackgroundLoader<ContentKind> kinds { contentKinds(), [this] { updateSummary(); }, false };
+
+    BackgroundLoader<juce::Time>::Source contentDates();       ///< Read only while their column is shown.
+    BackgroundLoader<ContentKind>::Source contentKinds();      ///< Always found: the filter and the histogram use them too.
 
     void tableLayoutChanged() override                  { dates.load (false); }     // The column may have just been shown or sorted.
     juce::String progressNote() const override;
@@ -58,6 +62,7 @@ private:
     void resetToDefaults();
     void applyDefaultSort();
     void updatePathFilter();        ///< The "exclude if path contains" filter exists only for recursive analyses.
+    bool isRecursive() const        { return ! criterion.getInfo().topLevelOnly && recursiveToggle.getToggleState(); }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CriterionPage)
 };

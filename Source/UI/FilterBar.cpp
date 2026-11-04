@@ -1,4 +1,5 @@
 #include "FilterBar.h"
+#include "../Core/ContentKind.h"
 #include "../Core/FileCategory.h"
 #include "../Core/Format.h"
 #include "../Core/Histogram.h"
@@ -8,8 +9,13 @@ ParameterSet FilterBar::createParameters()
     juce::StringArray types;
     juce::StringArray ages { "Any date" };      // Then the date buckets of the histogram.
 
+    juce::StringArray kinds;
+
     for (auto category : FileCategories::all())
         types.add (FileCategories::nameOf (category));
+
+    for (auto kind : ContentKinds::all())
+        kinds.add (ContentKinds::nameOf (kind));
 
     ages.addArray (Histogram::Buckets::dateNames());
 
@@ -23,6 +29,7 @@ ParameterSet FilterBar::createParameters()
              Parameter::text ("notName", "and not", {}, 120),
              Parameter::text ("folder", "in folder", {}, 120),
              Parameter::multiChoice ("type", {}, "All types", types),
+             Parameter::multiChoice ("kind", {}, "All kinds", kinds),
              kind,
              age,
              Parameter::number ("minSize", "Size from", 0, "MB"),
@@ -46,9 +53,10 @@ void FilterBar::timerCallback()
         onChange();
 }
 
-bool FilterBar::usesContentDate() const
+ResultsModel::FilterUses FilterBar::uses() const
 {
-    return parameters.getEnum<DateKind> ("dateKind") == DateKind::content && parameters.getChoice ("age") > 0;
+    return { parameters.getEnum<DateKind> ("dateKind") == DateKind::content && parameters.getChoice ("age") > 0,
+             ! parameters.getSelection ("kind").isEmpty() };
 }
 
 ResultsModel::Filter FilterBar::createFilter() const
@@ -61,6 +69,11 @@ ResultsModel::Filter FilterBar::createFilter() const
 
     for (const int index : parameters.getSelection ("type"))
         types.push_back (FileCategories::all()[(size_t) index]);
+
+    std::vector<ContentKind> kinds;      // Empty = all kinds; an item not classified yet has none of them.
+
+    for (const int index : parameters.getSelection ("kind"))
+        kinds.push_back (ContentKinds::all()[(size_t) index]);
 
     const auto kind = parameters.getEnum<DateKind> ("dateKind");
     const int dateBucket = parameters.getChoice ("age") - 1;        // -1: any date.
@@ -78,6 +91,9 @@ ResultsModel::Filter FilterBar::createFilter() const
             return false;
 
         if (! types.empty() && std::find (types.begin(), types.end(), FileCategories::of (e)) == types.end())
+            return false;
+
+        if (! kinds.empty() && std::find (kinds.begin(), kinds.end(), e.contentKind) == kinds.end())
             return false;
 
         if (folder.isNotEmpty() && ! Histogram::folderOf (e, base).containsIgnoreCase (folder))
@@ -122,6 +138,11 @@ void FilterBar::applyBin (Property property, const Histogram::Bin& bin)
         case Property::type:
             target = { { "type", juce::String (bin.key) } };
             cleared = { { "type", juce::String() } };
+            break;
+
+        case Property::contentKind:
+            target = { { "kind", juce::String (bin.key) } };
+            cleared = { { "kind", juce::String() } };
             break;
 
         case Property::modified:

@@ -86,10 +86,10 @@ void ResultsModel::clear()
     rows.clear();
 }
 
-void ResultsModel::setFilter (Filter newFilter, bool usesContentDate)
+void ResultsModel::setFilter (Filter newFilter, FilterUses uses)
 {
     filter = std::move (newFilter);
-    filterUsesContentDate = usesContentDate;
+    filterUses = uses;
     refreshVisibility();
     updateViewDependentDefaults();
     rebuildRows();
@@ -165,6 +165,7 @@ juce::String ResultsModel::getCellText (const ResultItem& entry, Column column, 
         case Column::contentCreated:    return Format::date (dateOf (entry, *dateKindOf (column)));
         case Column::type:      return entry.isDirectory ? juce::String ("Folder")
                                                          : entry.file.getFileExtension().fromFirstOccurrenceOf (".", false, false).toUpperCase();
+        case Column::contentKind:   return entry.contentKind == ContentKind::unknown ? juce::String() : ContentKinds::nameOf (entry.contentKind);
         case Column::check:     break;
     }
 
@@ -309,27 +310,44 @@ std::vector<FileEntry> ResultsModel::filesNeedingContentDate() const
     return collect ([] (const ResultItem& e) { return ! e.isDirectory && ! e.missing && e.contentCreated.toMilliseconds() == 0; });
 }
 
-void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates, bool refreshView)
+template <typename Value>
+void ResultsModel::setFilled (const std::vector<std::pair<juce::File, Value>>& values, Value FileEntry::* field, bool refreshView,
+                              Column column, bool filterDepends)
 {
-    std::map<juce::String, juce::Time> byPath;
+    std::map<juce::String, Value> byPath;
 
-    for (const auto& [file, time] : dates)
-        byPath[Paths::key (file)] = time;
+    for (const auto& [file, value] : values)
+        byPath[Paths::key (file)] = value;
 
     for (auto& group : result.groups)
         for (auto& item : group.items)
             if (const auto found = byPath.find (Paths::key (item.file)); found != byPath.end())
-                item.contentCreated = found->second;
+                item.*field = found->second;
 
-    if (refreshView && (sortColumn == Column::contentCreated || filterUsesContentDate))     // The new dates can change the order and what the filter lets through.
+    if (refreshView && (sortColumn == column || filterDepends))     // The new values can change the order and what the filter lets through.
     {
-        if (filterUsesContentDate)
+        if (filterDepends)
             refreshVisibility();
 
         applySort();
         updateViewDependentDefaults();
         rebuildRows();
     }
+}
+
+void ResultsModel::setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates, bool refreshView)
+{
+    setFilled (dates, &FileEntry::contentCreated, refreshView, Column::contentCreated, filterUses.contentDate);
+}
+
+std::vector<FileEntry> ResultsModel::itemsNeedingContentKind() const
+{
+    return collect ([] (const ResultItem& e) { return ! e.missing && e.contentKind == ContentKind::unknown; });
+}
+
+void ResultsModel::setContentKinds (const std::vector<std::pair<juce::File, ContentKind>>& kinds, bool refreshView)
+{
+    setFilled (kinds, &FileEntry::contentKind, refreshView, Column::contentKind, filterUses.contentKind);
 }
 
 std::vector<FileEntry> ResultsModel::getAllEntries() const
@@ -395,8 +413,10 @@ void ResultsModel::update (const std::vector<FileEntry>& entries)
             if (const auto found = byPath.find (Paths::key (item.file)); found != byPath.end())
             {
                 const auto contentCreated = item.contentCreated;
+                const auto contentKind = item.contentKind;
                 static_cast<FileEntry&> (item) = *found->second;
                 item.contentCreated = contentCreated;
+                item.contentKind = contentKind;
                 item.visible = filter == nullptr || filter (item);
             }
 
@@ -454,6 +474,16 @@ void ResultsModel::applySort()
         else if (const auto kind = dateKindOf (sortColumn))
         {
             ordered (group.items, [&] (const ResultItem& a, const ResultItem& b) { return threeWay (dateOf (a, *kind), dateOf (b, *kind)); });
+        }
+        else if (sortColumn == Column::contentKind)
+        {
+            // In display order, the items not classified yet last.
+            const auto rank = [] (const ResultItem& e)
+            {
+                const auto& kinds = ContentKinds::all();
+                return std::find (kinds.begin(), kinds.end(), e.contentKind) - kinds.begin();
+            };
+            ordered (group.items, [&] (const ResultItem& a, const ResultItem& b) { return threeWay (rank (a), rank (b)); });
         }
         else
         {

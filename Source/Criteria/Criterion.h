@@ -25,7 +25,8 @@ public:
         recursiveByDefault = 4,
         showsFolders = 8,           ///< Folders can be listed (so "folders only" / "files only" make sense).
         usesPeers = 16,             ///< Combines the other criteria: analyse() gets them as peers.
-        groupsOfCopies = 32         ///< Each group holds copies of the same thing: an item is only removed while a kept one of its group remains.
+        groupsOfCopies = 32,        ///< Each group holds copies of the same thing: an item is only removed while a kept one of its group remains.
+        topLevelOnly = 64           ///< Only lists the items of the analysed folder itself: Recursive is not offered.
     };
 
     friend constexpr Trait operator| (Trait a, Trait b)    { return static_cast<Trait> (static_cast<unsigned> (a) | static_cast<unsigned> (b)); }
@@ -36,12 +37,13 @@ public:
             : id (std::move (idToUse)), name (std::move (nameToUse)), description (std::move (descriptionToUse)),
               grouped (has (traits, Trait::grouped)), exhaustive (has (traits, Trait::exhaustive)),
               recursiveByDefault (has (traits, Trait::recursiveByDefault)), showsFolders (has (traits, Trait::showsFolders)),
-              usesPeers (has (traits, Trait::usesPeers)), groupsOfCopies (has (traits, Trait::groupsOfCopies)) {}
+              usesPeers (has (traits, Trait::usesPeers)), groupsOfCopies (has (traits, Trait::groupsOfCopies)),
+              topLevelOnly (has (traits, Trait::topLevelOnly)) {}
 
         juce::String id;            ///< Stable key, used for settings.
         juce::String name;
         juce::String description;
-        bool grouped, exhaustive, recursiveByDefault, showsFolders, usesPeers, groupsOfCopies;     ///< See Trait.
+        bool grouped, exhaustive, recursiveByDefault, showsFolders, usesPeers, groupsOfCopies, topLevelOnly;     ///< See Trait.
 
     private:
         static bool has (Trait all, Trait one)  { return (static_cast<unsigned> (all) & static_cast<unsigned> (one)) != 0; }

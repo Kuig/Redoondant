@@ -39,7 +39,7 @@ namespace
             std::set<juce::String> projects;
 
             for (const auto& e : entries)
-                if (isProjectFile (e))
+                if (FileScanner::isProjectFile (e.name()))
                     projects.insert (Paths::key (e.file.getParentDirectory()));
 
             return AnalysisResult::flatSorted (FileScanner::keepIf (std::move (entries), [&] (const FileEntry& e)
@@ -49,16 +49,6 @@ namespace
                                                                                 || projects.count (Paths::key (e.file.getParentDirectory())) > 0);
                                                                     }),
                                                Orderings::largestFirst);
-        }
-
-    private:
-        static bool isProjectFile (const FileEntry& e)
-        {
-            static const juce::StringArray patterns { "*.sln", "*.vcxproj", "*.csproj", "*.fsproj", "*.vbproj", "*.jucer", "*.xcodeproj",
-                                                      "CMakeLists.txt", "Makefile", "meson.build", "package.json", "Cargo.toml", "pom.xml",
-                                                      "build.gradle", "build.gradle.kts", "pyproject.toml", "setup.py", "go.mod" };
-
-            return std::any_of (patterns.begin(), patterns.end(), [&] (const juce::String& p) { return e.name().matchesWildcard (p, true); });
         }
     };
 }

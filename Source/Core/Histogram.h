@@ -5,7 +5,7 @@
 #include <optional>
 
 /** A property of the listed entries that can be summed up in a histogram (the columns of the table, except the name). */
-enum class Property { folder, size, modified, created, contentCreated, type };
+enum class Property { folder, size, modified, created, contentCreated, type, contentKind };
 
 /** What the height of a bar means. */
 enum class Metric { count, size };
@@ -60,7 +60,7 @@ namespace Histogram
     struct Bin
     {
         juce::String label;
-        int key = -1;                   ///< The bucket, or the index in FileCategories::all() for types.
+        int key = -1;                   ///< The bucket, or the index in FileCategories::all() for types, in ContentKinds::all() for kinds.
         juce::String folder;            ///< For folders: what the Folder filter takes.
         bool filterable = true;         ///< Whether clicking it can set a filter.
         Stats total, filtered, checked;
@@ -72,7 +72,8 @@ namespace Histogram
         juce::File root;                                ///< The analysed folder (for the Folder property); none if there is no list.
     };
 
-    /** The bars for `property`. Date and size bars are always the same; types are those present; folders are the
+    /** The bars for `property`. Date and size bars are always the same; types and kinds are those present (with the
+        items not classified yet apart, in a bar that sets no filter); folders are the
         ten with most entries (or bytes) plus "Others", ranked on all the entries.
     */
     std::vector<Bin> compute (const Input& input, Property property, Metric metric, const juce::File& root, juce::Time now);

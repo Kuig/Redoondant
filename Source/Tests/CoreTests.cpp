@@ -338,7 +338,7 @@ public:
                 ids.add (info.id);
             }
 
-            expectEquals (ids.size(), 15);
+            expectEquals (ids.size(), 16);
         }
 
         beginTest ("Criteria only read the parameters they declare");

@@ -4,7 +4,7 @@
 #include "ParametersPanel.h"
 #include "ResultsModel.h"
 
-/** Type (several can be ticked) / date / size / name filters for the results list. All filters combine (AND).
+/** Type and content kind (several can be ticked) / date / size / name filters for the results list. All filters combine (AND).
     Built on ParameterSet, so its editors and persistence come from ParametersPanel.
 */
 class FilterBar final : public juce::Component,
@@ -28,8 +28,8 @@ public:
     /** Sets the filters so that only the entries of a histogram bar are shown (again: takes them off). */
     void applyBin (Property property, const Histogram::Bin& bin);
 
-    /** Whether the filter looks at the content created date (which is read in the background). */
-    bool usesContentDate() const;
+    /** What the filter looks at among the values filled in the background (content created date, content kind). */
+    ResultsModel::FilterUses uses() const;
 
     /** A predicate reflecting the current filter values. */
     ResultsModel::Filter createFilter() const;

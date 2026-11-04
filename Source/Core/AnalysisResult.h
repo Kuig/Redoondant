@@ -12,7 +12,8 @@ enum class Column
     modified,
     created,
     type,
-    contentCreated
+    contentCreated,
+    contentKind
 };
 
 /** A set of related entries (e.g. identical files). Ungrouped criteria use a single untitled group. */
@@ -33,8 +34,9 @@ struct AnalysisResult
     std::vector<ResultGroup> groups;
 
     /** The groups are shown as such even if the criterion is not a grouped one (the result decides, e.g. from the settings
-        of the run): each holds an outermost folder with the listed items inside it, so a group may have a single item and
-        losing items does not dissolve it.
+        of the run), and they stand on their own rather than gather related items: each holds an outermost folder with the
+        listed items inside it, or the items of one content kind, so a group may have a single item and losing items does
+        not dissolve it.
     */
     bool nestedGroups = false;
 

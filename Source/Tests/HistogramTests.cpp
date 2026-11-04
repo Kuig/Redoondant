@@ -177,9 +177,11 @@ private:
         {
             auto e = entryAt (temp.root.getChildFile (fileName), size, now - juce::RelativeTime::days (days));
             e.created = e.modified;
+            e.contentKind = ContentKinds::ofFile (fileName, size);
             input.all.push_back (e);
         }
 
+        input.all.back().contentKind = ContentKind::unknown;    // Not classified yet: in a bar of its own, which sets no filter.
         input.visible = input.all;
 
         for (int p = 0; p < Histogram::propertyNames().size(); ++p)

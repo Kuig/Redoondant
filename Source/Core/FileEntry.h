@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "ContentKind.h"
 
 /** A file or folder found during a scan, as listed in the results table. */
 struct FileEntry
@@ -13,6 +14,7 @@ struct FileEntry
     juce::Time modified;
     juce::Time created;
     juce::Time contentCreated;  ///< Oldest date written in the file's metadata (see ContentDate); unknown (0) until read.
+    ContentKind contentKind = ContentKind::unknown;     ///< What it holds (see ContentKinds::Classifier); unknown until classified.
 
     juce::String name() const   { return file.getFileName(); }
 };

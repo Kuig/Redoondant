@@ -21,6 +21,7 @@ namespace Criteria
     std::unique_ptr<Criterion> createOldFiles (MetadataSource source = {});
 
     std::unique_ptr<Criterion> createManualInspection();
+    std::unique_ptr<Criterion> createContentKind();
     std::unique_ptr<Criterion> createSameName();
 
     /** @param source   where metadata comes from (default: MetadataReader::read); tests inject fakes. */

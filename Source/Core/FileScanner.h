@@ -86,6 +86,21 @@ namespace FileScanner
         return ! e.name().endsWithIgnoreCase ("venv") || e.file.getChildFile ("pyvenv.cfg").existsAsFile();
     }
 
+    /** The names (wildcards) of the files that define a software project: solutions, build scripts, package manifests. */
+    inline const juce::StringArray& projectFilePatterns()
+    {
+        static const juce::StringArray patterns { "*.sln", "*.vcxproj", "*.csproj", "*.fsproj", "*.vbproj", "*.jucer", "*.xcodeproj",
+                                                  "CMakeLists.txt", "Makefile", "meson.build", "package.json", "Cargo.toml", "pom.xml",
+                                                  "build.gradle", "build.gradle.kts", "pyproject.toml", "setup.py", "go.mod" };
+        return patterns;
+    }
+
+    inline bool isProjectFile (const juce::String& name)
+    {
+        const auto& patterns = projectFilePatterns();
+        return std::any_of (patterns.begin(), patterns.end(), [&] (const juce::String& p) { return name.matchesWildcard (p, true); });
+    }
+
     /** Keeps only the files of a list of entries. */
     std::vector<FileEntry> filesOnly (std::vector<FileEntry> entries);
 

@@ -34,14 +34,20 @@ public:
 
     using Filter = std::function<bool (const FileEntry&)>;
 
+    /** What a filter looks at among the values filled in the background, so the rows must be filtered again when they arrive. */
+    struct FilterUses
+    {
+        bool contentDate = false;
+        bool contentKind = false;
+    };
+
     /** Shows an analysis result. The items start unchecked and present; `initialise` can set the state of each one
         (`selected`, `missing`): what it checks also becomes the "default checks" state, unless a default selection
         (setDefaultSelection) takes over.
     */
     void setResult (AnalysisResult newResult, const juce::File& scannedRoot, bool isGrouped,
                     const std::function<void (ResultItem&)>& initialise = {});
-    /** `usesContentDate`: the filter looks at the content created date, so the rows must be filtered again when dates arrive. */
-    void setFilter (Filter newFilter, bool usesContentDate = false);
+    void setFilter (Filter newFilter, FilterUses uses = {});
 
     /** Forgets the result (e.g. the analysed folder changed): back to the state before the first analysis. */
     void clear();
@@ -90,6 +96,12 @@ public:
     */
     void setContentDates (const std::vector<std::pair<juce::File, juce::Time>>& dates, bool refreshView = true);
 
+    /** Entries (files and folders) whose content kind is not known yet. */
+    std::vector<FileEntry> itemsNeedingContentKind() const;
+
+    /** Stores content kinds found in the background, like setContentDates(). */
+    void setContentKinds (const std::vector<std::pair<juce::File, ContentKind>>& kinds, bool refreshView = true);
+
     /** Every entry of the result that exists, visible or not. */
     std::vector<FileEntry> getAllEntries() const;
 
@@ -112,7 +124,7 @@ public:
     */
     void remove (const juce::Array<juce::File>& files);
 
-    /** Replaces the scan data (size, dates...) of the listed items that are in `entries`, keeping their state and content date. */
+    /** Replaces the scan data (size, dates...) of the listed items that are in `entries`, keeping their state, content date and kind. */
     void update (const std::vector<FileEntry>& entries);
 
     /** For each group with some of `acted`: the group's other items, which stay (see Removal::Keepers). */
@@ -125,7 +137,7 @@ private:
     bool keepsSmallGroups = false;      ///< A group left with one item stays (nested groups).
     bool analysed = false;
     Filter filter;
-    bool filterUsesContentDate = false;
+    FilterUses filterUses;
     std::optional<DefaultSelection> defaultSelection;
     GroupOrder groupOrder = GroupOrder::analysis;
     Column sortColumn = Column::check;      // Column::check = keep the analysis order.
@@ -150,6 +162,13 @@ private:
 
         return entries;
     }
+
+    /** Stores values found in the background into `field` of the items, then re-sorts and refilters if `refreshView` and
+        the sort column or the filter depends on them.
+    */
+    template <typename Value>
+    void setFilled (const std::vector<std::pair<juce::File, Value>>& values, Value FileEntry::* field, bool refreshView,
+                    Column column, bool filterDepends);
 
     void applySort();
     void sortGroups();

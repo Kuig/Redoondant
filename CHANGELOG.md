@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/0.3.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+### Added
+- *Content kind*: a new criterion, after *Manual inspection*, that groups every item of the folder by what it holds, judged from the files
+  inside folders and archives: source code, applications, audio plugins, fonts, pictures, graphics & design, video, music, samples,
+  media projects, documents, data or other. Project files, `.git` folders, installers, plugin bundles and media projects decide the kind.
+  It is not recursive and checks nothing.
+- *Content kind* column, filter and histogram property on every criterion page, filled in the background after each analysis.
 
 ## [1.2.0] - 2026-10-04
 ### Added
