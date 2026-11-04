@@ -5,6 +5,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 ### Added
+- The line between the preview and the metadata can be dragged to give more room to either; the position is remembered.
 - *Content kind*: a new criterion, after *Manual inspection*, that groups every item of the folder by what it holds, judged from the files
   inside folders and archives: source code, applications, audio plugins, fonts, pictures, graphics & design, video, music, samples,
   media projects, slides, administration, books, documents, data or other. Project files, `.git` folders, installers, plugin bundles and

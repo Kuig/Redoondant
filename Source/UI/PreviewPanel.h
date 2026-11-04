@@ -62,7 +62,25 @@ private:
     bool histogramMode = false;
     AudioPlayer audio;
     Content content = Content::none;
+    SettingsScope settings;
     LatestOnlyWorker loader { true };       ///< Prepares the preview of the latest selection only.
+
+    /** The line between the preview and the metadata: drag it to give more room to either. */
+    class Divider final : public juce::Component
+    {
+    public:
+        std::function<void (int)> onDragged;     ///< The y of the mouse in the parent's coordinates.
+        std::function<void()> onReleased;
+
+        Divider()                                       { setMouseCursor (juce::MouseCursor::UpDownResizeCursor); }
+        void paint (juce::Graphics& g) override         { g.setColour (findColour (juce::ListBox::outlineColourId).withAlpha (0.6f));
+                                                          g.fillRect (0, getHeight() / 2, getWidth(), 1); }
+        void mouseDrag (const juce::MouseEvent& e) override   { if (onDragged != nullptr) onDragged (e.getEventRelativeTo (getParentComponent()).y); }
+        void mouseUp (const juce::MouseEvent&) override       { if (onReleased != nullptr) onReleased(); }
+    };
+
+    Divider divider;
+    double previewFraction = 0.55;          ///< The share of the height the preview gets; the metadata has the rest.
 
     class Tile;
     std::vector<std::unique_ptr<Tile>> tiles;       ///< The previews of a multiple selection.

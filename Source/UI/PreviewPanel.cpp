@@ -18,6 +18,7 @@ namespace
     constexpr int renderPixels = 800;
     constexpr int iconPixels = 128;
     constexpr int maxTiles = 12;
+    constexpr double minPreviewFraction = 0.15, maxPreviewFraction = 0.85;     // What the divider allows the preview.
     constexpr int histogramDelayMs = 250;       // Longest wait before the histogram follows a change of the list.
     const juce::String pathKey ("Base.Path");
 
@@ -221,7 +222,7 @@ private:
 };
 
 PreviewPanel::PreviewPanel (SettingsScope settings)
-    : audio (settings.child ("audio")), histogramSettings (settings.child ("histogram"))
+    : audio (settings.child ("audio")), histogramSettings (settings.child ("histogram")), settings (settings)
 {
     formats.registerBasicFormats();
 
@@ -235,6 +236,17 @@ PreviewPanel::PreviewPanel (SettingsScope settings)
     addChildComponent (text);
     addChildComponent (audio);
     addAndMakeVisible (metadata);
+    addChildComponent (divider);
+
+    previewFraction = juce::jlimit (minPreviewFraction, maxPreviewFraction, settings.getDouble ("split", previewFraction));
+    divider.onDragged = [this] (int y)
+    {
+        const auto top = title.getBottom() + 6;
+        const auto height = juce::jmax (1, getHeight() - 10 - top);
+        previewFraction = juce::jlimit (minPreviewFraction, maxPreviewFraction, (y - top) / (double) height);
+        resized();
+    };
+    divider.onReleased = [this] { this->settings.set ("split", previewFraction); };
 
     propertyBox.addItemList (Histogram::propertyNames(), 1);
     propertyBox.setSelectedItemIndex (juce::jlimit (0, Histogram::propertyNames().size() - 1, histogramSettings.getInt ("property", 1)),
@@ -468,7 +480,8 @@ void PreviewPanel::resized()
         return;
     }
 
-    auto preview = area.removeFromTop (content == Content::audio ? 86 : area.getHeight() * 55 / 100);
+    const bool audioPlayer = content == Content::audio;
+    auto preview = area.removeFromTop (audioPlayer ? 86 : juce::roundToInt (area.getHeight() * previewFraction));
 
     for (auto* c : std::initializer_list<juce::Component*> { &image, &text, &audio })
         c->setBounds (preview);
@@ -485,6 +498,7 @@ void PreviewPanel::resized()
                                  cellWidth, cellHeight);
     }
 
-    area.removeFromTop (8);
+    divider.setVisible (! audioPlayer);
+    divider.setBounds (area.removeFromTop (8));     // The gap between the two is the handle.
     metadata.setBounds (area);
 }
