@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/0.3.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+## [1.3.0] - 2026-11-04
 ### Added
 - The line between the preview and the metadata can be dragged to give more room to either; the position is remembered.
 - *Content kind*: a new criterion, after *Manual inspection*, that groups every item of the folder by what it holds, judged from the files
@@ -150,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Cache Cleaner: empties temporary and cache folders.
 - Windows x64 build (JUCE 8).
 
-[Unreleased]: https://github.com/Kuig/Redoondant/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Kuig/Redoondant/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Kuig/Redoondant/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Kuig/Redoondant/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Kuig/Redoondant/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Kuig/Redoondant/releases/tag/v1.0.0
